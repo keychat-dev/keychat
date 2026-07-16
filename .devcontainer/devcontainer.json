@@ -1,0 +1,15 @@
+{
+  "name": "KeyChat Dev Environment",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "keychat-dev",
+  "workspaceFolder": "/workspace",
+  "remoteUser": "root",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dart-code.flutter",
+        "rust-lang.rust-analyzer"
+      ]
+    }
+  }
+}

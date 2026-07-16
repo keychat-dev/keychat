@@ -1,0 +1,37 @@
+services:
+  keychat-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: keychat-dev:v1.0.0
+    container_name: keychat-dev
+
+    # Using host networking is the simplest way to let the adb client
+    # inside the container reach the adb server (and thus the emulator)
+    # running on the host. This is Linux-only, but that matches this
+    # dev setup. This also lets X11/Wayland forwarding "just work"
+    # without extra port mapping.
+    network_mode: host
+
+    volumes:
+      - .:/workspace
+      # X11 / Wayland sockets for hardware-accelerated GUI rendering
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /run/user/${UID:-1000}/wayland-0:/run/user/1000/wayland-0:ro
+
+    # USB passthrough, prepared in advance for when a real device is
+    # plugged into the host via USB. Not required for the emulator,
+    # since emulator traffic goes over ADB_SERVER_SOCKET (TCP), not USB.
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
+
+    environment:
+      - DISPLAY=${DISPLAY}
+      - WAYLAND_DISPLAY=${WAYLAND_DISPLAY}
+      - XDG_RUNTIME_DIR=/run/user/1000
+
+    # user: "${UID:-1000}:${GID:-1000}"  # kept disabled; remoteUser: root in devcontainer.json
+
+    privileged: true
+    tty: true
+    stdin_open: true
