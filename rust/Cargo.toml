@@ -8,6 +8,9 @@ crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 flutter_rust_bridge = "=2.13.0-beta.4"
+nostr = { version = "0.44.4", features = ["nip44", "nip49", "nip59"] }
+nostr-database = "0.44.0"
+nostr-lmdb = "0.44.1"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
