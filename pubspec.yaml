@@ -36,6 +36,11 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_rust_bridge: 2.13.0-beta.4
   flutter_rust_bridge_hooks: 2.13.0-beta.4
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+  path_provider: ^2.1.4
+  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:
@@ -60,6 +65,11 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  generate: true
+
+  assets:
+    - assets/branding/app_icon.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
