@@ -296,6 +296,12 @@ abstract class AppLocalizations {
   /// **'Write down these words in order and keep them somewhere safe. Anyone with this phrase can restore your account.'**
   String get seedBackupWarning;
 
+  /// No description provided for @seedBackupOnboardingNote.
+  ///
+  /// In en, this message translates to:
+  /// **'You can review this phrase again anytime from Settings > Account.'**
+  String get seedBackupOnboardingNote;
+
   /// No description provided for @logoutButton.
   ///
   /// In en, this message translates to:
@@ -311,8 +317,26 @@ abstract class AppLocalizations {
   /// No description provided for @logoutConfirmBody.
   ///
   /// In en, this message translates to:
-  /// **'If you haven\'t saved a backup file, your account will be deleted permanently.'**
+  /// **'Your account will be deleted from this device, and if you haven\'t saved your seed phrase, it can never be recovered.'**
   String get logoutConfirmBody;
+
+  /// No description provided for @deleteAccountButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account'**
+  String get deleteAccountButton;
+
+  /// No description provided for @deleteAccountConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account?'**
+  String get deleteAccountConfirmTitle;
+
+  /// No description provided for @deleteAccountConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This permanently erases your account, including your seed phrase, from this device and from relays. It can never be recovered.'**
+  String get deleteAccountConfirmBody;
 
   /// No description provided for @relaySettingsTitle.
   ///

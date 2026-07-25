@@ -10,8 +10,10 @@ import 'package:workspace/screens/home.dart';
 import 'package:workspace/screens/login.dart';
 import 'package:workspace/screens/logout.dart' show seedStorageKey;
 import 'package:workspace/screens/relay_settings.dart';
+import 'package:workspace/screens/seed_backup.dart';
 import 'package:workspace/screens/setup_complete.dart';
 import 'package:workspace/src/rust/api/account.dart' as account_api;
+import 'package:workspace/src/rust/api/keys.dart' as keys_api;
 import 'package:workspace/src/rust/frb_generated.dart';
 
 Future<void> main() async {
@@ -106,28 +108,41 @@ class _KeyChatAppState extends State<KeyChatApp> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => RelaySettingsScreen(
-          onContinue: () {
+          onContinue: () async {
+            const secureStorage = FlutterSecureStorage();
+            final mnemonic = await keys_api.generateMnemonic();
+            await secureStorage.write(key: seedStorageKey, value: mnemonic);
+            if (!context.mounted) return;
             Navigator.of(context).push(
-              PageRouteBuilder(
-                pageBuilder: (_, _, _) => SetupCompleteScreen(
-                  displayName: profile.displayName,
-                  onDone: () {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                        builder: (_) => Builder(
-                          builder: (context) => HomeScreen(
-                            profile: profile,
-                            onSelectLanguage: _selectLocale,
-                            onLogout: () => _logout(context),
-                          ),
+              MaterialPageRoute(
+                builder: (_) => SeedBackupScreen(
+                  mnemonic: mnemonic,
+                  onContinue: () {
+                    Navigator.of(context).push(
+                      PageRouteBuilder(
+                        pageBuilder: (_, _, _) => SetupCompleteScreen(
+                          displayName: profile.displayName,
+                          onDone: () {
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(
+                                builder: (_) => Builder(
+                                  builder: (context) => HomeScreen(
+                                    profile: profile,
+                                    onSelectLanguage: _selectLocale,
+                                    onLogout: () => _logout(context),
+                                  ),
+                                ),
+                              ),
+                              (route) => false,
+                            );
+                          },
                         ),
+                        transitionsBuilder: (_, animation, _, child) =>
+                            FadeTransition(opacity: animation, child: child),
                       ),
-                      (route) => false,
                     );
                   },
                 ),
-                transitionsBuilder: (_, animation, _, child) =>
-                    FadeTransition(opacity: animation, child: child),
               ),
             );
           },

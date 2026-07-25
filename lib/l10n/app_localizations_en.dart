@@ -114,6 +114,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Write down these words in order and keep them somewhere safe. Anyone with this phrase can restore your account.';
 
   @override
+  String get seedBackupOnboardingNote =>
+      'You can review this phrase again anytime from Settings > Account.';
+
+  @override
   String get logoutButton => 'Logout';
 
   @override
@@ -121,7 +125,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get logoutConfirmBody =>
-      'If you haven\'t saved a backup file, your account will be deleted permanently.';
+      'Your account will be deleted from this device, and if you haven\'t saved your seed phrase, it can never be recovered.';
+
+  @override
+  String get deleteAccountButton => 'Delete account';
+
+  @override
+  String get deleteAccountConfirmTitle => 'Delete account?';
+
+  @override
+  String get deleteAccountConfirmBody =>
+      'This permanently erases your account, including your seed phrase, from this device and from relays. It can never be recovered.';
 
   @override
   String get relaySettingsTitle => 'Relay settings';

@@ -113,13 +113,27 @@ class AppLocalizationsJa extends AppLocalizations {
       'この単語を順番通りに書き留め、安全な場所に保管してください。このフレーズを知っている人は誰でもアカウントを復元できます。';
 
   @override
+  String get seedBackupOnboardingNote => 'このフレーズは、いつでも設定 > アカウントから確認できます。';
+
+  @override
   String get logoutButton => 'ログアウト';
 
   @override
   String get logoutConfirmTitle => 'ログアウトしますか?';
 
   @override
-  String get logoutConfirmBody => 'バックアップファイルを保存していない場合、アカウントが完全に削除されます。';
+  String get logoutConfirmBody =>
+      'アカウントはこの端末から削除され、シードフレーズを保存していない場合、二度と復元できなくなります。';
+
+  @override
+  String get deleteAccountButton => 'アカウントを削除';
+
+  @override
+  String get deleteAccountConfirmTitle => 'アカウントを削除しますか?';
+
+  @override
+  String get deleteAccountConfirmBody =>
+      'シードフレーズを含め、アカウントがこの端末とリレーの両方から完全に削除され、二度と復元できなくなります。';
 
   @override
   String get relaySettingsTitle => 'リレー設定';
