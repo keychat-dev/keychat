@@ -284,6 +284,18 @@ abstract class AppLocalizations {
   /// **'Account'**
   String get accountSettingsTitle;
 
+  /// No description provided for @seedBackupButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup seed phrase'**
+  String get seedBackupButton;
+
+  /// No description provided for @seedBackupWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Write down these words in order and keep them somewhere safe. Anyone with this phrase can restore your account.'**
+  String get seedBackupWarning;
+
   /// No description provided for @logoutButton.
   ///
   /// In en, this message translates to:

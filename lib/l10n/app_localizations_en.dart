@@ -107,6 +107,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountSettingsTitle => 'Account';
 
   @override
+  String get seedBackupButton => 'Backup seed phrase';
+
+  @override
+  String get seedBackupWarning =>
+      'Write down these words in order and keep them somewhere safe. Anyone with this phrase can restore your account.';
+
+  @override
   String get logoutButton => 'Logout';
 
   @override

@@ -106,6 +106,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get accountSettingsTitle => 'アカウント';
 
   @override
+  String get seedBackupButton => 'シードフレーズをバックアップ';
+
+  @override
+  String get seedBackupWarning =>
+      'この単語を順番通りに書き留め、安全な場所に保管してください。このフレーズを知っている人は誰でもアカウントを復元できます。';
+
+  @override
   String get logoutButton => 'ログアウト';
 
   @override

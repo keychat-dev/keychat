@@ -45,6 +45,8 @@
   "settingsLanguage": "Language",
   "settingsAccount": "Account",
   "accountSettingsTitle": "Account",
+  "seedBackupButton": "Backup seed phrase",
+  "seedBackupWarning": "Write down these words in order and keep them somewhere safe. Anyone with this phrase can restore your account.",
   "logoutButton": "Logout",
   "logoutConfirmTitle": "Logout?",
   "logoutConfirmBody": "If you haven't saved a backup file, your account will be deleted permanently.",

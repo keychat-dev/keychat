@@ -8,7 +8,8 @@ crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 flutter_rust_bridge = "=2.13.0-beta.4"
-nostr = { version = "0.44.4", features = ["nip44", "nip49", "nip59"] }
+nostr = { version = "0.44.4", features = ["nip06", "nip44", "nip49", "nip59"] }
+bip39 = { version = "2", features = ["rand"] }
 nostr-database = "0.44.0"
 nostr-lmdb = "0.44.1"
 serde = { version = "1", features = ["derive"] }

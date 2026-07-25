@@ -31,6 +31,8 @@
   "settingsLanguage": "言語",
   "settingsAccount": "アカウント",
   "accountSettingsTitle": "アカウント",
+  "seedBackupButton": "シードフレーズをバックアップ",
+  "seedBackupWarning": "この単語を順番通りに書き留め、安全な場所に保管してください。このフレーズを知っている人は誰でもアカウントを復元できます。",
   "logoutButton": "ログアウト",
   "logoutConfirmTitle": "ログアウトしますか?",
   "logoutConfirmBody": "バックアップファイルを保存していない場合、アカウントが完全に削除されます。",

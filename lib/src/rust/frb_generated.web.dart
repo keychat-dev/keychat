@@ -7,6 +7,7 @@
 // ignore_for_file: argument_type_not_assignable
 
 import 'api/account.dart';
+import 'api/keys.dart';
 import 'api/relay.dart';
 import 'api/simple.dart';
 import 'dart:async';

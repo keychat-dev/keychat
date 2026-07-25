@@ -2,11 +2,13 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:workspace/l10n/app_localizations.dart';
 import 'package:workspace/screens/auth_choice.dart';
 import 'package:workspace/screens/home.dart';
 import 'package:workspace/screens/login.dart';
+import 'package:workspace/screens/logout.dart' show seedStorageKey;
 import 'package:workspace/screens/relay_settings.dart';
 import 'package:workspace/screens/setup_complete.dart';
 import 'package:workspace/src/rust/api/account.dart' as account_api;
@@ -50,6 +52,8 @@ class _KeyChatAppState extends State<KeyChatApp> {
         }
       }
     }
+    const secureStorage = FlutterSecureStorage();
+    await secureStorage.delete(key: seedStorageKey);
     if (!context.mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => Builder(builder: _buildAuthChoice)),
