@@ -3,10 +3,10 @@ import 'package:workspace/nav_bar.dart';
 import 'package:workspace/screens/chat_list.dart';
 import 'package:workspace/screens/edit_profile.dart';
 import 'package:workspace/screens/login.dart';
-import 'package:workspace/screens/profile_friends.dart';
+import 'package:workspace/screens/account_friends.dart';
 import 'package:workspace/screens/public_chat_list.dart';
 import 'package:workspace/screens/settings.dart';
-import 'package:workspace/src/rust/api/profile.dart' as profile_api;
+import 'package:workspace/src/rust/api/account.dart' as account_api;
 
 /// Home screen shown after profile setup. Hosts the three main sections of
 /// the app behind a bottom navigation bar: Profile & Friends, Talk, and
@@ -16,12 +16,12 @@ class HomeScreen extends StatefulWidget {
     super.key,
     required this.profile,
     required this.onSelectLanguage,
-    required this.onPurgeAccount,
+    required this.onLogout,
   });
 
-  final profile_api.Profile profile;
+  final account_api.Account profile;
   final ValueChanged<Locale> onSelectLanguage;
-  final VoidCallback onPurgeAccount;
+  final VoidCallback onLogout;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -29,13 +29,13 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 1;
-  late profile_api.Profile _profile = widget.profile;
+  late account_api.Account _profile = widget.profile;
 
   // TODO: replace with the real friends list once friend persistence exists.
   final List<String> _friends = [];
 
   Future<void> _editProfile() async {
-    final updated = await Navigator.of(context).push<profile_api.Profile>(
+    final updated = await Navigator.of(context).push<account_api.Account>(
       MaterialPageRoute(builder: (_) => EditProfileScreen(profile: _profile)),
     );
     if (updated == null) return;
@@ -49,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
           profile: _profile,
           onProfileUpdated: (updated) => setState(() => _profile = updated),
           onSelectLanguage: widget.onSelectLanguage,
-          onPurgeAccount: widget.onPurgeAccount,
+          onLogout: widget.onLogout,
         ),
       ),
     );
@@ -58,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final tabs = [
-      ProfileFriendsTab(
+      AccountFriendsTab(
         profile: _profile,
         hasFriends: _friends.isNotEmpty,
         onEditProfile: _editProfile,

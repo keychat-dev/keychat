@@ -3,7 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
-import 'api/profile.dart';
+import 'api/account.dart';
 import 'api/relay.dart';
 import 'api/simple.dart';
 import 'dart:async';
@@ -24,10 +24,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  Account dco_decode_account(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
-  Profile dco_decode_box_autoadd_profile(dynamic raw);
+  Account dco_decode_box_autoadd_account(dynamic raw);
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
@@ -42,10 +45,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
-  Profile? dco_decode_opt_box_autoadd_profile(dynamic raw);
-
-  @protected
-  Profile dco_decode_profile(dynamic raw);
+  Account? dco_decode_opt_box_autoadd_account(dynamic raw);
 
   @protected
   RelayList dco_decode_relay_list(dynamic raw);
@@ -60,10 +60,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  Account sse_decode_account(SseDeserializer deserializer);
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
-  Profile sse_decode_box_autoadd_profile(SseDeserializer deserializer);
+  Account sse_decode_box_autoadd_account(SseDeserializer deserializer);
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
@@ -78,10 +81,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
-  Profile? sse_decode_opt_box_autoadd_profile(SseDeserializer deserializer);
-
-  @protected
-  Profile sse_decode_profile(SseDeserializer deserializer);
+  Account? sse_decode_opt_box_autoadd_account(SseDeserializer deserializer);
 
   @protected
   RelayList sse_decode_relay_list(SseDeserializer deserializer);
@@ -99,10 +99,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_account(Account self, SseSerializer serializer);
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
-  void sse_encode_box_autoadd_profile(Profile self, SseSerializer serializer);
+  void sse_encode_box_autoadd_account(Account self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
@@ -120,13 +123,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
-  void sse_encode_opt_box_autoadd_profile(
-    Profile? self,
+  void sse_encode_opt_box_autoadd_account(
+    Account? self,
     SseSerializer serializer,
   );
-
-  @protected
-  void sse_encode_profile(Profile self, SseSerializer serializer);
 
   @protected
   void sse_encode_relay_list(RelayList self, SseSerializer serializer);

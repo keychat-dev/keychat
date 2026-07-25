@@ -3,7 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
-import 'api/profile.dart';
+import 'api/account.dart';
 import 'api/relay.dart';
 import 'api/simple.dart';
 import 'dart:async';
@@ -68,7 +68,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0-beta.4';
 
   @override
-  int get rustContentHash => -403328846;
+  int get rustContentHash => 1024372605;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -90,11 +90,11 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiSimpleInitApp();
 
-  Future<Profile?> crateApiProfileLoadProfile({required String storageDir});
+  Future<Account?> crateApiAccountLoadAccount({required String storageDir});
 
   Future<RelayList> crateApiRelayLoadRelayList({required String storageDir});
 
-  Future<void> crateApiProfileSaveProfile({
+  Future<void> crateApiAccountSaveAccount({
     required String storageDir,
     required String displayName,
     required String statusMessage,
@@ -226,7 +226,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "init_app", argNames: []);
 
   @override
-  Future<Profile?> crateApiProfileLoadProfile({required String storageDir}) {
+  Future<Account?> crateApiAccountLoadAccount({required String storageDir}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -240,18 +240,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_opt_box_autoadd_profile,
+          decodeSuccessData: sse_decode_opt_box_autoadd_account,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiProfileLoadProfileConstMeta,
+        constMeta: kCrateApiAccountLoadAccountConstMeta,
         argValues: [storageDir],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiProfileLoadProfileConstMeta =>
-      const TaskConstMeta(debugName: "load_profile", argNames: ["storageDir"]);
+  TaskConstMeta get kCrateApiAccountLoadAccountConstMeta =>
+      const TaskConstMeta(debugName: "load_account", argNames: ["storageDir"]);
 
   @override
   Future<RelayList> crateApiRelayLoadRelayList({required String storageDir}) {
@@ -284,7 +284,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  Future<void> crateApiProfileSaveProfile({
+  Future<void> crateApiAccountSaveAccount({
     required String storageDir,
     required String displayName,
     required String statusMessage,
@@ -309,15 +309,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: sse_decode_String,
         ),
-        constMeta: kCrateApiProfileSaveProfileConstMeta,
+        constMeta: kCrateApiAccountSaveAccountConstMeta,
         argValues: [storageDir, displayName, statusMessage, avatarPath],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiProfileSaveProfileConstMeta => const TaskConstMeta(
-    debugName: "save_profile",
+  TaskConstMeta get kCrateApiAccountSaveAccountConstMeta => const TaskConstMeta(
+    debugName: "save_account",
     argNames: ["storageDir", "displayName", "statusMessage", "avatarPath"],
   );
 
@@ -362,15 +362,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Account dco_decode_account(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return Account(
+      displayName: dco_decode_String(arr[0]),
+      statusMessage: dco_decode_String(arr[1]),
+      avatarPath: dco_decode_opt_String(arr[2]),
+    );
+  }
+
+  @protected
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
   }
 
   @protected
-  Profile dco_decode_box_autoadd_profile(dynamic raw) {
+  Account dco_decode_box_autoadd_account(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_profile(raw);
+    return dco_decode_account(raw);
   }
 
   @protected
@@ -398,22 +411,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  Profile? dco_decode_opt_box_autoadd_profile(dynamic raw) {
+  Account? dco_decode_opt_box_autoadd_account(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw == null ? null : dco_decode_box_autoadd_profile(raw);
-  }
-
-  @protected
-  Profile dco_decode_profile(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return Profile(
-      displayName: dco_decode_String(arr[0]),
-      statusMessage: dco_decode_String(arr[1]),
-      avatarPath: dco_decode_opt_String(arr[2]),
-    );
+    return raw == null ? null : dco_decode_box_autoadd_account(raw);
   }
 
   @protected
@@ -445,15 +445,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Account sse_decode_account(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_displayName = sse_decode_String(deserializer);
+    var var_statusMessage = sse_decode_String(deserializer);
+    var var_avatarPath = sse_decode_opt_String(deserializer);
+    return Account(
+      displayName: var_displayName,
+      statusMessage: var_statusMessage,
+      avatarPath: var_avatarPath,
+    );
+  }
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
   }
 
   @protected
-  Profile sse_decode_box_autoadd_profile(SseDeserializer deserializer) {
+  Account sse_decode_box_autoadd_account(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_profile(deserializer));
+    return (sse_decode_account(deserializer));
   }
 
   @protected
@@ -499,27 +512,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  Profile? sse_decode_opt_box_autoadd_profile(SseDeserializer deserializer) {
+  Account? sse_decode_opt_box_autoadd_account(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
-      return (sse_decode_box_autoadd_profile(deserializer));
+      return (sse_decode_box_autoadd_account(deserializer));
     } else {
       return null;
     }
-  }
-
-  @protected
-  Profile sse_decode_profile(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_displayName = sse_decode_String(deserializer);
-    var var_statusMessage = sse_decode_String(deserializer);
-    var var_avatarPath = sse_decode_opt_String(deserializer);
-    return Profile(
-      displayName: var_displayName,
-      statusMessage: var_statusMessage,
-      avatarPath: var_avatarPath,
-    );
   }
 
   @protected
@@ -553,15 +553,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_account(Account self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_String(self.statusMessage, serializer);
+    sse_encode_opt_String(self.avatarPath, serializer);
+  }
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
   }
 
   @protected
-  void sse_encode_box_autoadd_profile(Profile self, SseSerializer serializer) {
+  void sse_encode_box_autoadd_account(Account self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_profile(self, serializer);
+    sse_encode_account(self, serializer);
   }
 
   @protected
@@ -603,24 +611,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_opt_box_autoadd_profile(
-    Profile? self,
+  void sse_encode_opt_box_autoadd_account(
+    Account? self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);
     if (self != null) {
-      sse_encode_box_autoadd_profile(self, serializer);
+      sse_encode_box_autoadd_account(self, serializer);
     }
-  }
-
-  @protected
-  void sse_encode_profile(Profile self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.displayName, serializer);
-    sse_encode_String(self.statusMessage, serializer);
-    sse_encode_opt_String(self.avatarPath, serializer);
   }
 
   @protected

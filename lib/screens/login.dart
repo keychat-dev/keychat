@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/languages.dart';
 
 /// Greige-based color palette.
 class KeychatColors {
@@ -19,10 +18,9 @@ class KeychatColors {
 /// KeyChat has no concept of a fixed account key, so this only decides
 /// the display profile used across the app.
 class ProfileSetupScreen extends StatefulWidget {
-  const ProfileSetupScreen({super.key, this.onContinue, this.onSelectLanguage});
+  const ProfileSetupScreen({super.key, this.onContinue});
 
   final void Function(String displayName, String statusMessage, String? avatarPath)? onContinue;
-  final ValueChanged<Locale>? onSelectLanguage;
 
   @override
   State<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
@@ -132,11 +130,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 ),
               ),
             ),
-            if (widget.onSelectLanguage != null)
+            if (Navigator.canPop(context))
               Positioned(
                 top: 8,
-                right: 16,
-                child: _LanguageSelector(onSelected: widget.onSelectLanguage!),
+                left: 8,
+                child: IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.arrow_back, color: KeychatColors.textSecondary),
+                ),
               ),
           ],
         ),
@@ -148,21 +149,40 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     final avatarPath = _avatarPath;
     return GestureDetector(
       onTap: _pickAvatar,
-      child: Container(
-        width: 88,
-        height: 88,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: KeychatColors.surface,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: avatarPath != null
-            ? Image.file(File(avatarPath), width: 88, height: 88, fit: BoxFit.cover)
-            : Icon(
-                Icons.add_a_photo_outlined,
-                size: 32,
-                color: KeychatColors.textSecondary,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 88,
+            height: 88,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: KeychatColors.surface,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: avatarPath != null
+                ? Image.file(File(avatarPath), width: 88, height: 88, fit: BoxFit.cover)
+                : const Icon(
+                    Icons.photo_outlined,
+                    size: 32,
+                    color: KeychatColors.textSecondary,
+                  ),
+          ),
+          Positioned(
+            right: -6,
+            bottom: -6,
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.45),
+                shape: BoxShape.circle,
+                border: Border.all(color: KeychatColors.background, width: 2),
               ),
+              child: const Icon(Icons.photo_camera_outlined, size: 16, color: Colors.white),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -182,41 +202,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         borderSide: BorderSide(color: KeychatColors.primary, width: 1.5),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    );
-  }
-}
-
-class _LanguageSelector extends StatelessWidget {
-  const _LanguageSelector({required this.onSelected});
-
-  final ValueChanged<Locale> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final currentCode = Localizations.localeOf(context).languageCode;
-    return PopupMenuButton<Locale>(
-      onSelected: onSelected,
-      itemBuilder: (context) => [
-        for (final locale in AppLocalizations.supportedLocales)
-          PopupMenuItem(
-            value: locale,
-            child: Text(languageNames[locale.languageCode] ?? locale.languageCode.toUpperCase()),
-          ),
-      ],
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.translate, size: 18, color: KeychatColors.textSecondary),
-            const SizedBox(width: 6),
-            Text(
-              languageNames[currentCode] ?? currentCode.toUpperCase(),
-              style: const TextStyle(color: KeychatColors.textSecondary, fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -6,37 +6,36 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `profile_path`
+// These functions are ignored because they are not marked as `pub`: `account_path`
 
-/// Saves the profile as JSON under `storage_dir`.
+/// Saves the account as JSON under `storage_dir`.
 /// `storage_dir` must already exist (e.g. the app's documents directory,
 /// resolved on the Dart side via path_provider).
-Future<void> saveProfile({
+Future<void> saveAccount({
   required String storageDir,
   required String displayName,
   required String statusMessage,
   String? avatarPath,
-}) => RustLib.instance.api.crateApiProfileSaveProfile(
+}) => RustLib.instance.api.crateApiAccountSaveAccount(
   storageDir: storageDir,
   displayName: displayName,
   statusMessage: statusMessage,
   avatarPath: avatarPath,
 );
 
-/// Loads a previously saved profile, or `None` if none has been saved yet.
-Future<Profile?> loadProfile({required String storageDir}) =>
-    RustLib.instance.api.crateApiProfileLoadProfile(storageDir: storageDir);
+/// Loads a previously saved account, or `None` if none has been saved yet.
+Future<Account?> loadAccount({required String storageDir}) =>
+    RustLib.instance.api.crateApiAccountLoadAccount(storageDir: storageDir);
 
-/// Local display profile. KeyChat has no fixed account key, so this is the
-/// only per-device identity data that needs to be persisted.
-class Profile {
+/// Local account identity: display info persisted per-device.
+class Account {
   final String displayName;
   final String statusMessage;
 
   /// Absolute path to the avatar image file, if the user picked one.
   final String? avatarPath;
 
-  const Profile({
+  const Account({
     required this.displayName,
     required this.statusMessage,
     this.avatarPath,
@@ -49,7 +48,7 @@ class Profile {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Profile &&
+      other is Account &&
           runtimeType == other.runtimeType &&
           displayName == other.displayName &&
           statusMessage == other.statusMessage &&

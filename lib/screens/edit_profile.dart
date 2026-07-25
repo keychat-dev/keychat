@@ -5,15 +5,15 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:workspace/l10n/app_localizations.dart';
 import 'package:workspace/screens/login.dart';
-import 'package:workspace/src/rust/api/profile.dart' as profile_api;
+import 'package:workspace/src/rust/api/account.dart' as account_api;
 
 /// Lets the user change their avatar, display name, and status message.
-/// Pops with the updated [profile_api.Profile] once saved, or nothing if
+/// Pops with the updated [account_api.Account] once saved, or nothing if
 /// the user cancels.
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key, required this.profile});
 
-  final profile_api.Profile profile;
+  final account_api.Account profile;
 
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
@@ -63,12 +63,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       avatarPath = destination;
     }
 
-    final updatedProfile = profile_api.Profile(
+    final updatedProfile = account_api.Account(
       displayName: _displayNameController.text.trim(),
       statusMessage: _statusMessageController.text.trim(),
       avatarPath: avatarPath,
     );
-    await profile_api.saveProfile(
+    await account_api.saveAccount(
       storageDir: storageDir.path,
       displayName: updatedProfile.displayName,
       statusMessage: updatedProfile.statusMessage,
@@ -156,21 +156,40 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Center(
       child: GestureDetector(
         onTap: _pickAvatar,
-        child: Container(
-          width: 88,
-          height: 88,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: KeychatColors.surface,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: avatarPath != null
-              ? Image.file(File(avatarPath), width: 88, height: 88, fit: BoxFit.cover)
-              : const Icon(
-                  Icons.add_a_photo_outlined,
-                  size: 32,
-                  color: KeychatColors.textSecondary,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 88,
+              height: 88,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: KeychatColors.surface,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: avatarPath != null
+                  ? Image.file(File(avatarPath), width: 88, height: 88, fit: BoxFit.cover)
+                  : const Icon(
+                      Icons.photo_outlined,
+                      size: 32,
+                      color: KeychatColors.textSecondary,
+                    ),
+            ),
+            Positioned(
+              right: -6,
+              bottom: -6,
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: KeychatColors.background, width: 2),
                 ),
+                child: const Icon(Icons.photo_camera_outlined, size: 16, color: Colors.white),
+              ),
+            ),
+          ],
         ),
       ),
     );

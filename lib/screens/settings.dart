@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:workspace/l10n/app_localizations.dart';
 import 'package:workspace/languages.dart';
-import 'package:workspace/screens/account_settings.dart';
+import 'package:workspace/screens/logout.dart';
 import 'package:workspace/screens/edit_profile.dart';
 import 'package:workspace/screens/login.dart';
 import 'package:workspace/screens/relay_settings.dart';
-import 'package:workspace/src/rust/api/profile.dart' as profile_api;
+import 'package:workspace/src/rust/api/account.dart' as account_api;
 
 /// Settings menu reachable from the top-right gear icon on Home. Links to
 /// the profile edit screen and relay configuration.
@@ -15,24 +15,24 @@ class SettingsScreen extends StatelessWidget {
     required this.profile,
     required this.onProfileUpdated,
     required this.onSelectLanguage,
-    required this.onPurgeAccount,
+    required this.onLogout,
   });
 
-  final profile_api.Profile profile;
-  final ValueChanged<profile_api.Profile> onProfileUpdated;
+  final account_api.Account profile;
+  final ValueChanged<account_api.Account> onProfileUpdated;
   final ValueChanged<Locale> onSelectLanguage;
-  final VoidCallback onPurgeAccount;
+  final VoidCallback onLogout;
 
   void _openAccountSettings(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => AccountSettingsScreen(onPurgeAccount: onPurgeAccount),
+        builder: (_) => AccountSettingsScreen(onLogout: onLogout),
       ),
     );
   }
 
   Future<void> _openEditProfile(BuildContext context) async {
-    final updated = await Navigator.of(context).push<profile_api.Profile>(
+    final updated = await Navigator.of(context).push<account_api.Account>(
       MaterialPageRoute(builder: (_) => EditProfileScreen(profile: profile)),
     );
     if (updated == null) return;

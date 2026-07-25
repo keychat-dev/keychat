@@ -12,6 +12,21 @@ class AppLocalizationsJa extends AppLocalizations {
   String get appTitle => 'KeyChat';
 
   @override
+  String get authChoiceSubtitle => '新規アカウントを作成するか、既存のアカウントを復元してください';
+
+  @override
+  String get signUpButton => '新規登録';
+
+  @override
+  String get logInButton => 'ログイン';
+
+  @override
+  String get seedPhraseLabel => 'シードフレーズ';
+
+  @override
+  String get seedPhraseHint => 'シードフレーズを入力してアカウントを復元してください';
+
+  @override
   String get profileSetupSubtitle => 'プロフィールを設定してください';
 
   @override
@@ -91,16 +106,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get accountSettingsTitle => 'アカウント';
 
   @override
-  String get purgeAccountButton => 'アカウントをパージ';
+  String get logoutButton => 'ログアウト';
 
   @override
-  String get purgeAccountConfirmTitle => 'アカウントをパージしますか?';
+  String get logoutConfirmTitle => 'ログアウトしますか?';
 
   @override
-  String get purgeAccountConfirmBody => 'バックアップファイルを保存していない場合、アカウントが完全に削除されます。';
-
-  @override
-  String get purgeButton => 'パージ';
+  String get logoutConfirmBody => 'バックアップファイルを保存していない場合、アカウントが完全に削除されます。';
 
   @override
   String get relaySettingsTitle => 'リレー設定';

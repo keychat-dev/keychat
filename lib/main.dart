@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:workspace/l10n/app_localizations.dart';
+import 'package:workspace/screens/auth_choice.dart';
 import 'package:workspace/screens/home.dart';
 import 'package:workspace/screens/login.dart';
 import 'package:workspace/screens/relay_settings.dart';
 import 'package:workspace/screens/setup_complete.dart';
-import 'package:workspace/src/rust/api/profile.dart' as profile_api;
+import 'package:workspace/src/rust/api/account.dart' as account_api;
 import 'package:workspace/src/rust/frb_generated.dart';
 
 Future<void> main() async {
@@ -28,39 +29,47 @@ class _KeyChatAppState extends State<KeyChatApp> {
   // picks a language from the language selector on the login screen.
   Locale? _locale;
 
-  late final Future<profile_api.Profile?> _profileFuture = _loadProfile();
+  late final Future<account_api.Account?> _profileFuture = _loadProfile();
 
-  Future<profile_api.Profile?> _loadProfile() async {
+  Future<account_api.Account?> _loadProfile() async {
     final storageDir = await getApplicationDocumentsDirectory();
-    return profile_api.loadProfile(storageDir: storageDir.path);
+    return account_api.loadAccount(storageDir: storageDir.path);
   }
 
   void _selectLocale(Locale locale) {
     setState(() => _locale = locale);
   }
 
-  Future<void> _purgeAccount(BuildContext context) async {
+  Future<void> _logout(BuildContext context) async {
     final storageDir = await getApplicationDocumentsDirectory();
     for (final entity in storageDir.listSync()) {
       if (entity is File) {
         final name = entity.uri.pathSegments.last;
-        if (name == 'profile.json' || name == 'relays.json' || name.startsWith('avatar.')) {
+        if (name == 'account.json' || name == 'relays.json' || name.startsWith('avatar.')) {
           await entity.delete();
         }
       }
     }
     if (!context.mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => Builder(
-          builder: (context) => ProfileSetupScreen(
-            onSelectLanguage: _selectLocale,
-            onContinue: (displayName, statusMessage, avatarPath) =>
-                _handleContinue(context, displayName, statusMessage, avatarPath),
-          ),
-        ),
-      ),
+      MaterialPageRoute(builder: (_) => Builder(builder: _buildAuthChoice)),
       (route) => false,
+    );
+  }
+
+  Widget _buildAuthChoice(BuildContext context) {
+    return AuthChoiceScreen(
+      onSelectLanguage: _selectLocale,
+      onSignUp: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProfileSetupScreen(
+              onContinue: (displayName, statusMessage, avatarPath) =>
+                  _handleContinue(context, displayName, statusMessage, avatarPath),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -78,12 +87,12 @@ class _KeyChatAppState extends State<KeyChatApp> {
       await File(avatarPath).copy(destination);
       persistedAvatarPath = destination;
     }
-    final profile = profile_api.Profile(
+    final profile = account_api.Account(
       displayName: displayName,
       statusMessage: statusMessage,
       avatarPath: persistedAvatarPath,
     );
-    await profile_api.saveProfile(
+    await account_api.saveAccount(
       storageDir: storageDir.path,
       displayName: profile.displayName,
       statusMessage: profile.statusMessage,
@@ -101,10 +110,12 @@ class _KeyChatAppState extends State<KeyChatApp> {
                   onDone: () {
                     Navigator.of(context).pushAndRemoveUntil(
                       MaterialPageRoute(
-                        builder: (_) => HomeScreen(
-                          profile: profile,
-                          onSelectLanguage: _selectLocale,
-                          onPurgeAccount: () => _purgeAccount(context),
+                        builder: (_) => Builder(
+                          builder: (context) => HomeScreen(
+                            profile: profile,
+                            onSelectLanguage: _selectLocale,
+                            onLogout: () => _logout(context),
+                          ),
                         ),
                       ),
                       (route) => false,
@@ -138,7 +149,7 @@ class _KeyChatAppState extends State<KeyChatApp> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: FutureBuilder<profile_api.Profile?>(
+      home: FutureBuilder<account_api.Account?>(
         future: _profileFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -153,17 +164,11 @@ class _KeyChatAppState extends State<KeyChatApp> {
               builder: (context) => HomeScreen(
                 profile: existingProfile,
                 onSelectLanguage: _selectLocale,
-                onPurgeAccount: () => _purgeAccount(context),
+                onLogout: () => _logout(context),
               ),
             );
           }
-          return Builder(
-            builder: (context) => ProfileSetupScreen(
-              onSelectLanguage: _selectLocale,
-              onContinue: (displayName, statusMessage, avatarPath) =>
-                  _handleContinue(context, displayName, statusMessage, avatarPath),
-            ),
-          );
+          return Builder(builder: _buildAuthChoice);
         },
       ),
     );

@@ -104,6 +104,36 @@ abstract class AppLocalizations {
   /// **'KeyChat'**
   String get appTitle;
 
+  /// No description provided for @authChoiceSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a new account or restore an existing one'**
+  String get authChoiceSubtitle;
+
+  /// No description provided for @signUpButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign up'**
+  String get signUpButton;
+
+  /// No description provided for @logInButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Log in'**
+  String get logInButton;
+
+  /// No description provided for @seedPhraseLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Seed phrase'**
+  String get seedPhraseLabel;
+
+  /// No description provided for @seedPhraseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your seed phrase to restore your account'**
+  String get seedPhraseHint;
+
   /// No description provided for @profileSetupSubtitle.
   ///
   /// In en, this message translates to:
@@ -254,29 +284,23 @@ abstract class AppLocalizations {
   /// **'Account'**
   String get accountSettingsTitle;
 
-  /// No description provided for @purgeAccountButton.
+  /// No description provided for @logoutButton.
   ///
   /// In en, this message translates to:
-  /// **'Purge account'**
-  String get purgeAccountButton;
+  /// **'Logout'**
+  String get logoutButton;
 
-  /// No description provided for @purgeAccountConfirmTitle.
+  /// No description provided for @logoutConfirmTitle.
   ///
   /// In en, this message translates to:
-  /// **'Purge account?'**
-  String get purgeAccountConfirmTitle;
+  /// **'Logout?'**
+  String get logoutConfirmTitle;
 
-  /// No description provided for @purgeAccountConfirmBody.
+  /// No description provided for @logoutConfirmBody.
   ///
   /// In en, this message translates to:
   /// **'If you haven\'t saved a backup file, your account will be deleted permanently.'**
-  String get purgeAccountConfirmBody;
-
-  /// No description provided for @purgeButton.
-  ///
-  /// In en, this message translates to:
-  /// **'Purge'**
-  String get purgeButton;
+  String get logoutConfirmBody;
 
   /// No description provided for @relaySettingsTitle.
   ///

@@ -3,20 +3,20 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:workspace/l10n/app_localizations.dart';
 import 'package:workspace/screens/login.dart';
-import 'package:workspace/src/rust/api/profile.dart' as profile_api;
+import 'package:workspace/src/rust/api/account.dart' as account_api;
 
 /// Profile & Friends tab: shows the local display profile at the top and the
 /// friends list below. Layout mock — edit / add-friend actions are not wired
 /// up yet, and the friends list is always the empty state for now.
-class ProfileFriendsTab extends StatelessWidget {
-  const ProfileFriendsTab({
+class AccountFriendsTab extends StatelessWidget {
+  const AccountFriendsTab({
     super.key,
     required this.profile,
     required this.hasFriends,
     required this.onEditProfile,
   });
 
-  final profile_api.Profile profile;
+  final account_api.Account profile;
 
   // The QR add-friend button is only useful before the user has any
   // friends yet; once at least one friend exists it's hidden here.
@@ -57,7 +57,7 @@ class ProfileFriendsTab extends StatelessWidget {
 class _ProfileCard extends StatelessWidget {
   const _ProfileCard({required this.profile, required this.onEdit});
 
-  final profile_api.Profile profile;
+  final account_api.Account profile;
   final VoidCallback onEdit;
 
   @override
