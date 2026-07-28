@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:workspace/l10n/app_localizations.dart';
 import 'package:workspace/screens/login.dart';
 import 'package:workspace/screens/seed_backup.dart';
 import 'package:workspace/src/rust/api/keys.dart' as keys_api;
+import 'package:workspace/src/rust/api/relay.dart' as relay_api;
+import 'package:workspace/src/rust/api/sync.dart' as sync_api;
 
 const seedStorageKey = 'account_seed_mnemonic';
 
@@ -68,6 +71,19 @@ class AccountSettingsScreen extends StatelessWidget {
       },
     );
     if (confirmed != true) return;
+
+    const secureStorage = FlutterSecureStorage();
+    final mnemonic = await secureStorage.read(key: seedStorageKey);
+    if (mnemonic != null) {
+      final storageDir = await getApplicationDocumentsDirectory();
+      final relayList = await relay_api.loadRelayList(storageDir: storageDir.path);
+      try {
+        await sync_api.deleteAccountBackup(mnemonic: mnemonic, relayUrls: relayList.urls);
+      } catch (_) {
+        // Relays unreachable — the local wipe still proceeds; the backup
+        // event may linger on relays that were offline for this request.
+      }
+    }
     onLogout();
   }
 

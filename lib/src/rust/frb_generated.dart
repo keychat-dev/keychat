@@ -7,6 +7,7 @@ import 'api/account.dart';
 import 'api/keys.dart';
 import 'api/relay.dart';
 import 'api/simple.dart';
+import 'api/sync.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';
@@ -69,7 +70,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0-beta.4';
 
   @override
-  int get rustContentHash => 869796757;
+  int get rustContentHash => -2114088968;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -87,6 +88,16 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<String>> crateApiRelayDefaultRelays();
 
+  Future<void> crateApiSyncDeleteAccountBackup({
+    required String mnemonic,
+    required List<String> relayUrls,
+  });
+
+  Future<RemoteAccount?> crateApiSyncFetchAccountBackup({
+    required String mnemonic,
+    required List<String> relayUrls,
+  });
+
   Future<String> crateApiKeysGenerateMnemonic();
 
   String crateApiSimpleGreet({required String name});
@@ -97,11 +108,27 @@ abstract class RustLibApi extends BaseApi {
 
   Future<RelayList> crateApiRelayLoadRelayList({required String storageDir});
 
+  Future<void> crateApiSyncPublishAccountBackup({
+    required String mnemonic,
+    required List<String> relayUrls,
+    required String displayName,
+    required String statusMessage,
+    required PlatformInt64 updatedAt,
+  });
+
   Future<void> crateApiAccountSaveAccount({
     required String storageDir,
     required String displayName,
     required String statusMessage,
     String? avatarPath,
+  });
+
+  Future<void> crateApiAccountSaveAccountWithTimestamp({
+    required String storageDir,
+    required String displayName,
+    required String statusMessage,
+    String? avatarPath,
+    required PlatformInt64 updatedAt,
   });
 
   Future<void> crateApiRelaySaveRelayList({
@@ -181,6 +208,76 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "default_relays", argNames: []);
 
   @override
+  Future<void> crateApiSyncDeleteAccountBackup({
+    required String mnemonic,
+    required List<String> relayUrls,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mnemonic, serializer);
+          sse_encode_list_String(relayUrls, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 3,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSyncDeleteAccountBackupConstMeta,
+        argValues: [mnemonic, relayUrls],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncDeleteAccountBackupConstMeta =>
+      const TaskConstMeta(
+        debugName: "delete_account_backup",
+        argNames: ["mnemonic", "relayUrls"],
+      );
+
+  @override
+  Future<RemoteAccount?> crateApiSyncFetchAccountBackup({
+    required String mnemonic,
+    required List<String> relayUrls,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mnemonic, serializer);
+          sse_encode_list_String(relayUrls, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_remote_account,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSyncFetchAccountBackupConstMeta,
+        argValues: [mnemonic, relayUrls],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncFetchAccountBackupConstMeta =>
+      const TaskConstMeta(
+        debugName: "fetch_account_backup",
+        argNames: ["mnemonic", "relayUrls"],
+      );
+
+  @override
   Future<String> crateApiKeysGenerateMnemonic() {
     return handler.executeNormal(
       NormalTask(
@@ -189,7 +286,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 3,
+            funcId: 5,
             port: port_,
           );
         },
@@ -214,7 +311,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(name, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -239,7 +336,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 7,
             port: port_,
           );
         },
@@ -267,7 +364,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 8,
             port: port_,
           );
         },
@@ -295,7 +392,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 9,
             port: port_,
           );
         },
@@ -316,6 +413,53 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiSyncPublishAccountBackup({
+    required String mnemonic,
+    required List<String> relayUrls,
+    required String displayName,
+    required String statusMessage,
+    required PlatformInt64 updatedAt,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mnemonic, serializer);
+          sse_encode_list_String(relayUrls, serializer);
+          sse_encode_String(displayName, serializer);
+          sse_encode_String(statusMessage, serializer);
+          sse_encode_i_64(updatedAt, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 10,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSyncPublishAccountBackupConstMeta,
+        argValues: [mnemonic, relayUrls, displayName, statusMessage, updatedAt],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncPublishAccountBackupConstMeta =>
+      const TaskConstMeta(
+        debugName: "publish_account_backup",
+        argNames: [
+          "mnemonic",
+          "relayUrls",
+          "displayName",
+          "statusMessage",
+          "updatedAt",
+        ],
+      );
+
+  @override
   Future<void> crateApiAccountSaveAccount({
     required String storageDir,
     required String displayName,
@@ -333,7 +477,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 11,
             port: port_,
           );
         },
@@ -354,6 +498,59 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiAccountSaveAccountWithTimestamp({
+    required String storageDir,
+    required String displayName,
+    required String statusMessage,
+    String? avatarPath,
+    required PlatformInt64 updatedAt,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_String(displayName, serializer);
+          sse_encode_String(statusMessage, serializer);
+          sse_encode_opt_String(avatarPath, serializer);
+          sse_encode_i_64(updatedAt, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 12,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiAccountSaveAccountWithTimestampConstMeta,
+        argValues: [
+          storageDir,
+          displayName,
+          statusMessage,
+          avatarPath,
+          updatedAt,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiAccountSaveAccountWithTimestampConstMeta =>
+      const TaskConstMeta(
+        debugName: "save_account_with_timestamp",
+        argNames: [
+          "storageDir",
+          "displayName",
+          "statusMessage",
+          "avatarPath",
+          "updatedAt",
+        ],
+      );
+
+  @override
   Future<void> crateApiRelaySaveRelayList({
     required String storageDir,
     required List<String> urls,
@@ -367,7 +564,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 13,
             port: port_,
           );
         },
@@ -397,7 +594,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 14,
             port: port_,
           );
         },
@@ -428,12 +625,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Account dco_decode_account(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return Account(
       displayName: dco_decode_String(arr[0]),
       statusMessage: dco_decode_String(arr[1]),
       avatarPath: dco_decode_opt_String(arr[2]),
+      updatedAt: dco_decode_i_64(arr[3]),
     );
   }
 
@@ -447,6 +645,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Account dco_decode_box_autoadd_account(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_account(raw);
+  }
+
+  @protected
+  RemoteAccount dco_decode_box_autoadd_remote_account(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_remote_account(raw);
+  }
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeI64(raw);
   }
 
   @protected
@@ -480,12 +690,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RemoteAccount? dco_decode_opt_box_autoadd_remote_account(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_remote_account(raw);
+  }
+
+  @protected
   RelayList dco_decode_relay_list(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
     return RelayList(urls: dco_decode_list_String(arr[0]));
+  }
+
+  @protected
+  RemoteAccount dco_decode_remote_account(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return RemoteAccount(
+      displayName: dco_decode_String(arr[0]),
+      statusMessage: dco_decode_String(arr[1]),
+      updatedAt: dco_decode_i_64(arr[2]),
+    );
   }
 
   @protected
@@ -513,10 +742,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_displayName = sse_decode_String(deserializer);
     var var_statusMessage = sse_decode_String(deserializer);
     var var_avatarPath = sse_decode_opt_String(deserializer);
+    var var_updatedAt = sse_decode_i_64(deserializer);
     return Account(
       displayName: var_displayName,
       statusMessage: var_statusMessage,
       avatarPath: var_avatarPath,
+      updatedAt: var_updatedAt,
     );
   }
 
@@ -530,6 +761,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Account sse_decode_box_autoadd_account(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_account(deserializer));
+  }
+
+  @protected
+  RemoteAccount sse_decode_box_autoadd_remote_account(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_remote_account(deserializer));
+  }
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getPlatformInt64();
   }
 
   @protected
@@ -586,10 +831,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RemoteAccount? sse_decode_opt_box_autoadd_remote_account(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_remote_account(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   RelayList sse_decode_relay_list(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_urls = sse_decode_list_String(deserializer);
     return RelayList(urls: var_urls);
+  }
+
+  @protected
+  RemoteAccount sse_decode_remote_account(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_displayName = sse_decode_String(deserializer);
+    var var_statusMessage = sse_decode_String(deserializer);
+    var var_updatedAt = sse_decode_i_64(deserializer);
+    return RemoteAccount(
+      displayName: var_displayName,
+      statusMessage: var_statusMessage,
+      updatedAt: var_updatedAt,
+    );
   }
 
   @protected
@@ -621,6 +892,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.displayName, serializer);
     sse_encode_String(self.statusMessage, serializer);
     sse_encode_opt_String(self.avatarPath, serializer);
+    sse_encode_i_64(self.updatedAt, serializer);
   }
 
   @protected
@@ -633,6 +905,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_box_autoadd_account(Account self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_account(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_remote_account(
+    RemoteAccount self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_remote_account(self, serializer);
+  }
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putPlatformInt64(self);
   }
 
   @protected
@@ -687,9 +974,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_remote_account(
+    RemoteAccount? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_remote_account(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_relay_list(RelayList self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_String(self.urls, serializer);
+  }
+
+  @protected
+  void sse_encode_remote_account(RemoteAccount self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_String(self.statusMessage, serializer);
+    sse_encode_i_64(self.updatedAt, serializer);
   }
 
   @protected

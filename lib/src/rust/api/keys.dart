@@ -6,6 +6,8 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `derive_keys`
+
 /// Generates a new 12-word BIP-39 seed phrase. The caller is responsible for
 /// persisting it (e.g. via platform secure storage) — this function is pure
 /// generation with no I/O.

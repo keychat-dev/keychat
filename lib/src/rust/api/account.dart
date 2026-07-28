@@ -6,11 +6,11 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `account_path`
+// These functions are ignored because they are not marked as `pub`: `account_path`, `now`
 
-/// Saves the account as JSON under `storage_dir`.
-/// `storage_dir` must already exist (e.g. the app's documents directory,
-/// resolved on the Dart side via path_provider).
+/// Saves the account as JSON under `storage_dir`, stamping `updated_at` with
+/// the current time. `storage_dir` must already exist (e.g. the app's
+/// documents directory, resolved on the Dart side via path_provider).
 Future<void> saveAccount({
   required String storageDir,
   required String displayName,
@@ -21,6 +21,23 @@ Future<void> saveAccount({
   displayName: displayName,
   statusMessage: statusMessage,
   avatarPath: avatarPath,
+);
+
+/// Saves the account as JSON under `storage_dir` with an explicit
+/// `updated_at`, used when overwriting the local copy with a newer backup
+/// pulled from a relay (so the local timestamp matches the relay's).
+Future<void> saveAccountWithTimestamp({
+  required String storageDir,
+  required String displayName,
+  required String statusMessage,
+  String? avatarPath,
+  required PlatformInt64 updatedAt,
+}) => RustLib.instance.api.crateApiAccountSaveAccountWithTimestamp(
+  storageDir: storageDir,
+  displayName: displayName,
+  statusMessage: statusMessage,
+  avatarPath: avatarPath,
+  updatedAt: updatedAt,
 );
 
 /// Loads a previously saved account, or `None` if none has been saved yet.
@@ -35,15 +52,23 @@ class Account {
   /// Absolute path to the avatar image file, if the user picked one.
   final String? avatarPath;
 
+  /// Unix timestamp (seconds) of the last local edit. Used to decide
+  /// whether the local copy or the relay-synced backup is newer.
+  final PlatformInt64 updatedAt;
+
   const Account({
     required this.displayName,
     required this.statusMessage,
     this.avatarPath,
+    required this.updatedAt,
   });
 
   @override
   int get hashCode =>
-      displayName.hashCode ^ statusMessage.hashCode ^ avatarPath.hashCode;
+      displayName.hashCode ^
+      statusMessage.hashCode ^
+      avatarPath.hashCode ^
+      updatedAt.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -52,5 +77,6 @@ class Account {
           runtimeType == other.runtimeType &&
           displayName == other.displayName &&
           statusMessage == other.statusMessage &&
-          avatarPath == other.avatarPath;
+          avatarPath == other.avatarPath &&
+          updatedAt == other.updatedAt;
 }

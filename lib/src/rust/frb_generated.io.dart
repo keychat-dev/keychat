@@ -7,6 +7,7 @@ import 'api/account.dart';
 import 'api/keys.dart';
 import 'api/relay.dart';
 import 'api/simple.dart';
+import 'api/sync.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
@@ -34,6 +35,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Account dco_decode_box_autoadd_account(dynamic raw);
 
   @protected
+  RemoteAccount dco_decode_box_autoadd_remote_account(dynamic raw);
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw);
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
@@ -49,7 +56,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Account? dco_decode_opt_box_autoadd_account(dynamic raw);
 
   @protected
+  RemoteAccount? dco_decode_opt_box_autoadd_remote_account(dynamic raw);
+
+  @protected
   RelayList dco_decode_relay_list(dynamic raw);
+
+  @protected
+  RemoteAccount dco_decode_remote_account(dynamic raw);
 
   @protected
   int dco_decode_u_8(dynamic raw);
@@ -70,6 +83,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Account sse_decode_box_autoadd_account(SseDeserializer deserializer);
 
   @protected
+  RemoteAccount sse_decode_box_autoadd_remote_account(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
@@ -85,7 +106,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Account? sse_decode_opt_box_autoadd_account(SseDeserializer deserializer);
 
   @protected
+  RemoteAccount? sse_decode_opt_box_autoadd_remote_account(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RelayList sse_decode_relay_list(SseDeserializer deserializer);
+
+  @protected
+  RemoteAccount sse_decode_remote_account(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_8(SseDeserializer deserializer);
@@ -109,6 +138,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_account(Account self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_remote_account(
+    RemoteAccount self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
@@ -130,7 +168,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_remote_account(
+    RemoteAccount? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_relay_list(RelayList self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_remote_account(RemoteAccount self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_8(int self, SseSerializer serializer);

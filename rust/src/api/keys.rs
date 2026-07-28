@@ -19,3 +19,10 @@ pub fn validate_mnemonic(mnemonic: String) -> Result<(), String> {
     Keys::from_mnemonic(phrase, None).map_err(|e| e.to_string())?;
     Ok(())
 }
+
+/// Deterministically derives this account's Nostr identity keys from its
+/// seed phrase (NIP-06). Same mnemonic always yields the same keys, so
+/// nothing needs to be stored beyond the mnemonic itself.
+pub(crate) fn derive_keys(mnemonic: &str) -> Result<Keys, String> {
+    Keys::from_mnemonic(mnemonic.trim(), None).map_err(|e| e.to_string())
+}

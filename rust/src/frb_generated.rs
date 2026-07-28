@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0-beta.4";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 869796757;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -2114088968;
 
 // Section: executor
 
@@ -107,6 +107,76 @@ fn wire__crate__api__relay__default_relays_impl(
             move |context| {
                 transform_result_sse::<_, ()>((move || {
                     let output_ok = Result::<_, ()>::Ok(crate::api::relay::default_relays())?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__delete_account_backup_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "delete_account_backup",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_mnemonic = <String>::sse_decode(&mut deserializer);
+            let api_relay_urls = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok =
+                        crate::api::sync::delete_account_backup(api_mnemonic, api_relay_urls)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__sync__fetch_account_backup_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "fetch_account_backup",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_mnemonic = <String>::sse_decode(&mut deserializer);
+            let api_relay_urls = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok =
+                        crate::api::sync::fetch_account_backup(api_mnemonic, api_relay_urls)?;
                     Ok(output_ok)
                 })())
             }
@@ -277,6 +347,49 @@ fn wire__crate__api__relay__load_relay_list_impl(
         },
     )
 }
+fn wire__crate__api__sync__publish_account_backup_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "publish_account_backup",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_mnemonic = <String>::sse_decode(&mut deserializer);
+            let api_relay_urls = <Vec<String>>::sse_decode(&mut deserializer);
+            let api_display_name = <String>::sse_decode(&mut deserializer);
+            let api_status_message = <String>::sse_decode(&mut deserializer);
+            let api_updated_at = <i64>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::sync::publish_account_backup(
+                        api_mnemonic,
+                        api_relay_urls,
+                        api_display_name,
+                        api_status_message,
+                        api_updated_at,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__account__save_account_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -311,6 +424,49 @@ fn wire__crate__api__account__save_account_impl(
                         api_display_name,
                         api_status_message,
                         api_avatar_path,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__account__save_account_with_timestamp_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "save_account_with_timestamp",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_storage_dir = <String>::sse_decode(&mut deserializer);
+            let api_display_name = <String>::sse_decode(&mut deserializer);
+            let api_status_message = <String>::sse_decode(&mut deserializer);
+            let api_avatar_path = <Option<String>>::sse_decode(&mut deserializer);
+            let api_updated_at = <i64>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::account::save_account_with_timestamp(
+                        api_storage_dir,
+                        api_display_name,
+                        api_status_message,
+                        api_avatar_path,
+                        api_updated_at,
                     )?;
                     Ok(output_ok)
                 })())
@@ -402,10 +558,12 @@ impl SseDecode for crate::api::account::Account {
         let mut var_displayName = <String>::sse_decode(deserializer);
         let mut var_statusMessage = <String>::sse_decode(deserializer);
         let mut var_avatarPath = <Option<String>>::sse_decode(deserializer);
+        let mut var_updatedAt = <i64>::sse_decode(deserializer);
         return crate::api::account::Account {
             display_name: var_displayName,
             status_message: var_statusMessage,
             avatar_path: var_avatarPath,
+            updated_at: var_updatedAt,
         };
     }
 }
@@ -414,6 +572,13 @@ impl SseDecode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         deserializer.cursor.read_u8().unwrap() != 0
+    }
+}
+
+impl SseDecode for i64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_i64::<NativeEndian>().unwrap()
     }
 }
 
@@ -475,11 +640,36 @@ impl SseDecode for Option<crate::api::account::Account> {
     }
 }
 
+impl SseDecode for Option<crate::api::sync::RemoteAccount> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::sync::RemoteAccount>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for crate::api::relay::RelayList {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_urls = <Vec<String>>::sse_decode(deserializer);
         return crate::api::relay::RelayList { urls: var_urls };
+    }
+}
+
+impl SseDecode for crate::api::sync::RemoteAccount {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_displayName = <String>::sse_decode(deserializer);
+        let mut var_statusMessage = <String>::sse_decode(deserializer);
+        let mut var_updatedAt = <i64>::sse_decode(deserializer);
+        return crate::api::sync::RemoteAccount {
+            display_name: var_displayName,
+            status_message: var_statusMessage,
+            updated_at: var_updatedAt,
+        };
     }
 }
 
@@ -513,13 +703,24 @@ fn pde_ffi_dispatcher_primary_impl(
     match func_id {
         1 => wire__crate__api__relay__check_relay_statuses_impl(port, ptr, rust_vec_len, data_len),
         2 => wire__crate__api__relay__default_relays_impl(port, ptr, rust_vec_len, data_len),
-        3 => wire__crate__api__keys__generate_mnemonic_impl(port, ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__account__load_account_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__relay__load_relay_list_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__account__save_account_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__relay__save_relay_list_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__keys__validate_mnemonic_impl(port, ptr, rust_vec_len, data_len),
+        3 => wire__crate__api__sync__delete_account_backup_impl(port, ptr, rust_vec_len, data_len),
+        4 => wire__crate__api__sync__fetch_account_backup_impl(port, ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__keys__generate_mnemonic_impl(port, ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__account__load_account_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__relay__load_relay_list_impl(port, ptr, rust_vec_len, data_len),
+        10 => {
+            wire__crate__api__sync__publish_account_backup_impl(port, ptr, rust_vec_len, data_len)
+        }
+        11 => wire__crate__api__account__save_account_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__account__save_account_with_timestamp_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        13 => wire__crate__api__relay__save_relay_list_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__keys__validate_mnemonic_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -532,7 +733,7 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        4 => wire__crate__api__simple__greet_impl(ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__simple__greet_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -546,6 +747,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::account::Account {
             self.display_name.into_into_dart().into_dart(),
             self.status_message.into_into_dart().into_dart(),
             self.avatar_path.into_into_dart().into_dart(),
+            self.updated_at.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -572,6 +774,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::relay::RelayList>
         self
     }
 }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sync::RemoteAccount {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.display_name.into_into_dart().into_dart(),
+            self.status_message.into_into_dart().into_dart(),
+            self.updated_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sync::RemoteAccount
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::RemoteAccount>
+    for crate::api::sync::RemoteAccount
+{
+    fn into_into_dart(self) -> crate::api::sync::RemoteAccount {
+        self
+    }
+}
 
 impl SseEncode for String {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -586,6 +810,7 @@ impl SseEncode for crate::api::account::Account {
         <String>::sse_encode(self.display_name, serializer);
         <String>::sse_encode(self.status_message, serializer);
         <Option<String>>::sse_encode(self.avatar_path, serializer);
+        <i64>::sse_encode(self.updated_at, serializer);
     }
 }
 
@@ -593,6 +818,13 @@ impl SseEncode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_u8(self as _).unwrap();
+    }
+}
+
+impl SseEncode for i64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_i64::<NativeEndian>(self).unwrap();
     }
 }
 
@@ -646,10 +878,29 @@ impl SseEncode for Option<crate::api::account::Account> {
     }
 }
 
+impl SseEncode for Option<crate::api::sync::RemoteAccount> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::sync::RemoteAccount>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for crate::api::relay::RelayList {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Vec<String>>::sse_encode(self.urls, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sync::RemoteAccount {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.display_name, serializer);
+        <String>::sse_encode(self.status_message, serializer);
+        <i64>::sse_encode(self.updated_at, serializer);
     }
 }
 

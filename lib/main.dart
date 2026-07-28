@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ import 'package:workspace/screens/logout.dart' show seedStorageKey;
 import 'package:workspace/screens/relay_settings.dart';
 import 'package:workspace/screens/seed_backup.dart';
 import 'package:workspace/screens/setup_complete.dart';
+import 'package:workspace/services/account_sync.dart';
 import 'package:workspace/src/rust/api/account.dart' as account_api;
 import 'package:workspace/src/rust/api/keys.dart' as keys_api;
 import 'package:workspace/src/rust/frb_generated.dart';
@@ -37,7 +39,9 @@ class _KeyChatAppState extends State<KeyChatApp> {
 
   Future<account_api.Account?> _loadProfile() async {
     final storageDir = await getApplicationDocumentsDirectory();
-    return account_api.loadAccount(storageDir: storageDir.path);
+    final profile = await account_api.loadAccount(storageDir: storageDir.path);
+    if (profile == null) return null;
+    return reconcileAccountBackup(profile);
   }
 
   void _selectLocale(Locale locale) {
@@ -93,17 +97,13 @@ class _KeyChatAppState extends State<KeyChatApp> {
       await File(avatarPath).copy(destination);
       persistedAvatarPath = destination;
     }
-    final profile = account_api.Account(
+    await account_api.saveAccount(
+      storageDir: storageDir.path,
       displayName: displayName,
       statusMessage: statusMessage,
       avatarPath: persistedAvatarPath,
     );
-    await account_api.saveAccount(
-      storageDir: storageDir.path,
-      displayName: profile.displayName,
-      statusMessage: profile.statusMessage,
-      avatarPath: profile.avatarPath,
-    );
+    final profile = (await account_api.loadAccount(storageDir: storageDir.path))!;
     if (!context.mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -112,6 +112,7 @@ class _KeyChatAppState extends State<KeyChatApp> {
             const secureStorage = FlutterSecureStorage();
             final mnemonic = await keys_api.generateMnemonic();
             await secureStorage.write(key: seedStorageKey, value: mnemonic);
+            unawaited(publishAccountBackup(profile));
             if (!context.mounted) return;
             Navigator.of(context).push(
               MaterialPageRoute(

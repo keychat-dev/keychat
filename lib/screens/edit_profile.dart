@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:workspace/l10n/app_localizations.dart';
 import 'package:workspace/screens/login.dart';
+import 'package:workspace/services/account_sync.dart';
 import 'package:workspace/src/rust/api/account.dart' as account_api;
 
 /// Lets the user change their avatar, display name, and status message.
@@ -63,20 +65,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       avatarPath = destination;
     }
 
-    final updatedProfile = account_api.Account(
+    await account_api.saveAccount(
+      storageDir: storageDir.path,
       displayName: _displayNameController.text.trim(),
       statusMessage: _statusMessageController.text.trim(),
       avatarPath: avatarPath,
     );
-    await account_api.saveAccount(
-      storageDir: storageDir.path,
-      displayName: updatedProfile.displayName,
-      statusMessage: updatedProfile.statusMessage,
-      avatarPath: updatedProfile.avatarPath,
-    );
+    final saved = (await account_api.loadAccount(storageDir: storageDir.path))!;
+    unawaited(publishAccountBackup(saved));
 
     if (!mounted) return;
-    Navigator.of(context).pop(updatedProfile);
+    Navigator.of(context).pop(saved);
   }
 
   @override
