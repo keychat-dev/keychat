@@ -1,22 +1,64 @@
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:workspace/l10n/app_localizations.dart';
 import 'package:workspace/screens/login.dart';
+import 'package:workspace/src/rust/api/relay.dart' as relay_api;
 
 /// Shows a generated seed phrase for the user to write down.
 ///
 /// In onboarding mode (`onContinue` provided) this also shows a note that
 /// the phrase can be reviewed again later from Settings, and a primary
 /// "Continue" button instead of just a back arrow.
-class SeedBackupScreen extends StatelessWidget {
+///
+/// On open, if none of the configured relays are on the built-in default
+/// list, shows a one-time dialog warning that restoring on another device
+/// needs those relay URLs saved too — since restore only searches relays
+/// the user selects, not whichever ones this account happens to publish to.
+class SeedBackupScreen extends StatefulWidget {
   const SeedBackupScreen({super.key, required this.mnemonic, this.onContinue});
 
   final String mnemonic;
   final VoidCallback? onContinue;
 
   @override
+  State<SeedBackupScreen> createState() => _SeedBackupScreenState();
+}
+
+class _SeedBackupScreenState extends State<SeedBackupScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeWarnNoDefaultRelay());
+  }
+
+  Future<void> _maybeWarnNoDefaultRelay() async {
+    final storageDir = await getApplicationDocumentsDirectory();
+    final current = (await relay_api.loadRelayList(storageDir: storageDir.path)).urls;
+    final defaults = await relay_api.defaultRelays();
+    final hasNoDefaultRelay = current.toSet().intersection(defaults.toSet()).isEmpty;
+    if (!hasNoDefaultRelay || !mounted) return;
+
+    final l10n = AppLocalizations.of(context)!;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: KeychatColors.background,
+        title: Text(l10n.seedBackupNoDefaultRelayTitle),
+        content: Text(l10n.seedBackupNoDefaultRelayBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(MaterialLocalizations.of(dialogContext).okButtonLabel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final words = mnemonic.split(' ');
+    final words = widget.mnemonic.split(' ');
     return Scaffold(
       backgroundColor: KeychatColors.background,
       appBar: AppBar(
@@ -35,7 +77,7 @@ class SeedBackupScreen extends StatelessWidget {
                 l10n.seedBackupWarning,
                 style: const TextStyle(color: KeychatColors.textSecondary, fontSize: 14),
               ),
-              if (onContinue != null) ...[
+              if (widget.onContinue != null) ...[
                 const SizedBox(height: 8),
                 Text(
                   l10n.seedBackupOnboardingNote,
@@ -64,12 +106,12 @@ class SeedBackupScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              if (onContinue != null) ...[
+              if (widget.onContinue != null) ...[
                 const SizedBox(height: 24),
                 SizedBox(
                   height: 48,
                   child: ElevatedButton(
-                    onPressed: onContinue,
+                    onPressed: widget.onContinue,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: KeychatColors.primaryDark,
                       foregroundColor: Colors.white,

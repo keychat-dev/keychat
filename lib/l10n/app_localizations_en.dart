@@ -28,6 +28,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get seedPhraseHint => 'Enter your seed phrase to restore your account';
 
   @override
+  String get restoreInvalidSeed =>
+      'This doesn\'t look like a valid seed phrase.';
+
+  @override
+  String get restoreNoBackupFound =>
+      'No backup was found for this seed phrase. Make sure you\'ve completed setup with relay sync on another device first.';
+
+  @override
+  String get restoreNetworkError =>
+      'Couldn\'t reach any relay. Check your connection and try again.';
+
+  @override
   String get profileSetupSubtitle => 'Set up your profile';
 
   @override
@@ -116,6 +128,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get seedBackupOnboardingNote =>
       'You can review this phrase again anytime from Settings > Account.';
+
+  @override
+  String get seedBackupNoDefaultRelayTitle => 'Also save your relay URLs';
+
+  @override
+  String get seedBackupNoDefaultRelayBody =>
+      'None of your relays are on the default list. Restoring elsewhere requires selecting the same relays this account publishes to, so write those relay URLs down too — not just this phrase.';
 
   @override
   String get logoutButton => 'Logout';

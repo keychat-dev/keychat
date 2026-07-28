@@ -27,6 +27,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get seedPhraseHint => 'シードフレーズを入力してアカウントを復元してください';
 
   @override
+  String get restoreInvalidSeed => '正しいシードフレーズではないようです。';
+
+  @override
+  String get restoreNoBackupFound =>
+      'このシードフレーズのバックアップが見つかりませんでした。別の端末でリレー同期まで設定を完了しているか確認してください。';
+
+  @override
+  String get restoreNetworkError => 'リレーに接続できませんでした。通信状況を確認してもう一度お試しください。';
+
+  @override
   String get profileSetupSubtitle => 'プロフィールを設定してください';
 
   @override
@@ -114,6 +124,13 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get seedBackupOnboardingNote => 'このフレーズは、いつでも設定 > アカウントから確認できます。';
+
+  @override
+  String get seedBackupNoDefaultRelayTitle => 'リレーのURLも保存してください';
+
+  @override
+  String get seedBackupNoDefaultRelayBody =>
+      '現在のリレーはデフォルトのものを一つも含んでいません。別の端末で復元する際はこのアカウントが公開しているリレーと同じものを選ぶ必要があるため、このフレーズだけでなくリレーのURLも書き留めておいてください。';
 
   @override
   String get logoutButton => 'ログアウト';

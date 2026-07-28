@@ -2,20 +2,41 @@ import 'package:flutter/material.dart';
 import 'package:workspace/l10n/app_localizations.dart';
 import 'package:workspace/languages.dart';
 import 'package:workspace/screens/login.dart';
+import 'package:workspace/screens/relay_settings.dart';
 
 /// First screen shown on a fresh install: choose between creating a new
 /// account (sign up) or restoring an existing one (login via seed phrase).
-/// Login is a visual placeholder only — seed generation/restore isn't
-/// implemented yet, so it doesn't do anything functional.
 class AuthChoiceScreen extends StatelessWidget {
-  const AuthChoiceScreen({super.key, this.onSignUp, this.onSelectLanguage});
+  const AuthChoiceScreen({
+    super.key,
+    this.onSignUp,
+    this.onSelectLanguage,
+    this.onRestore,
+  });
 
   final VoidCallback? onSignUp;
   final ValueChanged<Locale>? onSelectLanguage;
 
-  void _openLoginPlaceholder(BuildContext context) {
+  /// Called with a validated seed phrase when the user submits the restore
+  /// form. Returns a user-facing error message on failure, or `null` on
+  /// success (in which case the caller is expected to have already
+  /// navigated away, e.g. to the home screen).
+  final Future<String?> Function(String mnemonic)? onRestore;
+
+  /// Login starts with relay selection, not the seed phrase itself: restore
+  /// only searches whichever relays are chosen here, so the user needs a
+  /// chance to point at non-default relays before entering their phrase.
+  void _openLogin(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const _LoginPlaceholderScreen()),
+      MaterialPageRoute(
+        builder: (_) => RelaySettingsScreen(
+          onContinue: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => _LoginScreen(onRestore: onRestore)),
+            );
+          },
+        ),
+      ),
     );
   }
 
@@ -80,7 +101,7 @@ class AuthChoiceScreen extends StatelessWidget {
                       width: double.infinity,
                       height: 48,
                       child: OutlinedButton(
-                        onPressed: () => _openLoginPlaceholder(context),
+                        onPressed: () => _openLogin(context),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: KeychatColors.textPrimary,
                           side: const BorderSide(color: KeychatColors.primary),
@@ -109,10 +130,56 @@ class AuthChoiceScreen extends StatelessWidget {
   }
 }
 
-/// Visual-only seed phrase restore screen. Not wired up to any real
-/// account-recovery logic yet.
-class _LoginPlaceholderScreen extends StatelessWidget {
-  const _LoginPlaceholderScreen();
+/// Seed phrase restore screen: lets the user paste their 12-word seed
+/// phrase and, if [onRestore] is given, submits it for account recovery.
+class _LoginScreen extends StatefulWidget {
+  const _LoginScreen({this.onRestore});
+
+  final Future<String?> Function(String mnemonic)? onRestore;
+
+  @override
+  State<_LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<_LoginScreen> {
+  static const _wordCount = 12;
+  final _controllers = List.generate(_wordCount, (_) => TextEditingController());
+  late final _focusNodes = List.generate(
+    _wordCount,
+    (_) => FocusNode()..addListener(() => setState(() {})),
+  );
+  bool _submitting = false;
+  String? _errorText;
+
+  @override
+  void dispose() {
+    for (final controller in _controllers) {
+      controller.dispose();
+    }
+    for (final node in _focusNodes) {
+      node.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final onRestore = widget.onRestore;
+    if (onRestore == null) return;
+    final words = _controllers.map((c) => c.text.trim()).where((w) => w.isNotEmpty);
+    final mnemonic = words.join(' ');
+    if (mnemonic.isEmpty) return;
+
+    setState(() {
+      _submitting = true;
+      _errorText = null;
+    });
+    final error = await onRestore(mnemonic);
+    if (!mounted) return;
+    setState(() {
+      _submitting = false;
+      _errorText = error;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -136,42 +203,71 @@ class _LoginPlaceholderScreen extends StatelessWidget {
                 style: const TextStyle(color: KeychatColors.textSecondary, fontSize: 14),
               ),
               const SizedBox(height: 16),
-              TextField(
-                enabled: false,
-                maxLines: 4,
-                decoration: InputDecoration(
-                  hintText: l10n.seedPhraseLabel,
-                  filled: true,
-                  fillColor: KeychatColors.surface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: KeychatColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _wordCount,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 2.4,
                   ),
-                  contentPadding: const EdgeInsets.all(16),
+                  itemBuilder: (context, index) => TextField(
+                    controller: _controllers[index],
+                    focusNode: _focusNodes[index],
+                    enabled: !_submitting,
+                    textAlign: TextAlign.center,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: _focusNodes[index].hasFocus ? null : '${index + 1}',
+                      hintStyle: TextStyle(color: KeychatColors.textSecondary.withValues(alpha: 0.5)),
+                      filled: true,
+                      fillColor: KeychatColors.background,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    ),
+                  ),
                 ),
               ),
+              if (_errorText != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _errorText!,
+                  style: const TextStyle(color: Colors.red, fontSize: 13),
+                ),
+              ],
               const SizedBox(height: 24),
               SizedBox(
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: null,
+                  onPressed: _submitting ? null : _submit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: KeychatColors.primaryDark,
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: KeychatColors.primary,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: Text(
-                    l10n.logInButton,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                  ),
+                  child: _submitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(
+                          l10n.logInButton,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                        ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                l10n.comingSoon,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: KeychatColors.textSecondary, fontSize: 13),
               ),
             ],
           ),

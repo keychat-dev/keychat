@@ -16,6 +16,8 @@ import 'package:workspace/screens/setup_complete.dart';
 import 'package:workspace/services/account_sync.dart';
 import 'package:workspace/src/rust/api/account.dart' as account_api;
 import 'package:workspace/src/rust/api/keys.dart' as keys_api;
+import 'package:workspace/src/rust/api/relay.dart' as relay_api;
+import 'package:workspace/src/rust/api/sync.dart' as sync_api;
 import 'package:workspace/src/rust/frb_generated.dart';
 
 Future<void> main() async {
@@ -80,7 +82,58 @@ class _KeyChatAppState extends State<KeyChatApp> {
           ),
         );
       },
+      onRestore: (mnemonic) => _handleRestore(context, mnemonic),
     );
+  }
+
+  /// Validates the given seed phrase, looks up its relay-hosted account
+  /// backup (NIP-06 derived identity), and if found recreates the local
+  /// account from it and navigates to Home. Returns a user-facing error
+  /// message on failure, or `null` on success.
+  Future<String?> _handleRestore(BuildContext context, String mnemonic) async {
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      await keys_api.validateMnemonic(mnemonic: mnemonic);
+    } catch (_) {
+      return l10n.restoreInvalidSeed;
+    }
+
+    // The relay-selection step (shown right before this screen) already
+    // persisted the user's chosen search relays to relays.json.
+    final storageDir = await getApplicationDocumentsDirectory();
+    final relayUrls = (await relay_api.loadRelayList(storageDir: storageDir.path)).urls;
+    sync_api.RemoteAccount? remote;
+    try {
+      remote = await sync_api.fetchAccountBackup(mnemonic: mnemonic, relayUrls: relayUrls);
+    } catch (_) {
+      return l10n.restoreNetworkError;
+    }
+    if (remote == null) return l10n.restoreNoBackupFound;
+
+    await account_api.saveAccountWithTimestamp(
+      storageDir: storageDir.path,
+      displayName: remote.displayName,
+      statusMessage: remote.statusMessage,
+      updatedAt: remote.updatedAt,
+    );
+    const secureStorage = FlutterSecureStorage();
+    await secureStorage.write(key: seedStorageKey, value: mnemonic);
+
+    final profile = (await account_api.loadAccount(storageDir: storageDir.path))!;
+    if (!context.mounted) return null;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => Builder(
+          builder: (context) => HomeScreen(
+            profile: profile,
+            onSelectLanguage: _selectLocale,
+            onLogout: () => _logout(context),
+          ),
+        ),
+      ),
+      (route) => false,
+    );
+    return null;
   }
 
   Future<void> _handleContinue(

@@ -134,6 +134,24 @@ abstract class AppLocalizations {
   /// **'Enter your seed phrase to restore your account'**
   String get seedPhraseHint;
 
+  /// No description provided for @restoreInvalidSeed.
+  ///
+  /// In en, this message translates to:
+  /// **'This doesn\'t look like a valid seed phrase.'**
+  String get restoreInvalidSeed;
+
+  /// No description provided for @restoreNoBackupFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No backup was found for this seed phrase. Make sure you\'ve completed setup with relay sync on another device first.'**
+  String get restoreNoBackupFound;
+
+  /// No description provided for @restoreNetworkError.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach any relay. Check your connection and try again.'**
+  String get restoreNetworkError;
+
   /// No description provided for @profileSetupSubtitle.
   ///
   /// In en, this message translates to:
@@ -301,6 +319,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You can review this phrase again anytime from Settings > Account.'**
   String get seedBackupOnboardingNote;
+
+  /// No description provided for @seedBackupNoDefaultRelayTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Also save your relay URLs'**
+  String get seedBackupNoDefaultRelayTitle;
+
+  /// No description provided for @seedBackupNoDefaultRelayBody.
+  ///
+  /// In en, this message translates to:
+  /// **'None of your relays are on the default list. Restoring elsewhere requires selecting the same relays this account publishes to, so write those relay URLs down too — not just this phrase.'**
+  String get seedBackupNoDefaultRelayBody;
 
   /// No description provided for @logoutButton.
   ///
