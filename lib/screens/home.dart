@@ -105,23 +105,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     setState(() => _friends = friends);
   }
 
-  /// Checks whether any outgoing friend requests have since been accepted
-  /// (without requiring an app restart), then reloads the friends list.
+  /// Pull-to-refresh: just re-reads the local friends list. The live
+  /// subscription (started in [_subscribeFriendEvents]) keeps it current —
+  /// on reconnect, relays replay any events missed while the app was
+  /// closed, so no separate relay round-trip is needed here.
   Future<void> _refreshFriends() async {
-    const secureStorage = FlutterSecureStorage();
-    final mnemonic = await secureStorage.read(key: seedStorageKey);
-    if (mnemonic != null) {
-      final storageDir = await getApplicationDocumentsDirectory();
-      try {
-        await sync_api.fetchFriendAccepts(
-          mnemonic: mnemonic,
-          storageDir: storageDir.path,
-        );
-      } catch (_) {
-        // Offline or relays unreachable — the list below just won't have
-        // picked up anything new this time.
-      }
-    }
     await _loadFriends();
   }
 

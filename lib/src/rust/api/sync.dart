@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `fetch_events`, `fetch_latest_backup_event`, `fetch_relay_list_nip65`, `listen_for_friend_events`, `publish_relay_list_nip65`, `publish_to_relays`, `read_avatar_base64`, `run_friend_event_subscription`, `runtime`, `save_friend_avatar`
+// These functions are ignored because they are not marked as `pub`: `fetch_latest_backup_event`, `listen_for_friend_events`, `publish_to_relays`, `read_avatar_base64`, `run_friend_event_subscription`, `runtime`, `save_friend_avatar`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `BackupPayload`, `FriendPayload`, `Watch`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`
 
@@ -80,18 +80,15 @@ Future<void> sendFriendRequest({
   inviteRelays: inviteRelays,
 );
 
-/// Fetches and decrypts pending friend requests addressed to any of our
-/// still-active invites, across `relay_urls` (this device's own relays —
-/// the same ones advertised in the QR). Already-known friends and blocked
-/// pubkeys are filtered out.
-Future<List<PendingFriendRequest>> fetchPendingFriendRequests({
-  required String mnemonic,
+/// Reads pending incoming friend requests from local storage — persisted
+/// as they arrive over the live subscription (see `listen_for_friend_events`),
+/// so this never needs to touch a relay. Already-known friends and blocked
+/// pubkeys are filtered out (in case a request lingered from before a
+/// block/add happened elsewhere).
+Future<List<PendingFriendRequest>> loadPendingFriendRequests({
   required String storageDir,
-  required List<String> relayUrls,
-}) => RustLib.instance.api.crateApiSyncFetchPendingFriendRequests(
-  mnemonic: mnemonic,
+}) => RustLib.instance.api.crateApiSyncLoadPendingFriendRequests(
   storageDir: storageDir,
-  relayUrls: relayUrls,
 );
 
 /// Accepts a pending friend request: mints a fresh per-relationship key,
@@ -129,12 +126,12 @@ Future<void> rejectFriendRequest({
 
 /// Publishes the given profile info to every existing friend, each using
 /// the per-relationship key already established for them, encrypted to
-/// their contact pubkey. Sent to the union of their last-known relays and
-/// whatever their NIP-65 relay list (looked up fresh from the bootstrap
-/// relays) currently says — so a friend who's since moved relays without
-/// us hearing about it yet still gets this. Also republishes our own
-/// NIP-65 for that per-relationship key, so *they* can resolve us the same
-/// way if our notice doesn't reach them directly.
+/// their contact pubkey, and sent to their last-known relays. Every such
+/// event carries our current relay list too, so friends always pick up
+/// our latest relays as a side effect of any update reaching them — no
+/// separate relay-discovery mechanism needed. `avatar_path` should be
+/// `None` when only the text fields changed, to avoid re-sending the
+/// (much larger) avatar payload on every edit.
 Future<void> publishProfileUpdateToFriends({
   required String mnemonic,
   required String storageDir,
@@ -147,30 +144,6 @@ Future<void> publishProfileUpdateToFriends({
   displayName: displayName,
   statusMessage: statusMessage,
   avatarPath: avatarPath,
-);
-
-/// Called after the user changes their own relay list in Settings.
-/// Republishes NIP-65 (to the fixed bootstrap relays) for every
-/// per-relationship key we've ever given out to a friend, so each of them
-/// — even ones who miss the direct profile-update notice entirely — can
-/// still resolve our current relays by looking up that key there.
-Future<void> publishRelayListUpdate({
-  required String mnemonic,
-  required String storageDir,
-}) => RustLib.instance.api.crateApiSyncPublishRelayListUpdate(
-  mnemonic: mnemonic,
-  storageDir: storageDir,
-);
-
-/// Checks every friend request we've sent that hasn't been resolved yet,
-/// and turns any that were accepted into saved friends. Returns the newly
-/// added friends (e.g. for a "X accepted your request" notification).
-Future<List<AcceptedFriend>> fetchFriendAccepts({
-  required String mnemonic,
-  required String storageDir,
-}) => RustLib.instance.api.crateApiSyncFetchFriendAccepts(
-  mnemonic: mnemonic,
-  storageDir: storageDir,
 );
 
 /// Opens a connection to this account's relays (plus any outstanding
@@ -186,32 +159,6 @@ Stream<FriendEvent> subscribeFriendEvents({
   mnemonic: mnemonic,
   storageDir: storageDir,
 );
-
-/// A friend request we sent that the other side has accepted.
-class AcceptedFriend {
-  final String pubkey;
-  final String displayName;
-  final String statusMessage;
-
-  const AcceptedFriend({
-    required this.pubkey,
-    required this.displayName,
-    required this.statusMessage,
-  });
-
-  @override
-  int get hashCode =>
-      pubkey.hashCode ^ displayName.hashCode ^ statusMessage.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is AcceptedFriend &&
-          runtimeType == other.runtimeType &&
-          pubkey == other.pubkey &&
-          displayName == other.displayName &&
-          statusMessage == other.statusMessage;
-}
 
 /// A live update about a friend request or acceptance, delivered while
 /// this device stays connected to its relays. Cheaper than re-polling: the

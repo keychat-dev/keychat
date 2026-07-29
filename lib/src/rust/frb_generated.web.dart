@@ -38,9 +38,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
-  AcceptedFriend dco_decode_accepted_friend(dynamic raw);
-
-  @protected
   Account dco_decode_account(dynamic raw);
 
   @protected
@@ -78,9 +75,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
-
-  @protected
-  List<AcceptedFriend> dco_decode_list_accepted_friend(dynamic raw);
 
   @protected
   List<bool> dco_decode_list_bool(dynamic raw);
@@ -144,9 +138,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
-  AcceptedFriend sse_decode_accepted_friend(SseDeserializer deserializer);
-
-  @protected
   Account sse_decode_account(SseDeserializer deserializer);
 
   @protected
@@ -186,11 +177,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
-
-  @protected
-  List<AcceptedFriend> sse_decode_list_accepted_friend(
-    SseDeserializer deserializer,
-  );
 
   @protected
   List<bool> sse_decode_list_bool(SseDeserializer deserializer);
@@ -265,12 +251,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
-  void sse_encode_accepted_friend(
-    AcceptedFriend self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_account(Account self, SseSerializer serializer);
 
   @protected
@@ -317,12 +297,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_list_accepted_friend(
-    List<AcceptedFriend> self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_list_bool(List<bool> self, SseSerializer serializer);

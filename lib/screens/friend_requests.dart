@@ -4,7 +4,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:workspace/l10n/app_localizations.dart';
 import 'package:workspace/screens/login.dart';
 import 'package:workspace/screens/logout.dart' show seedStorageKey;
-import 'package:workspace/src/rust/api/relay.dart' as relay_api;
 import 'package:workspace/src/rust/api/sync.dart' as sync_api;
 
 /// Shows pending incoming friend requests (sent to any of our still-active
@@ -28,21 +27,8 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
   }
 
   Future<void> _load() async {
-    const secureStorage = FlutterSecureStorage();
-    final mnemonic = await secureStorage.read(key: seedStorageKey);
-    if (mnemonic == null) {
-      setState(() => _loading = false);
-      return;
-    }
     final storageDir = await getApplicationDocumentsDirectory();
-    final relayUrls = (await relay_api.loadRelayList(
-      storageDir: storageDir.path,
-    )).urls;
-    final requests = await sync_api.fetchPendingFriendRequests(
-      mnemonic: mnemonic,
-      storageDir: storageDir.path,
-      relayUrls: relayUrls,
-    );
+    final requests = await sync_api.loadPendingFriendRequests(storageDir: storageDir.path);
     if (!mounted) return;
     setState(() {
       _requests = requests;

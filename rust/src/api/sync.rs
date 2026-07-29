@@ -11,9 +11,8 @@ use futures_util::future::join_all;
 use nostr::event::{Event, EventBuilder, Kind, Tag};
 use nostr::nips::nip09::EventDeletionRequest;
 use nostr::nips::nip44;
-use nostr::nips::nip65;
 use nostr::types::Timestamp;
-use nostr::{Filter, Keys, PublicKey, RelayUrl};
+use nostr::{Filter, PublicKey};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::OnceLock;
@@ -154,41 +153,6 @@ fn save_friend_avatar(storage_dir: &str, pubkey: &str, avatar_base64: &Option<St
     Some(path.to_string_lossy().to_string())
 }
 
-/// Publishes a NIP-65 relay-list-metadata event under `keys` — typically
-/// one of our per-contact keys — to a fixed, always-known bootstrap relay
-/// set (the same 3 defaults every install starts with). This gives anyone
-/// who already knows that pubkey a way to resolve our *current* relays
-/// even if a direct profile-update notice never reached them — e.g. they
-/// moved relays themselves before we could tell them where we are now.
-async fn publish_relay_list_nip65(keys: &Keys, relays: &[String]) {
-    let entries: Vec<(RelayUrl, Option<nip65::RelayMetadata>)> = relays
-        .iter()
-        .filter_map(|url| RelayUrl::parse(url).ok())
-        .map(|url| (url, None))
-        .collect();
-    if entries.is_empty() {
-        return;
-    }
-    let Ok(event) = EventBuilder::relay_list(entries).sign_with_keys(keys) else {
-        return;
-    };
-    let _ = publish_to_relays(&relay::default_relays(), &event).await;
-}
-
-/// Looks up `pubkey`'s most recent NIP-65 relay list from the bootstrap
-/// relay set. Returns an empty list if none is found or reachable.
-async fn fetch_relay_list_nip65(pubkey: &PublicKey) -> Vec<String> {
-    let filter = Filter::new().author(*pubkey).kind(Kind::RelayList).limit(1);
-    let events = fetch_events(&relay::default_relays(), &filter)
-        .await
-        .unwrap_or_default();
-    let Some(event) = events.into_iter().max_by_key(|e| e.created_at) else {
-        return Vec::new();
-    };
-    nip65::extract_relay_list(&event)
-        .map(|(url, _)| url.to_string())
-        .collect()
-}
 
 /// A pending incoming friend request, decrypted and ready to show the user.
 pub struct PendingFriendRequest {
@@ -202,13 +166,6 @@ pub struct PendingFriendRequest {
     /// Base64-encoded avatar image, if the requester has one — passed
     /// through unchanged so `accept_friend_request` can cache it.
     pub avatar_base64: Option<String>,
-}
-
-/// A friend request we sent that the other side has accepted.
-pub struct AcceptedFriend {
-    pub pubkey: String,
-    pub display_name: String,
-    pub status_message: String,
 }
 
 /// The data a "my QR" screen encodes: enough for a scanner to send a
@@ -278,61 +235,35 @@ pub fn send_friend_request(
         .tag(Tag::public_key(target_pubkey))
         .sign_with_keys(&keys)
         .map_err(|e| e.to_string())?;
-    runtime().block_on(async {
-        publish_to_relays(&invite_relays, &event).await?;
-        publish_relay_list_nip65(&keys, &my_relays).await;
-        Ok::<(), String>(())
-    })?;
+    runtime().block_on(publish_to_relays(&invite_relays, &event))?;
 
     requests::add(&storage_dir, index, invite_pubkey, invite_relays)
 }
 
-/// Fetches and decrypts pending friend requests addressed to any of our
-/// still-active invites, across `relay_urls` (this device's own relays —
-/// the same ones advertised in the QR). Already-known friends and blocked
-/// pubkeys are filtered out.
-pub fn fetch_pending_friend_requests(
-    mnemonic: String,
-    storage_dir: String,
-    relay_urls: Vec<String>,
-) -> Result<Vec<PendingFriendRequest>, String> {
+/// Reads pending incoming friend requests from local storage — persisted
+/// as they arrive over the live subscription (see `listen_for_friend_events`),
+/// so this never needs to touch a relay. Already-known friends and blocked
+/// pubkeys are filtered out (in case a request lingered from before a
+/// block/add happened elsewhere).
+pub fn load_pending_friend_requests(storage_dir: String) -> Vec<PendingFriendRequest> {
     let known: std::collections::HashSet<String> = friends::load_friends(storage_dir.clone())
         .into_iter()
         .map(|f| f.pubkey)
         .chain(friends::load_blocked(&storage_dir))
         .collect();
 
-    let mut pending = Vec::new();
-    for invite in invites::list_active_invites(storage_dir.clone()) {
-        let keys = derive_contact_keys(&mnemonic, invite.account_index)?;
-        let filter = Filter::new()
-            .kind(FRIEND_REQUEST_KIND)
-            .pubkey(keys.public_key())
-            .identifier(FRIEND_D_TAG);
-        let events = runtime().block_on(fetch_events(&relay_urls, &filter))?;
-        for event in events {
-            let requester_hex = event.pubkey.to_hex();
-            if known.contains(&requester_hex) {
-                continue;
-            }
-            let Ok(decrypted) = nip44::decrypt(keys.secret_key(), &event.pubkey, &event.content)
-            else {
-                continue;
-            };
-            let Ok(payload) = serde_json::from_str::<FriendPayload>(&decrypted) else {
-                continue;
-            };
-            pending.push(PendingFriendRequest {
-                invite_account_index: invite.account_index,
-                pubkey: requester_hex,
-                display_name: payload.display_name,
-                status_message: payload.status_message,
-                relays: payload.relays,
-                avatar_base64: payload.avatar_base64,
-            });
-        }
-    }
-    Ok(pending)
+    requests::load_incoming(&storage_dir)
+        .into_iter()
+        .filter(|r| !known.contains(&r.pubkey))
+        .map(|r| PendingFriendRequest {
+            invite_account_index: r.invite_account_index,
+            pubkey: r.pubkey,
+            display_name: r.display_name,
+            status_message: r.status_message,
+            relays: r.relays,
+            avatar_base64: r.avatar_base64,
+        })
+        .collect()
 }
 
 /// Accepts a pending friend request: mints a fresh per-relationship key,
@@ -370,14 +301,11 @@ pub fn accept_friend_request(
         .tag(Tag::public_key(requester))
         .sign_with_keys(&keys)
         .map_err(|e| e.to_string())?;
-    runtime().block_on(async {
-        publish_to_relays(&requester_relays, &event).await?;
-        publish_relay_list_nip65(&keys, &my_relays).await;
-        Ok::<(), String>(())
-    })?;
+    runtime().block_on(publish_to_relays(&requester_relays, &event))?;
 
     invites::record_invite_use(storage_dir.clone(), invite_account_index)?;
     let avatar_path = save_friend_avatar(&storage_dir, &requester_pubkey, &requester_avatar_base64);
+    requests::remove_incoming(&storage_dir, &requester_pubkey)?;
     friends::add_friend(
         storage_dir,
         requester_pubkey,
@@ -392,17 +320,18 @@ pub fn accept_friend_request(
 /// Permanently blocks a requester's contact pubkey so their (rejected)
 /// friend request stops showing up, even if resent.
 pub fn reject_friend_request(storage_dir: String, requester_pubkey: String) -> Result<(), String> {
+    requests::remove_incoming(&storage_dir, &requester_pubkey)?;
     friends::block_pubkey(storage_dir, requester_pubkey)
 }
 
 /// Publishes the given profile info to every existing friend, each using
 /// the per-relationship key already established for them, encrypted to
-/// their contact pubkey. Sent to the union of their last-known relays and
-/// whatever their NIP-65 relay list (looked up fresh from the bootstrap
-/// relays) currently says — so a friend who's since moved relays without
-/// us hearing about it yet still gets this. Also republishes our own
-/// NIP-65 for that per-relationship key, so *they* can resolve us the same
-/// way if our notice doesn't reach them directly.
+/// their contact pubkey, and sent to their last-known relays. Every such
+/// event carries our current relay list too, so friends always pick up
+/// our latest relays as a side effect of any update reaching them — no
+/// separate relay-discovery mechanism needed. `avatar_path` should be
+/// `None` when only the text fields changed, to avoid re-sending the
+/// (much larger) avatar payload on every edit.
 pub fn publish_profile_update_to_friends(
     mnemonic: String,
     storage_dir: String,
@@ -414,7 +343,7 @@ pub fn publish_profile_update_to_friends(
     let payload = FriendPayload {
         display_name,
         status_message,
-        relays: my_relays.clone(),
+        relays: my_relays,
         avatar_base64: read_avatar_base64(&avatar_path),
     };
     let plaintext = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
@@ -442,81 +371,10 @@ pub fn publish_profile_update_to_friends(
             else {
                 continue;
             };
-
-            let mut target_relays = friend.relays.clone();
-            for url in fetch_relay_list_nip65(&friend_pubkey).await {
-                if !target_relays.contains(&url) {
-                    target_relays.push(url);
-                }
-            }
-            let _ = publish_to_relays(&target_relays, &event).await;
-            publish_relay_list_nip65(&keys, &my_relays).await;
+            let _ = publish_to_relays(&friend.relays, &event).await;
         }
         Ok(())
     })
-}
-
-/// Called after the user changes their own relay list in Settings.
-/// Republishes NIP-65 (to the fixed bootstrap relays) for every
-/// per-relationship key we've ever given out to a friend, so each of them
-/// — even ones who miss the direct profile-update notice entirely — can
-/// still resolve our current relays by looking up that key there.
-pub fn publish_relay_list_update(mnemonic: String, storage_dir: String) -> Result<(), String> {
-    let my_relays = relay::load_relay_list(storage_dir.clone()).urls;
-    runtime().block_on(async {
-        for friend in friends::load_friends(storage_dir.clone()) {
-            if let Ok(keys) = derive_contact_keys(&mnemonic, friend.my_account_index) {
-                publish_relay_list_nip65(&keys, &my_relays).await;
-            }
-        }
-    });
-    Ok(())
-}
-
-/// Checks every friend request we've sent that hasn't been resolved yet,
-/// and turns any that were accepted into saved friends. Returns the newly
-/// added friends (e.g. for a "X accepted your request" notification).
-pub fn fetch_friend_accepts(
-    mnemonic: String,
-    storage_dir: String,
-) -> Result<Vec<AcceptedFriend>, String> {
-    let mut accepted = Vec::new();
-    for outgoing in requests::load(&storage_dir) {
-        let keys = derive_contact_keys(&mnemonic, outgoing.my_account_index)?;
-        let filter = Filter::new()
-            .kind(FRIEND_ACCEPT_KIND)
-            .pubkey(keys.public_key())
-            .identifier(FRIEND_D_TAG);
-        let events = runtime().block_on(fetch_events(&outgoing.invite_relays, &filter))?;
-        let Some(event) = events.into_iter().max_by_key(|e| e.created_at) else {
-            continue;
-        };
-        let Ok(decrypted) = nip44::decrypt(keys.secret_key(), &event.pubkey, &event.content)
-        else {
-            continue;
-        };
-        let Ok(payload) = serde_json::from_str::<FriendPayload>(&decrypted) else {
-            continue;
-        };
-        let pubkey = event.pubkey.to_hex();
-        let avatar_path = save_friend_avatar(&storage_dir, &pubkey, &payload.avatar_base64);
-        friends::add_friend(
-            storage_dir.clone(),
-            pubkey.clone(),
-            outgoing.my_account_index,
-            payload.display_name.clone(),
-            payload.status_message.clone(),
-            payload.relays.clone(),
-            avatar_path,
-        )?;
-        requests::remove(&storage_dir, outgoing.my_account_index)?;
-        accepted.push(AcceptedFriend {
-            pubkey,
-            display_name: payload.display_name,
-            status_message: payload.status_message,
-        });
-    }
-    Ok(accepted)
 }
 
 /// A live update about a friend request or acceptance, delivered while
@@ -631,7 +489,7 @@ async fn listen_for_friend_events(
     storage_dir: &str,
     sink: &StreamSink<FriendEvent>,
 ) {
-    let Some((sub_id, mut events)) = relay_pool::subscribe(url, filter) else {
+    let Some((sub_id, mut events)) = relay_pool::subscribe(url, filter).await else {
         return;
     };
 
@@ -660,14 +518,26 @@ async fn listen_for_friend_events(
         };
 
         let friend_event = match matched {
-            Watch::Invite(idx) if event.kind == FRIEND_REQUEST_KIND => FriendEvent {
-                kind: "request".to_string(),
-                pubkey: event.pubkey.to_hex(),
-                display_name: payload.display_name,
-                status_message: payload.status_message,
-                invite_account_index: Some(*idx),
-                relays: payload.relays,
-            },
+            Watch::Invite(idx) if event.kind == FRIEND_REQUEST_KIND => {
+                let pubkey = event.pubkey.to_hex();
+                let _ = requests::add_incoming(
+                    storage_dir,
+                    *idx,
+                    pubkey.clone(),
+                    payload.display_name.clone(),
+                    payload.status_message.clone(),
+                    payload.relays.clone(),
+                    payload.avatar_base64.clone(),
+                );
+                FriendEvent {
+                    kind: "request".to_string(),
+                    pubkey,
+                    display_name: payload.display_name,
+                    status_message: payload.status_message,
+                    invite_account_index: Some(*idx),
+                    relays: payload.relays,
+                }
+            }
             Watch::Outgoing(idx) if event.kind == FRIEND_ACCEPT_KIND => {
                 let pubkey = event.pubkey.to_hex();
                 let avatar_path = save_friend_avatar(storage_dir, &pubkey, &payload.avatar_base64);
@@ -722,8 +592,9 @@ async fn listen_for_friend_events(
 /// subscription — never a fresh dial per publish). Fire-and-forget per
 /// relay; only fails if every relay's queue is already gone.
 async fn publish_to_relays(urls: &[String], event: &Event) -> Result<(), String> {
-    let ok = urls.iter().any(|url| relay_pool::publish(url, event).is_ok());
-    if ok {
+    let tasks = urls.iter().map(|url| relay_pool::publish(url, event));
+    let results = join_all(tasks).await;
+    if results.iter().any(Result::is_ok) {
         Ok(())
     } else {
         Err("failed to publish to any relay".to_string())
@@ -752,20 +623,3 @@ async fn fetch_latest_backup_event(
     Ok(latest)
 }
 
-/// Queries `urls` with `filter` and returns every distinct event found
-/// across all of them (deduplicated by event id). Reuses each relay's
-/// pooled connection rather than dialing a fresh one.
-async fn fetch_events(urls: &[String], filter: &Filter) -> Result<Vec<Event>, String> {
-    let tasks = urls
-        .iter()
-        .map(|url| relay_pool::request(url, filter, REQUEST_TIMEOUT));
-    let results = join_all(tasks).await;
-    let mut seen = std::collections::HashSet::new();
-    let mut events = Vec::new();
-    for event in results.into_iter().flatten() {
-        if seen.insert(event.id) {
-            events.push(event);
-        }
-    }
-    Ok(events)
-}

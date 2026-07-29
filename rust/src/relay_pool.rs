@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, watch};
 use tokio_tungstenite::tungstenite::Message;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -45,6 +45,12 @@ enum Command {
 
 struct RelayHandle {
     tx: mpsc::UnboundedSender<Command>,
+    /// `None` while the handshake is still in flight, then latched to
+    /// `Some(true/false)` once it resolves. Callers that arrive while a
+    /// connection is still connecting await this instead of racing ahead
+    /// with commands that would otherwise be silently dropped if the
+    /// handshake ends up failing.
+    ready: watch::Receiver<Option<bool>>,
 }
 
 fn pool() -> &'static Mutex<HashMap<String, RelayHandle>> {
@@ -57,30 +63,51 @@ fn next_sub_id() -> String {
     format!("keychat-{}", COUNTER.fetch_add(1, Ordering::Relaxed))
 }
 
-/// Returns the command channel for `url`'s pooled connection, spawning a
-/// background task to own it if one isn't already running.
-fn handle_for(url: &str) -> mpsc::UnboundedSender<Command> {
-    let mut guard = pool().lock().unwrap();
-    if let Some(existing) = guard.get(url) {
-        return existing.tx.clone();
+/// Returns the command channel for `url`'s pooled connection once it's
+/// actually connected, spawning a background task to own it if one isn't
+/// already running or in flight. Returns `None` if the connection attempt
+/// fails — the failed entry is removed from the pool so the next call
+/// starts a fresh attempt (a natural, on-demand retry).
+async fn handle_for(url: &str) -> Option<mpsc::UnboundedSender<Command>> {
+    let (tx, mut ready) = {
+        let mut guard = pool().lock().unwrap();
+        if let Some(existing) = guard.get(url) {
+            (existing.tx.clone(), existing.ready.clone())
+        } else {
+            let (ready_tx, ready_rx) = watch::channel(None);
+            let (tx, rx) = mpsc::unbounded_channel();
+            guard.insert(
+                url.to_string(),
+                RelayHandle { tx: tx.clone(), ready: ready_rx.clone() },
+            );
+            tokio::spawn(run_connection(url.to_string(), rx, ready_tx));
+            (tx, ready_rx)
+        }
+    };
+
+    loop {
+        if let Some(connected) = *ready.borrow() {
+            return connected.then_some(tx);
+        }
+        if ready.changed().await.is_err() {
+            return None;
+        }
     }
-    let (tx, rx) = mpsc::unbounded_channel();
-    guard.insert(url.to_string(), RelayHandle { tx: tx.clone() });
-    tokio::spawn(run_connection(url.to_string(), rx));
-    tx
 }
 
 /// Owns one relay's WebSocket for as long as it stays connected: writes
 /// outgoing commands as they arrive and fans incoming EVENT/EOSE messages
 /// out to whichever subscription they belong to. Removes itself from the
 /// pool on disconnect so the next use reconnects from scratch.
-async fn run_connection(url: String, mut rx: mpsc::UnboundedReceiver<Command>) {
+async fn run_connection(url: String, mut rx: mpsc::UnboundedReceiver<Command>, ready: watch::Sender<Option<bool>>) {
     let Ok(Ok((ws, _))) =
         tokio::time::timeout(CONNECT_TIMEOUT, tokio_tungstenite::connect_async(&url)).await
     else {
         pool().lock().unwrap().remove(&url);
+        let _ = ready.send(Some(false));
         return;
     };
+    let _ = ready.send(Some(true));
     let (mut write, mut read) = ws.split();
     let mut subs: HashMap<String, mpsc::UnboundedSender<PoolEvent>> = HashMap::new();
 
@@ -157,7 +184,9 @@ async fn run_connection(url: String, mut rx: mpsc::UnboundedReceiver<Command>) {
 /// (or opens) a single persistent connection per relay rather than
 /// dialing a fresh one for every query.
 pub async fn request(url: &str, filter: &Filter, timeout: Duration) -> Vec<Event> {
-    let tx = handle_for(url);
+    let Some(tx) = handle_for(url).await else {
+        return Vec::new();
+    };
     let sub_id = next_sub_id();
     let (reply_tx, mut reply_rx) = mpsc::unbounded_channel();
     let Ok(filter_json) = serde_json::to_value(filter) else {
@@ -190,8 +219,8 @@ pub async fn request(url: &str, filter: &Filter, timeout: Duration) -> Vec<Event
 /// Publishes `event` to `url` over the pooled connection. Fire-and-forget
 /// — doesn't wait for the relay's `OK`, since plenty of relays are slow to
 /// send one and a missing reply doesn't mean the publish failed.
-pub fn publish(url: &str, event: &Event) -> Result<(), String> {
-    let tx = handle_for(url);
+pub async fn publish(url: &str, event: &Event) -> Result<(), String> {
+    let tx = handle_for(url).await.ok_or_else(|| "relay unreachable".to_string())?;
     let event_json =
         serde_json::to_string(&serde_json::json!(["EVENT", event])).map_err(|e| e.to_string())?;
     tx.send(Command::Publish { event_json })
@@ -201,8 +230,8 @@ pub fn publish(url: &str, event: &Event) -> Result<(), String> {
 /// Opens a live subscription on `url`'s pooled connection. The returned
 /// receiver streams matching events indefinitely — call [unsubscribe] with
 /// the returned id once no longer needed.
-pub fn subscribe(url: &str, filter: &Filter) -> Option<(String, mpsc::UnboundedReceiver<PoolEvent>)> {
-    let tx = handle_for(url);
+pub async fn subscribe(url: &str, filter: &Filter) -> Option<(String, mpsc::UnboundedReceiver<PoolEvent>)> {
+    let tx = handle_for(url).await?;
     let sub_id = next_sub_id();
     let (reply_tx, reply_rx) = mpsc::unbounded_channel();
     let filter_json = serde_json::to_value(filter).ok()?;

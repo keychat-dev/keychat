@@ -83,7 +83,14 @@ Future<account_api.Account> reconcileAccountBackup(
 /// Publishes the given profile info to every existing friend, so their
 /// copy of our display name/status stays in sync. Best-effort: silently
 /// does nothing (no seed) or fails silently (relays unreachable).
-Future<void> publishProfileUpdateToFriends(account_api.Account profile) async {
+///
+/// Pass `avatarChanged: false` (the default) when only the text fields
+/// changed, so the (much larger) avatar payload isn't re-sent on every
+/// edit — the friend's cached avatar is left as-is.
+Future<void> publishProfileUpdateToFriends(
+  account_api.Account profile, {
+  bool avatarChanged = false,
+}) async {
   const secureStorage = FlutterSecureStorage();
   final mnemonic = await secureStorage.read(key: seedStorageKey);
   if (mnemonic == null) return;
@@ -95,7 +102,7 @@ Future<void> publishProfileUpdateToFriends(account_api.Account profile) async {
       storageDir: storageDir.path,
       displayName: profile.displayName,
       statusMessage: profile.statusMessage,
-      avatarPath: profile.avatarPath,
+      avatarPath: avatarChanged ? profile.avatarPath : null,
     );
   } catch (_) {
     // Offline or every relay unreachable — friends just won't see the
@@ -103,46 +110,11 @@ Future<void> publishProfileUpdateToFriends(account_api.Account profile) async {
   }
 }
 
-/// Republishes NIP-65 relay-list metadata (to a fixed bootstrap relay set)
-/// for every friend's per-relationship key, after the user changes their
-/// own relay list. Lets friends resolve our new relays even if they miss
-/// the next profile-update notice. Best-effort: silently does nothing (no
-/// seed) or fails silently (relays unreachable).
-Future<void> announceRelayListUpdate() async {
-  const secureStorage = FlutterSecureStorage();
-  final mnemonic = await secureStorage.read(key: seedStorageKey);
-  if (mnemonic == null) return;
-
-  final storageDir = await getApplicationDocumentsDirectory();
-  try {
-    await sync_api.publishRelayListUpdate(
-      mnemonic: mnemonic,
-      storageDir: storageDir.path,
-    );
-  } catch (_) {
-    // Offline or every relay unreachable — friends fall back to whatever
-    // relay list they already have cached for us.
-  }
-}
-
 /// Counts pending incoming friend requests, for showing a badge on the
-/// "Add friend" entry point. Returns 0 if there's no seed yet or relays
-/// are unreachable — best-effort, never throws.
+/// "Add friend" entry point. Reads the local cache the live subscription
+/// keeps up to date — no relay round-trip needed.
 Future<int> pendingFriendRequestCount() async {
-  const secureStorage = FlutterSecureStorage();
-  final mnemonic = await secureStorage.read(key: seedStorageKey);
-  if (mnemonic == null) return 0;
-
   final storageDir = await getApplicationDocumentsDirectory();
-  final relayList = await relay_api.loadRelayList(storageDir: storageDir.path);
-  try {
-    final requests = await sync_api.fetchPendingFriendRequests(
-      mnemonic: mnemonic,
-      storageDir: storageDir.path,
-      relayUrls: relayList.urls,
-    );
-    return requests.length;
-  } catch (_) {
-    return 0;
-  }
+  final requests = await sync_api.loadPendingFriendRequests(storageDir: storageDir.path);
+  return requests.length;
 }

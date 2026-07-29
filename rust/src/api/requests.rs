@@ -60,3 +60,66 @@ pub(crate) fn remove(storage_dir: &str, my_account_index: u32) -> Result<(), Str
     requests.retain(|r| r.my_account_index != my_account_index);
     save(storage_dir, &requests)
 }
+
+/// A friend request someone else sent us, persisted as soon as it arrives
+/// over the live subscription so the "pending requests" screen can just
+/// read this local file instead of re-querying relays every time it opens.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct IncomingRequest {
+    pub invite_account_index: u32,
+    pub pubkey: String,
+    pub display_name: String,
+    pub status_message: String,
+    pub relays: Vec<String>,
+    pub avatar_base64: Option<String>,
+    pub created_at: i64,
+}
+
+fn incoming_path(storage_dir: &str) -> PathBuf {
+    Path::new(storage_dir).join("incoming_requests.json")
+}
+
+pub(crate) fn load_incoming(storage_dir: &str) -> Vec<IncomingRequest> {
+    fs::read_to_string(incoming_path(storage_dir))
+        .ok()
+        .and_then(|content| serde_json::from_str(&content).ok())
+        .unwrap_or_default()
+}
+
+fn save_incoming(storage_dir: &str, requests: &[IncomingRequest]) -> Result<(), String> {
+    let content = serde_json::to_string_pretty(requests).map_err(|e| e.to_string())?;
+    fs::write(incoming_path(storage_dir), content).map_err(|e| e.to_string())
+}
+
+/// Adds (or refreshes, if resent) a pending incoming request, deduplicating
+/// by requester pubkey.
+pub(crate) fn add_incoming(
+    storage_dir: &str,
+    invite_account_index: u32,
+    pubkey: String,
+    display_name: String,
+    status_message: String,
+    relays: Vec<String>,
+    avatar_base64: Option<String>,
+) -> Result<(), String> {
+    let mut requests = load_incoming(storage_dir);
+    requests.retain(|r| r.pubkey != pubkey);
+    requests.push(IncomingRequest {
+        invite_account_index,
+        pubkey,
+        display_name,
+        status_message,
+        relays,
+        avatar_base64,
+        created_at: now(),
+    });
+    save_incoming(storage_dir, &requests)
+}
+
+/// Removes a pending incoming request — called once it's been accepted or
+/// rejected.
+pub(crate) fn remove_incoming(storage_dir: &str, pubkey: &str) -> Result<(), String> {
+    let mut requests = load_incoming(storage_dir);
+    requests.retain(|r| r.pubkey != pubkey);
+    save_incoming(storage_dir, &requests)
+}
