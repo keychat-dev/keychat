@@ -109,7 +109,21 @@ async fn run_connection(url: String, mut rx: mpsc::UnboundedReceiver<Command>) {
                 }
             }
             msg = read.next() => {
-                let Some(Ok(Message::Text(text))) = msg else { break };
+                // The connection is only actually gone on `None`/`Err`/`Close` —
+                // relays routinely send Ping/Pong/other frames as keepalive,
+                // which used to be mistaken for a dead connection here and
+                // torn the whole pooled connection (and every subscription
+                // multiplexed on it, including the live one) down on the
+                // very first keepalive ping.
+                let text = match msg {
+                    Some(Ok(Message::Text(text))) => text,
+                    Some(Ok(Message::Ping(payload))) => {
+                        let _ = write.send(Message::Pong(payload)).await;
+                        continue;
+                    }
+                    Some(Ok(Message::Close(_))) | Some(Err(_)) | None => break,
+                    Some(Ok(_)) => continue,
+                };
                 let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) else { continue };
                 match value.get(0).and_then(|v| v.as_str()) {
                     Some("EVENT") => {
