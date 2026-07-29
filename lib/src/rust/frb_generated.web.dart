@@ -7,6 +7,7 @@
 // ignore_for_file: argument_type_not_assignable
 
 import 'api/account.dart';
+import 'api/chat.dart';
 import 'api/friends.dart';
 import 'api/invites.dart';
 import 'api/keys.dart';
@@ -59,6 +60,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
+  ChatMessage dco_decode_chat_message(dynamic raw);
+
+  @protected
   Friend dco_decode_friend(dynamic raw);
 
   @protected
@@ -80,6 +84,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<bool> dco_decode_list_bool(dynamic raw);
 
   @protected
+  List<ChatMessage> dco_decode_list_chat_message(dynamic raw);
+
+  @protected
   List<Friend> dco_decode_list_friend(dynamic raw);
 
   @protected
@@ -92,6 +99,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  List<UnreadCount> dco_decode_list_unread_count(dynamic raw);
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
@@ -125,6 +135,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void dco_decode_unit(dynamic raw);
+
+  @protected
+  UnreadCount dco_decode_unread_count(dynamic raw);
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
@@ -161,6 +174,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
+  ChatMessage sse_decode_chat_message(SseDeserializer deserializer);
+
+  @protected
   Friend sse_decode_friend(SseDeserializer deserializer);
 
   @protected
@@ -182,6 +198,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<bool> sse_decode_list_bool(SseDeserializer deserializer);
 
   @protected
+  List<ChatMessage> sse_decode_list_chat_message(SseDeserializer deserializer);
+
+  @protected
   List<Friend> sse_decode_list_friend(SseDeserializer deserializer);
 
   @protected
@@ -194,6 +213,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  List<UnreadCount> sse_decode_list_unread_count(SseDeserializer deserializer);
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
@@ -231,6 +253,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
+
+  @protected
+  UnreadCount sse_decode_unread_count(SseDeserializer deserializer);
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
@@ -278,6 +303,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_chat_message(ChatMessage self, SseSerializer serializer);
+
+  @protected
   void sse_encode_friend(Friend self, SseSerializer serializer);
 
   @protected
@@ -302,6 +330,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_bool(List<bool> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_chat_message(
+    List<ChatMessage> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_friend(List<Friend> self, SseSerializer serializer);
 
   @protected
@@ -316,6 +350,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_unread_count(
+    List<UnreadCount> self,
     SseSerializer serializer,
   );
 
@@ -363,6 +403,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_unread_count(UnreadCount self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);

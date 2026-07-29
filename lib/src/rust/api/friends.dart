@@ -33,6 +33,18 @@ Future<void> addFriend({
   avatarPath: avatarPath,
 );
 
+/// Sets whether a friend is pinned as a favorite. A no-op if there's no
+/// friend with that pubkey.
+Future<void> setFavoriteFriend({
+  required String storageDir,
+  required String pubkey,
+  required bool isFavorite,
+}) => RustLib.instance.api.crateApiFriendsSetFavoriteFriend(
+  storageDir: storageDir,
+  pubkey: pubkey,
+  isFavorite: isFavorite,
+);
+
 /// Removes a friend by their contact pubkey (e.g. after they're blocked).
 Future<void> removeFriend({
   required String storageDir,
@@ -75,6 +87,9 @@ class Friend {
   final String? avatarPath;
   final PlatformInt64 addedAt;
 
+  /// User-set flag to pin this friend near the top of the friends list.
+  final bool isFavorite;
+
   const Friend({
     required this.pubkey,
     required this.myAccountIndex,
@@ -83,6 +98,7 @@ class Friend {
     required this.relays,
     this.avatarPath,
     required this.addedAt,
+    required this.isFavorite,
   });
 
   @override
@@ -93,7 +109,8 @@ class Friend {
       statusMessage.hashCode ^
       relays.hashCode ^
       avatarPath.hashCode ^
-      addedAt.hashCode;
+      addedAt.hashCode ^
+      isFavorite.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -106,5 +123,6 @@ class Friend {
           statusMessage == other.statusMessage &&
           relays == other.relays &&
           avatarPath == other.avatarPath &&
-          addedAt == other.addedAt;
+          addedAt == other.addedAt &&
+          isFavorite == other.isFavorite;
 }

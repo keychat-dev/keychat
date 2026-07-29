@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0-beta.4";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1107658786;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -857090140;
 
 // Section: executor
 
@@ -626,6 +626,45 @@ fn wire__crate__api__account__load_account_impl(
         },
     )
 }
+fn wire__crate__api__chat__load_chat_history_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "load_chat_history",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_mnemonic = <String>::sse_decode(&mut deserializer);
+            let api_storage_dir = <String>::sse_decode(&mut deserializer);
+            let api_friend_pubkey = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::chat::load_chat_history(
+                        api_mnemonic,
+                        api_storage_dir,
+                        api_friend_pubkey,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__friends__load_friends_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -723,6 +762,80 @@ fn wire__crate__api__relay__load_relay_list_impl(
                 transform_result_sse::<_, ()>((move || {
                     let output_ok =
                         Result::<_, ()>::Ok(crate::api::relay::load_relay_list(api_storage_dir))?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__chat__load_unread_counts_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "load_unread_counts",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_mnemonic = <String>::sse_decode(&mut deserializer);
+            let api_storage_dir = <String>::sse_decode(&mut deserializer);
+            let api_friend_pubkeys = <Vec<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok(crate::api::chat::load_unread_counts(
+                        api_mnemonic,
+                        api_storage_dir,
+                        api_friend_pubkeys,
+                    ))?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__chat__mark_thread_read_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "mark_thread_read",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_storage_dir = <String>::sse_decode(&mut deserializer);
+            let api_friend_pubkey = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok =
+                        crate::api::chat::mark_thread_read(api_storage_dir, api_friend_pubkey)?;
                     Ok(output_ok)
                 })())
             }
@@ -1108,6 +1221,47 @@ fn wire__crate__api__relay__save_relay_list_impl(
         },
     )
 }
+fn wire__crate__api__chat__send_chat_message_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "send_chat_message",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_mnemonic = <String>::sse_decode(&mut deserializer);
+            let api_storage_dir = <String>::sse_decode(&mut deserializer);
+            let api_friend_pubkey = <String>::sse_decode(&mut deserializer);
+            let api_message = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::chat::send_chat_message(
+                        api_mnemonic,
+                        api_storage_dir,
+                        api_friend_pubkey,
+                        api_message,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__sync__send_friend_request_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1142,6 +1296,45 @@ fn wire__crate__api__sync__send_friend_request_impl(
                         api_storage_dir,
                         api_invite_pubkey,
                         api_invite_relays,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__friends__set_favorite_friend_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_favorite_friend",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_storage_dir = <String>::sse_decode(&mut deserializer);
+            let api_pubkey = <String>::sse_decode(&mut deserializer);
+            let api_is_favorite = <bool>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::friends::set_favorite_friend(
+                        api_storage_dir,
+                        api_pubkey,
+                        api_is_favorite,
                     )?;
                     Ok(output_ok)
                 })())
@@ -1278,6 +1471,24 @@ impl SseDecode for bool {
     }
 }
 
+impl SseDecode for crate::api::chat::ChatMessage {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_senderPubkey = <String>::sse_decode(deserializer);
+        let mut var_content = <String>::sse_decode(deserializer);
+        let mut var_createdAt = <i64>::sse_decode(deserializer);
+        let mut var_isMine = <bool>::sse_decode(deserializer);
+        return crate::api::chat::ChatMessage {
+            id: var_id,
+            sender_pubkey: var_senderPubkey,
+            content: var_content,
+            created_at: var_createdAt,
+            is_mine: var_isMine,
+        };
+    }
+}
+
 impl SseDecode for crate::api::friends::Friend {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1288,6 +1499,7 @@ impl SseDecode for crate::api::friends::Friend {
         let mut var_relays = <Vec<String>>::sse_decode(deserializer);
         let mut var_avatarPath = <Option<String>>::sse_decode(deserializer);
         let mut var_addedAt = <i64>::sse_decode(deserializer);
+        let mut var_isFavorite = <bool>::sse_decode(deserializer);
         return crate::api::friends::Friend {
             pubkey: var_pubkey,
             my_account_index: var_myAccountIndex,
@@ -1296,6 +1508,7 @@ impl SseDecode for crate::api::friends::Friend {
             relays: var_relays,
             avatar_path: var_avatarPath,
             added_at: var_addedAt,
+            is_favorite: var_isFavorite,
         };
     }
 }
@@ -1309,6 +1522,7 @@ impl SseDecode for crate::api::sync::FriendEvent {
         let mut var_statusMessage = <String>::sse_decode(deserializer);
         let mut var_inviteAccountIndex = <Option<u32>>::sse_decode(deserializer);
         let mut var_relays = <Vec<String>>::sse_decode(deserializer);
+        let mut var_content = <Option<String>>::sse_decode(deserializer);
         return crate::api::sync::FriendEvent {
             kind: var_kind,
             pubkey: var_pubkey,
@@ -1316,6 +1530,7 @@ impl SseDecode for crate::api::sync::FriendEvent {
             status_message: var_statusMessage,
             invite_account_index: var_inviteAccountIndex,
             relays: var_relays,
+            content: var_content,
         };
     }
 }
@@ -1387,6 +1602,18 @@ impl SseDecode for Vec<bool> {
     }
 }
 
+impl SseDecode for Vec<crate::api::chat::ChatMessage> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::chat::ChatMessage>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::friends::Friend> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1432,6 +1659,18 @@ impl SseDecode for Vec<u8> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<u8>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::chat::UnreadCount> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::chat::UnreadCount>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -1553,6 +1792,18 @@ impl SseDecode for () {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {}
 }
 
+impl SseDecode for crate::api::chat::UnreadCount {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_friendPubkey = <String>::sse_decode(deserializer);
+        let mut var_count = <u32>::sse_decode(deserializer);
+        return crate::api::chat::UnreadCount {
+            friend_pubkey: var_friendPubkey,
+            count: var_count,
+        };
+    }
+}
+
 impl SseDecode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1588,43 +1839,50 @@ fn pde_ffi_dispatcher_primary_impl(
         }
         15 => wire__crate__api__invites__list_invites_impl(port, ptr, rust_vec_len, data_len),
         16 => wire__crate__api__account__load_account_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__friends__load_friends_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__sync__load_pending_friend_requests_impl(
+        17 => wire__crate__api__chat__load_chat_history_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__friends__load_friends_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__sync__load_pending_friend_requests_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        19 => wire__crate__api__relay__load_relay_list_impl(port, ptr, rust_vec_len, data_len),
-        20 => {
+        20 => wire__crate__api__relay__load_relay_list_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__chat__load_unread_counts_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__chat__mark_thread_read_impl(port, ptr, rust_vec_len, data_len),
+        23 => {
             wire__crate__api__sync__parse_invite_qr_payload_impl(port, ptr, rust_vec_len, data_len)
         }
-        21 => {
+        24 => {
             wire__crate__api__sync__publish_account_backup_impl(port, ptr, rust_vec_len, data_len)
         }
-        22 => wire__crate__api__sync__publish_profile_update_to_friends_impl(
+        25 => wire__crate__api__sync__publish_profile_update_to_friends_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        23 => wire__crate__api__invites__record_invite_use_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__sync__reject_friend_request_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__friends__remove_friend_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__invites__revoke_invite_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__account__save_account_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__account__save_account_with_timestamp_impl(
+        26 => wire__crate__api__invites__record_invite_use_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__sync__reject_friend_request_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__friends__remove_friend_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__invites__revoke_invite_impl(port, ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__account__save_account_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__account__save_account_with_timestamp_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        29 => wire__crate__api__relay__save_relay_list_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__sync__send_friend_request_impl(port, ptr, rust_vec_len, data_len),
-        31 => {
+        32 => wire__crate__api__relay__save_relay_list_impl(port, ptr, rust_vec_len, data_len),
+        33 => wire__crate__api__chat__send_chat_message_impl(port, ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__sync__send_friend_request_impl(port, ptr, rust_vec_len, data_len),
+        35 => {
+            wire__crate__api__friends__set_favorite_friend_impl(port, ptr, rust_vec_len, data_len)
+        }
+        36 => {
             wire__crate__api__sync__subscribe_friend_events_impl(port, ptr, rust_vec_len, data_len)
         }
-        32 => wire__crate__api__keys__validate_mnemonic_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__keys__validate_mnemonic_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1665,6 +1923,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::account::Account>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::chat::ChatMessage {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.sender_pubkey.into_into_dart().into_dart(),
+            self.content.into_into_dart().into_dart(),
+            self.created_at.into_into_dart().into_dart(),
+            self.is_mine.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::chat::ChatMessage {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::chat::ChatMessage>
+    for crate::api::chat::ChatMessage
+{
+    fn into_into_dart(self) -> crate::api::chat::ChatMessage {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::friends::Friend {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -1675,6 +1954,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::friends::Friend {
             self.relays.into_into_dart().into_dart(),
             self.avatar_path.into_into_dart().into_dart(),
             self.added_at.into_into_dart().into_dart(),
+            self.is_favorite.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -1697,6 +1977,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::sync::FriendEvent {
             self.status_message.into_into_dart().into_dart(),
             self.invite_account_index.into_into_dart().into_dart(),
             self.relays.into_into_dart().into_dart(),
+            self.content.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -1815,6 +2096,24 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::sync::RemoteAccount>
         self
     }
 }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::chat::UnreadCount {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.friend_pubkey.into_into_dart().into_dart(),
+            self.count.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::chat::UnreadCount {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::chat::UnreadCount>
+    for crate::api::chat::UnreadCount
+{
+    fn into_into_dart(self) -> crate::api::chat::UnreadCount {
+        self
+    }
+}
 
 impl SseEncode for flutter_rust_bridge::for_generated::anyhow::Error {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -1856,6 +2155,17 @@ impl SseEncode for bool {
     }
 }
 
+impl SseEncode for crate::api::chat::ChatMessage {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.sender_pubkey, serializer);
+        <String>::sse_encode(self.content, serializer);
+        <i64>::sse_encode(self.created_at, serializer);
+        <bool>::sse_encode(self.is_mine, serializer);
+    }
+}
+
 impl SseEncode for crate::api::friends::Friend {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1866,6 +2176,7 @@ impl SseEncode for crate::api::friends::Friend {
         <Vec<String>>::sse_encode(self.relays, serializer);
         <Option<String>>::sse_encode(self.avatar_path, serializer);
         <i64>::sse_encode(self.added_at, serializer);
+        <bool>::sse_encode(self.is_favorite, serializer);
     }
 }
 
@@ -1878,6 +2189,7 @@ impl SseEncode for crate::api::sync::FriendEvent {
         <String>::sse_encode(self.status_message, serializer);
         <Option<u32>>::sse_encode(self.invite_account_index, serializer);
         <Vec<String>>::sse_encode(self.relays, serializer);
+        <Option<String>>::sse_encode(self.content, serializer);
     }
 }
 
@@ -1930,6 +2242,16 @@ impl SseEncode for Vec<bool> {
     }
 }
 
+impl SseEncode for Vec<crate::api::chat::ChatMessage> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::chat::ChatMessage>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::friends::Friend> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1966,6 +2288,16 @@ impl SseEncode for Vec<u8> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <u8>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::chat::UnreadCount> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::chat::UnreadCount>::sse_encode(item, serializer);
         }
     }
 }
@@ -2065,6 +2397,14 @@ impl SseEncode for u8 {
 impl SseEncode for () {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {}
+}
+
+impl SseEncode for crate::api::chat::UnreadCount {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.friend_pubkey, serializer);
+        <u32>::sse_encode(self.count, serializer);
+    }
 }
 
 impl SseEncode for i32 {

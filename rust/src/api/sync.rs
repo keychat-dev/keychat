@@ -1,4 +1,5 @@
 use crate::api::account;
+use crate::api::chat;
 use crate::api::friends;
 use crate::api::invites;
 use crate::api::keys::{derive_contact_keys, derive_keys};
@@ -19,7 +20,7 @@ use std::sync::OnceLock;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 
-fn runtime() -> &'static Runtime {
+pub(crate) fn runtime() -> &'static Runtime {
     static RT: OnceLock<Runtime> = OnceLock::new();
     RT.get_or_init(|| Runtime::new().expect("failed to create tokio runtime"))
 }
@@ -383,7 +384,7 @@ pub fn publish_profile_update_to_friends(
 /// actually has something to send.
 #[derive(Clone)]
 pub struct FriendEvent {
-    /// `"request"` or `"accepted"`.
+    /// `"request"`, `"accepted"`, `"profile_updated"`, or `"message"`.
     pub kind: String,
     pub pubkey: String,
     pub display_name: String,
@@ -393,6 +394,8 @@ pub struct FriendEvent {
     pub invite_account_index: Option<u32>,
     /// Only set for `"request"` — the requester's relays, needed to accept it.
     pub relays: Vec<String>,
+    /// Only set for `"message"` — the decrypted chat message text.
+    pub content: Option<String>,
 }
 
 #[derive(Clone)]
@@ -458,7 +461,7 @@ async fn run_friend_event_subscription(
 
     let pubkeys: Vec<PublicKey> = watch.iter().map(|(pk, _)| *pk).collect();
     let filter = Filter::new()
-        .kinds([FRIEND_REQUEST_KIND, FRIEND_ACCEPT_KIND, FRIEND_PROFILE_UPDATE_KIND])
+        .kinds([FRIEND_REQUEST_KIND, FRIEND_ACCEPT_KIND, FRIEND_PROFILE_UPDATE_KIND, Kind::GiftWrap])
         .pubkeys(pubkeys);
 
     let watch_snapshot: Vec<(PublicKey, Watch)> = watch;
@@ -509,6 +512,31 @@ async fn listen_for_friend_events(
         let Ok(my_keys) = derive_contact_keys(mnemonic, account_index) else {
             continue;
         };
+
+        if event.kind == Kind::GiftWrap {
+            let Watch::Friend(_, friend_pubkey) = matched else {
+                continue;
+            };
+            let Ok(friend_pk) = PublicKey::from_hex(friend_pubkey) else {
+                continue;
+            };
+            let Some(message) =
+                chat::receive_gift_wrap(storage_dir, &my_keys, &friend_pk, &event).await
+            else {
+                continue;
+            };
+            let _ = sink.add(FriendEvent {
+                kind: "message".to_string(),
+                pubkey: friend_pubkey.clone(),
+                display_name: String::new(),
+                status_message: String::new(),
+                invite_account_index: None,
+                relays: Vec::new(),
+                content: Some(message.content),
+            });
+            continue;
+        }
+
         let Ok(decrypted) = nip44::decrypt(my_keys.secret_key(), &event.pubkey, &event.content)
         else {
             continue;
@@ -536,6 +564,7 @@ async fn listen_for_friend_events(
                     status_message: payload.status_message,
                     invite_account_index: Some(*idx),
                     relays: payload.relays,
+                    content: None,
                 }
             }
             Watch::Outgoing(idx) if event.kind == FRIEND_ACCEPT_KIND => {
@@ -558,6 +587,7 @@ async fn listen_for_friend_events(
                     status_message: payload.status_message,
                     invite_account_index: None,
                     relays: Vec::new(),
+                    content: None,
                 }
             }
             Watch::Friend(_, friend_pubkey) if event.kind == FRIEND_PROFILE_UPDATE_KIND => {
@@ -578,6 +608,7 @@ async fn listen_for_friend_events(
                     status_message: payload.status_message,
                     invite_account_index: None,
                     relays: Vec::new(),
+                    content: None,
                 }
             }
             _ => continue,
@@ -591,7 +622,7 @@ async fn listen_for_friend_events(
 /// connection (reused if one's already open, e.g. from the live
 /// subscription — never a fresh dial per publish). Fire-and-forget per
 /// relay; only fails if every relay's queue is already gone.
-async fn publish_to_relays(urls: &[String], event: &Event) -> Result<(), String> {
+pub(crate) async fn publish_to_relays(urls: &[String], event: &Event) -> Result<(), String> {
     let tasks = urls.iter().map(|url| relay_pool::publish(url, event));
     let results = join_all(tasks).await;
     if results.iter().any(Result::is_ok) {

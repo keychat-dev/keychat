@@ -392,6 +392,12 @@ abstract class AppLocalizations {
   /// **'Friends'**
   String get friendsSectionTitle;
 
+  /// No description provided for @favoritesSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites'**
+  String get favoritesSectionTitle;
+
   /// No description provided for @noFriendsYet.
   ///
   /// In en, this message translates to:
@@ -409,6 +415,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No status message'**
   String get noStatusMessage;
+
+  /// No description provided for @addToFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Favorites'**
+  String get addToFavorites;
+
+  /// No description provided for @removeFromFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from Favorites'**
+  String get removeFromFavorites;
+
+  /// No description provided for @blockFriend.
+  ///
+  /// In en, this message translates to:
+  /// **'Block'**
+  String get blockFriend;
+
+  /// No description provided for @blockFriendConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Block {name}?'**
+  String blockFriendConfirmTitle(String name);
+
+  /// No description provided for @blockFriendConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'They\'ll be removed from your friends list and won\'t be able to send you friend requests again.'**
+  String get blockFriendConfirmBody;
+
+  /// No description provided for @deleteFriend.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete friend'**
+  String get deleteFriend;
+
+  /// No description provided for @deleteFriendConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {name}?'**
+  String deleteFriendConfirmTitle(String name);
+
+  /// No description provided for @deleteFriendConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This removes them from your friends list. They can send you a new friend request later.'**
+  String get deleteFriendConfirmBody;
+
+  /// No description provided for @noChatsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No conversations yet'**
+  String get noChatsYet;
+
+  /// No description provided for @noChatsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages with your friends will show up here'**
+  String get noChatsHint;
+
+  /// No description provided for @noMessagesYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No messages yet — say hi!'**
+  String get noMessagesYet;
+
+  /// No description provided for @typeMessageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Message'**
+  String get typeMessageHint;
 
   /// No description provided for @navTalk.
   ///

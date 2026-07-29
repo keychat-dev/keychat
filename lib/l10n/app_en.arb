@@ -89,9 +89,32 @@
     }
   },
   "friendsSectionTitle": "Friends",
+  "favoritesSectionTitle": "Favorites",
   "noFriendsYet": "No friends yet",
   "noFriendsHint": "Add a friend to start chatting",
   "noStatusMessage": "No status message",
+  "addToFavorites": "Add to Favorites",
+  "removeFromFavorites": "Remove from Favorites",
+  "blockFriend": "Block",
+  "blockFriendConfirmTitle": "Block {name}?",
+  "@blockFriendConfirmTitle": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "blockFriendConfirmBody": "They'll be removed from your friends list and won't be able to send you friend requests again.",
+  "deleteFriend": "Delete friend",
+  "deleteFriendConfirmTitle": "Delete {name}?",
+  "@deleteFriendConfirmTitle": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "deleteFriendConfirmBody": "This removes them from your friends list. They can send you a new friend request later.",
+  "noChatsYet": "No conversations yet",
+  "noChatsHint": "Messages with your friends will show up here",
+  "noMessagesYet": "No messages yet — say hi!",
+  "typeMessageHint": "Message",
   "navTalk": "Talk",
   "navPublicChat": "Public Chat",
   "comingSoon": "Coming soon",

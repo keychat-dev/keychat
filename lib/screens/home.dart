@@ -43,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<friends_api.Friend> _friends = [];
   int _pendingRequestCount = 0;
   StreamSubscription<sync_api.FriendEvent>? _friendEventsSub;
+  Stream<sync_api.FriendEvent>? _friendEventsStream;
 
   @override
   void initState() {
@@ -81,15 +82,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final mnemonic = await secureStorage.read(key: seedStorageKey);
     if (mnemonic == null || !mounted) return;
     final storageDir = await getApplicationDocumentsDirectory();
-    _friendEventsSub = sync_api
+    final stream = sync_api
         .subscribeFriendEvents(mnemonic: mnemonic, storageDir: storageDir.path)
-        .listen((event) {
-          if (event.kind == 'accepted' || event.kind == 'profile_updated') {
-            _loadFriends();
-          } else if (event.kind == 'request') {
-            _refreshPendingRequestCount();
-          }
-        });
+        .asBroadcastStream();
+    setState(() => _friendEventsStream = stream);
+    _friendEventsSub = stream.listen((event) {
+      if (event.kind == 'accepted' || event.kind == 'profile_updated') {
+        _loadFriends();
+      } else if (event.kind == 'request') {
+        _refreshPendingRequestCount();
+      }
+    });
   }
 
   Future<void> _refreshPendingRequestCount() async {
@@ -110,6 +113,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// on reconnect, relays replay any events missed while the app was
   /// closed, so no separate relay round-trip is needed here.
   Future<void> _refreshFriends() async {
+    await _loadFriends();
+  }
+
+  Future<void> _toggleFavorite(friends_api.Friend friend) async {
+    final storageDir = await getApplicationDocumentsDirectory();
+    await friends_api.setFavoriteFriend(
+      storageDir: storageDir.path,
+      pubkey: friend.pubkey,
+      isFavorite: !friend.isFavorite,
+    );
+    await _loadFriends();
+  }
+
+  Future<void> _blockFriend(friends_api.Friend friend) async {
+    final storageDir = await getApplicationDocumentsDirectory();
+    await friends_api.removeFriend(storageDir: storageDir.path, pubkey: friend.pubkey);
+    await friends_api.blockPubkey(storageDir: storageDir.path, pubkey: friend.pubkey);
+    await _loadFriends();
+  }
+
+  Future<void> _deleteFriend(friends_api.Friend friend) async {
+    final storageDir = await getApplicationDocumentsDirectory();
+    await friends_api.removeFriend(storageDir: storageDir.path, pubkey: friend.pubkey);
     await _loadFriends();
   }
 
@@ -154,8 +180,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         onEditProfile: _editProfile,
         onAddFriend: _openAddFriend,
         onRefreshFriends: _refreshFriends,
+        onToggleFavorite: _toggleFavorite,
+        onBlockFriend: _blockFriend,
+        onDeleteFriend: _deleteFriend,
       ),
-      ChatListTab(displayName: _profile.displayName),
+      ChatListTab(
+        friends: _friends,
+        messageEvents: _friendEventsStream,
+        onToggleFavorite: _toggleFavorite,
+        onBlockFriend: _blockFriend,
+        onDeleteFriend: _deleteFriend,
+      ),
       const PublicChatListTab(),
     ];
 

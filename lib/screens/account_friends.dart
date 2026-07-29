@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:workspace/l10n/app_localizations.dart';
+import 'package:workspace/screens/friend_profile.dart';
 import 'package:workspace/screens/login.dart';
 import 'package:workspace/src/rust/api/account.dart' as account_api;
 import 'package:workspace/src/rust/api/friends.dart' as friends_api;
@@ -16,6 +17,9 @@ class AccountFriendsTab extends StatelessWidget {
     required this.onEditProfile,
     required this.onAddFriend,
     required this.onRefreshFriends,
+    required this.onToggleFavorite,
+    required this.onBlockFriend,
+    required this.onDeleteFriend,
   });
 
   final account_api.Account profile;
@@ -27,6 +31,10 @@ class AccountFriendsTab extends StatelessWidget {
   /// reloads the friends list — triggered by pull-to-refresh, so accepted
   /// requests show up without needing to restart the app.
   final Future<void> Function() onRefreshFriends;
+
+  final Future<void> Function(friends_api.Friend friend) onToggleFavorite;
+  final Future<void> Function(friends_api.Friend friend) onBlockFriend;
+  final Future<void> Function(friends_api.Friend friend) onDeleteFriend;
 
   @override
   Widget build(BuildContext context) {
@@ -64,13 +72,18 @@ class AccountFriendsTab extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 4),
           Expanded(
             child: RefreshIndicator(
               onRefresh: onRefreshFriends,
               child: friends.isEmpty
                   ? const _EmptyFriendsList()
-                  : _FriendsList(friends: friends),
+                  : _FriendsList(
+                      friends: friends,
+                      onToggleFavorite: onToggleFavorite,
+                      onBlockFriend: onBlockFriend,
+                      onDeleteFriend: onDeleteFriend,
+                    ),
             ),
           ),
         ],
@@ -80,46 +93,95 @@ class AccountFriendsTab extends StatelessWidget {
 }
 
 class _FriendsList extends StatelessWidget {
-  const _FriendsList({required this.friends});
+  const _FriendsList({
+    required this.friends,
+    required this.onToggleFavorite,
+    required this.onBlockFriend,
+    required this.onDeleteFriend,
+  });
 
   final List<friends_api.Friend> friends;
+  final Future<void> Function(friends_api.Friend friend) onToggleFavorite;
+  final Future<void> Function(friends_api.Friend friend) onBlockFriend;
+  final Future<void> Function(friends_api.Friend friend) onDeleteFriend;
+
+  void _openProfile(BuildContext context, friends_api.Friend friend) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FriendProfileScreen(
+          friend: friend,
+          onToggleFavorite: onToggleFavorite,
+          onBlockFriend: onBlockFriend,
+          onDeleteFriend: onDeleteFriend,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return ListView.builder(
-      itemCount: friends.length,
+    final sorted = [...friends]
+      ..sort((a, b) {
+        if (a.isFavorite != b.isFavorite) return a.isFavorite ? -1 : 1;
+        return a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
+      });
+    return ListView.separated(
+      itemCount: sorted.length,
+      separatorBuilder: (context, index) => const Divider(
+        height: 1,
+        indent: 82,
+        color: Color(0x14000000),
+      ),
       itemBuilder: (context, index) {
-        final friend = friends[index];
-        return Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          decoration: BoxDecoration(
-            color: KeychatColors.surface,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: CircleAvatar(
-              backgroundColor: KeychatColors.background,
-              backgroundImage:
-                  friend.avatarPath != null &&
-                      File(friend.avatarPath!).existsSync()
-                  ? FileImage(File(friend.avatarPath!))
-                  : null,
-              child: friend.avatarPath != null && File(friend.avatarPath!).existsSync()
-                  ? null
-                  : const Icon(
-                      Icons.person_outline,
-                      color: KeychatColors.textSecondary,
-                    ),
-            ),
-            title: Text(friend.displayName),
-            subtitle: Text(
-              friend.statusMessage.isNotEmpty
-                  ? friend.statusMessage
-                  : l10n.noStatusMessage,
-              style: const TextStyle(color: KeychatColors.textSecondary),
+        final friend = sorted[index];
+        final hasAvatar = friend.avatarPath != null && File(friend.avatarPath!).existsSync();
+        return InkWell(
+          onTap: () => _openProfile(context, friend),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: KeychatColors.surface,
+                  backgroundImage: hasAvatar ? FileImage(File(friend.avatarPath!)) : null,
+                  child: hasAvatar
+                      ? null
+                      : const Icon(Icons.person_outline, color: KeychatColors.textSecondary),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        friend.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: KeychatColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        friend.statusMessage.isNotEmpty
+                            ? friend.statusMessage
+                            : l10n.noStatusMessage,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: KeychatColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                if (friend.isFavorite) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.star, size: 18, color: KeychatColors.primaryDark),
+                ],
+              ],
             ),
           ),
         );

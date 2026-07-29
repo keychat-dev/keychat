@@ -171,6 +171,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get friendsSectionTitle => '友達';
 
   @override
+  String get favoritesSectionTitle => 'お気に入り';
+
+  @override
   String get noFriendsYet => 'まだ友達がいません';
 
   @override
@@ -178,6 +181,48 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get noStatusMessage => 'ステータスメッセージ未設定';
+
+  @override
+  String get addToFavorites => 'お気に入りに追加';
+
+  @override
+  String get removeFromFavorites => 'お気に入りから削除';
+
+  @override
+  String get blockFriend => 'ブロック';
+
+  @override
+  String blockFriendConfirmTitle(String name) {
+    return '$nameさんをブロックしますか?';
+  }
+
+  @override
+  String get blockFriendConfirmBody =>
+      '友達リストから削除され、今後このユーザーからのフレンド申請を受け付けなくなります。';
+
+  @override
+  String get deleteFriend => '友達を削除';
+
+  @override
+  String deleteFriendConfirmTitle(String name) {
+    return '$nameさんを削除しますか?';
+  }
+
+  @override
+  String get deleteFriendConfirmBody =>
+      '友達リストから削除されます。相手は後で改めてフレンド申請を送ることができます。';
+
+  @override
+  String get noChatsYet => 'まだ会話がありません';
+
+  @override
+  String get noChatsHint => '友達とのメッセージがここに表示されます';
+
+  @override
+  String get noMessagesYet => 'まだメッセージがありません。挨拶してみましょう！';
+
+  @override
+  String get typeMessageHint => 'メッセージ';
 
   @override
   String get navTalk => 'トーク';

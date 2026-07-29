@@ -25,6 +25,9 @@ pub struct Friend {
     #[serde(default)]
     pub avatar_path: Option<String>,
     pub added_at: i64,
+    /// User-set flag to pin this friend near the top of the friends list.
+    #[serde(default)]
+    pub is_favorite: bool,
 }
 
 fn friends_path(storage_dir: &str) -> PathBuf {
@@ -72,7 +75,25 @@ pub fn add_friend(
         relays,
         avatar_path,
         added_at: now(),
+        is_favorite: false,
     });
+    save_friends_list(&storage_dir, &friends)
+}
+
+/// Sets whether a friend is pinned as a favorite. A no-op if there's no
+/// friend with that pubkey.
+pub fn set_favorite_friend(
+    storage_dir: String,
+    pubkey: String,
+    is_favorite: bool,
+) -> Result<(), String> {
+    let mut friends = load_friends(storage_dir.clone());
+    for friend in friends.iter_mut() {
+        if friend.pubkey == pubkey {
+            friend.is_favorite = is_favorite;
+            break;
+        }
+    }
     save_friends_list(&storage_dir, &friends)
 }
 

@@ -174,6 +174,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get friendsSectionTitle => 'Friends';
 
   @override
+  String get favoritesSectionTitle => 'Favorites';
+
+  @override
   String get noFriendsYet => 'No friends yet';
 
   @override
@@ -181,6 +184,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noStatusMessage => 'No status message';
+
+  @override
+  String get addToFavorites => 'Add to Favorites';
+
+  @override
+  String get removeFromFavorites => 'Remove from Favorites';
+
+  @override
+  String get blockFriend => 'Block';
+
+  @override
+  String blockFriendConfirmTitle(String name) {
+    return 'Block $name?';
+  }
+
+  @override
+  String get blockFriendConfirmBody =>
+      'They\'ll be removed from your friends list and won\'t be able to send you friend requests again.';
+
+  @override
+  String get deleteFriend => 'Delete friend';
+
+  @override
+  String deleteFriendConfirmTitle(String name) {
+    return 'Delete $name?';
+  }
+
+  @override
+  String get deleteFriendConfirmBody =>
+      'This removes them from your friends list. They can send you a new friend request later.';
+
+  @override
+  String get noChatsYet => 'No conversations yet';
+
+  @override
+  String get noChatsHint => 'Messages with your friends will show up here';
+
+  @override
+  String get noMessagesYet => 'No messages yet — say hi!';
+
+  @override
+  String get typeMessageHint => 'Message';
 
   @override
   String get navTalk => 'Talk';

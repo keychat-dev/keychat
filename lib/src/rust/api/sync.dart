@@ -165,7 +165,7 @@ Stream<FriendEvent> subscribeFriendEvents({
 /// connection just sits idle (a few bytes of keepalive) until a relay
 /// actually has something to send.
 class FriendEvent {
-  /// `"request"` or `"accepted"`.
+  /// `"request"`, `"accepted"`, `"profile_updated"`, or `"message"`.
   final String kind;
   final String pubkey;
   final String displayName;
@@ -178,6 +178,9 @@ class FriendEvent {
   /// Only set for `"request"` — the requester's relays, needed to accept it.
   final List<String> relays;
 
+  /// Only set for `"message"` — the decrypted chat message text.
+  final String? content;
+
   const FriendEvent({
     required this.kind,
     required this.pubkey,
@@ -185,6 +188,7 @@ class FriendEvent {
     required this.statusMessage,
     this.inviteAccountIndex,
     required this.relays,
+    this.content,
   });
 
   @override
@@ -194,7 +198,8 @@ class FriendEvent {
       displayName.hashCode ^
       statusMessage.hashCode ^
       inviteAccountIndex.hashCode ^
-      relays.hashCode;
+      relays.hashCode ^
+      content.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -206,7 +211,8 @@ class FriendEvent {
           displayName == other.displayName &&
           statusMessage == other.statusMessage &&
           inviteAccountIndex == other.inviteAccountIndex &&
-          relays == other.relays;
+          relays == other.relays &&
+          content == other.content;
 }
 
 /// The data a "my QR" screen encodes: enough for a scanner to send a
