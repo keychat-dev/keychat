@@ -77,6 +77,97 @@ class AppLocalizationsJa extends AppLocalizations {
   String get addFriendByQr => 'QRコードで友達追加';
 
   @override
+  String get addFriendTitle => '友達を追加';
+
+  @override
+  String get myQrTab => 'マイQR';
+
+  @override
+  String get scanTab => 'スキャン';
+
+  @override
+  String get maxUsesLabel => '使用回数上限';
+
+  @override
+  String get unlimitedLabel => '無制限';
+
+  @override
+  String get customLabel => '自分で決める';
+
+  @override
+  String get validForLabel => '有効期間(日数)';
+
+  @override
+  String get generateQrButton => 'QRコードを生成';
+
+  @override
+  String get regenerateQrButton => '新しいコードを生成';
+
+  @override
+  String get activeInvitesTitle => '有効な招待コード';
+
+  @override
+  String get noActiveInvites => '有効な招待コードはありません';
+
+  @override
+  String invitesUsesUsed(int used, int max) {
+    return '$used/$max 回使用済み';
+  }
+
+  @override
+  String invitesUsesUsedUnlimited(int used) {
+    return '$used回使用済み(無制限)';
+  }
+
+  @override
+  String invitesExpiresIn(int days) {
+    return 'あと$days日で失効';
+  }
+
+  @override
+  String get revokeInvite => '無効化';
+
+  @override
+  String get scanPrompt => 'KeyChatのQRコードにカメラを向けてください';
+
+  @override
+  String get pickFromGallery => 'ギャラリーから選択';
+
+  @override
+  String get scanInvalidQr => 'KeyChatの招待コードとして読み取れませんでした';
+
+  @override
+  String get sendRequestConfirmTitle => 'フレンド申請を送りますか?';
+
+  @override
+  String sendRequestConfirmBody(String name) {
+    return '$nameさんに自分のプロフィールを送って、追加を申請しますか?';
+  }
+
+  @override
+  String get sendRequestButton => '申請を送る';
+
+  @override
+  String get requestSentMessage => 'フレンド申請を送信しました';
+
+  @override
+  String get friendRequestsTitle => 'フレンド申請';
+
+  @override
+  String get noFriendRequests => '保留中の申請はありません';
+
+  @override
+  String get acceptButton => '承認';
+
+  @override
+  String get rejectButton => '拒否';
+
+  @override
+  String friendAddedMessage(String name) {
+    return '$nameさんをフレンドに追加しました';
+  }
+
+  @override
   String get friendsSectionTitle => '友達';
 
   @override

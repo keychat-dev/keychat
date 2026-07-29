@@ -80,6 +80,97 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addFriendByQr => 'Add friend with QR code';
 
   @override
+  String get addFriendTitle => 'Add friend';
+
+  @override
+  String get myQrTab => 'My QR';
+
+  @override
+  String get scanTab => 'Scan';
+
+  @override
+  String get maxUsesLabel => 'Max uses';
+
+  @override
+  String get unlimitedLabel => 'Unlimited';
+
+  @override
+  String get customLabel => 'Custom';
+
+  @override
+  String get validForLabel => 'Valid for (days)';
+
+  @override
+  String get generateQrButton => 'Generate QR code';
+
+  @override
+  String get regenerateQrButton => 'Generate new code';
+
+  @override
+  String get activeInvitesTitle => 'Active invite codes';
+
+  @override
+  String get noActiveInvites => 'No active invite codes';
+
+  @override
+  String invitesUsesUsed(int used, int max) {
+    return 'Used $used of $max';
+  }
+
+  @override
+  String invitesUsesUsedUnlimited(int used) {
+    return 'Used $used (unlimited)';
+  }
+
+  @override
+  String invitesExpiresIn(int days) {
+    return 'Expires in ${days}d';
+  }
+
+  @override
+  String get revokeInvite => 'Revoke';
+
+  @override
+  String get scanPrompt => 'Point your camera at a KeyChat QR code';
+
+  @override
+  String get pickFromGallery => 'Pick from gallery';
+
+  @override
+  String get scanInvalidQr => 'This isn\'t a valid KeyChat invite code';
+
+  @override
+  String get sendRequestConfirmTitle => 'Send friend request?';
+
+  @override
+  String sendRequestConfirmBody(String name) {
+    return 'Send your profile to $name and request to add them?';
+  }
+
+  @override
+  String get sendRequestButton => 'Send request';
+
+  @override
+  String get requestSentMessage => 'Friend request sent';
+
+  @override
+  String get friendRequestsTitle => 'Friend requests';
+
+  @override
+  String get noFriendRequests => 'No pending requests';
+
+  @override
+  String get acceptButton => 'Accept';
+
+  @override
+  String get rejectButton => 'Reject';
+
+  @override
+  String friendAddedMessage(String name) {
+    return '$name added as a friend';
+  }
+
+  @override
   String get friendsSectionTitle => 'Friends';
 
   @override

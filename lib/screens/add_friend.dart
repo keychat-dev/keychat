@@ -1,0 +1,610 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:workspace/l10n/app_localizations.dart';
+import 'package:workspace/screens/friend_requests.dart';
+import 'package:workspace/screens/login.dart';
+import 'package:workspace/screens/logout.dart' show seedStorageKey;
+import 'package:workspace/services/account_sync.dart';
+import 'package:workspace/src/rust/api/invites.dart' as invites_api;
+import 'package:workspace/src/rust/api/sync.dart' as sync_api;
+
+/// Add-friend flow: show your own QR (an invite others scan to send a
+/// friend request) or scan someone else's. Each invite mints a fresh,
+/// revocable per-relationship key (see `keys::derive_contact_keys`) —
+/// nothing here is the account's core identity.
+class AddFriendScreen extends StatefulWidget {
+  const AddFriendScreen({super.key});
+
+  @override
+  State<AddFriendScreen> createState() => _AddFriendScreenState();
+}
+
+class _AddFriendScreenState extends State<AddFriendScreen> {
+  int _pendingRequestCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshPendingRequestCount();
+  }
+
+  Future<void> _refreshPendingRequestCount() async {
+    final count = await pendingFriendRequestCount();
+    if (!mounted) return;
+    setState(() => _pendingRequestCount = count);
+  }
+
+  Future<void> _openFriendRequests() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const FriendRequestsScreen()));
+    _refreshPendingRequestCount();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: KeychatColors.background,
+        appBar: AppBar(
+          backgroundColor: KeychatColors.background,
+          elevation: 0,
+          foregroundColor: KeychatColors.textPrimary,
+          title: Text(l10n.addFriendTitle),
+          actions: [
+            IconButton(
+              tooltip: l10n.friendRequestsTitle,
+              icon: Badge(
+                isLabelVisible: _pendingRequestCount > 0,
+                label: Text('$_pendingRequestCount'),
+                child: const Icon(Icons.mail_outline),
+              ),
+              onPressed: _openFriendRequests,
+            ),
+            IconButton(
+              tooltip: l10n.activeInvitesTitle,
+              icon: const Icon(Icons.list_alt_outlined),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ActiveInvitesScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
+          bottom: TabBar(
+            labelColor: KeychatColors.primaryDark,
+            unselectedLabelColor: KeychatColors.textSecondary,
+            indicatorColor: KeychatColors.primaryDark,
+            tabs: [
+              Tab(text: l10n.myQrTab),
+              Tab(text: l10n.scanTab),
+            ],
+          ),
+        ),
+        body: const TabBarView(children: [_MyQrTab(), _ScanTab()]),
+      ),
+    );
+  }
+}
+
+class _MyQrTab extends StatefulWidget {
+  const _MyQrTab();
+
+  @override
+  State<_MyQrTab> createState() => _MyQrTabState();
+}
+
+enum _LimitMode { preset, custom, unlimited }
+
+class _MyQrTabState extends State<_MyQrTab> {
+  static const _usesPresets = [1, 5, 10];
+  static const _daysPresets = [1, 7, 30];
+
+  final _usesController = TextEditingController();
+  final _daysController = TextEditingController();
+  _LimitMode _usesMode = _LimitMode.preset;
+  int _usesPreset = 1;
+  _LimitMode _daysMode = _LimitMode.unlimited;
+  int _daysPreset = 1;
+
+  bool _generating = false;
+  String? _qrPayload;
+
+  @override
+  void dispose() {
+    _usesController.dispose();
+    _daysController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _generate() async {
+    setState(() => _generating = true);
+    final storageDir = await getApplicationDocumentsDirectory();
+    const secureStorage = FlutterSecureStorage();
+    final mnemonic = await secureStorage.read(key: seedStorageKey);
+    if (mnemonic == null) {
+      setState(() => _generating = false);
+      return;
+    }
+
+    final maxUses = switch (_usesMode) {
+      _LimitMode.unlimited => null,
+      _LimitMode.preset => _usesPreset,
+      _LimitMode.custom => int.tryParse(_usesController.text) ?? 1,
+    };
+    final days = switch (_daysMode) {
+      _LimitMode.unlimited => null,
+      _LimitMode.preset => _daysPreset,
+      _LimitMode.custom => int.tryParse(_daysController.text),
+    };
+    final ttlSeconds = days == null ? null : days * 86400;
+
+    final invite = await invites_api.createInvite(
+      storageDir: storageDir.path,
+      ttlSeconds: ttlSeconds,
+      maxUses: maxUses,
+    );
+    final payload = await sync_api.buildInviteQrPayload(
+      mnemonic: mnemonic,
+      storageDir: storageDir.path,
+      accountIndex: invite.accountIndex,
+    );
+    if (!mounted) return;
+    setState(() {
+      _qrPayload = payload;
+      _generating = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final payload = _qrPayload;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (payload != null) ...[
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: QrImageView(data: payload, size: 220),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 44,
+              child: OutlinedButton(
+                onPressed: _generating ? null : _generate,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: KeychatColors.primaryDark,
+                  side: const BorderSide(color: KeychatColors.primary),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(l10n.regenerateQrButton),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Divider(),
+            const SizedBox(height: 16),
+          ],
+          _buildLimitField(
+            label: l10n.maxUsesLabel,
+            controller: _usesController,
+            mode: _usesMode,
+            onModeChanged: (m) => setState(() => _usesMode = m),
+            selectedPreset: _usesPreset,
+            onPresetSelected: (p) => setState(() => _usesPreset = p),
+            presets: _usesPresets,
+          ),
+          const SizedBox(height: 16),
+          _buildLimitField(
+            label: l10n.validForLabel,
+            controller: _daysController,
+            mode: _daysMode,
+            onModeChanged: (m) => setState(() => _daysMode = m),
+            selectedPreset: _daysPreset,
+            onPresetSelected: (p) => setState(() => _daysPreset = p),
+            presets: _daysPresets,
+          ),
+          const SizedBox(height: 24),
+          if (payload == null)
+            SizedBox(
+              height: 48,
+              child: ElevatedButton(
+                onPressed: _generating ? null : _generate,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: KeychatColors.primaryDark,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: _generating
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(l10n.generateQrButton),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLimitField({
+    required String label,
+    required TextEditingController controller,
+    required _LimitMode mode,
+    required ValueChanged<_LimitMode> onModeChanged,
+    required int selectedPreset,
+    required ValueChanged<int> onPresetSelected,
+    required List<int> presets,
+  }) {
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: KeychatColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final preset in presets)
+              _presetChip(
+                label: '$preset',
+                selected: mode == _LimitMode.preset && selectedPreset == preset,
+                onTap: () {
+                  onPresetSelected(preset);
+                  onModeChanged(_LimitMode.preset);
+                },
+              ),
+            _presetChip(
+              label: l10n.unlimitedLabel,
+              selected: mode == _LimitMode.unlimited,
+              onTap: () => onModeChanged(_LimitMode.unlimited),
+            ),
+            _presetChip(
+              label: l10n.customLabel,
+              selected: mode == _LimitMode.custom,
+              onTap: () => onModeChanged(_LimitMode.custom),
+            ),
+          ],
+        ),
+        if (mode == _LimitMode.custom) ...[
+          const SizedBox(height: 8),
+          TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            autofocus: true,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: KeychatColors.surface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _presetChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      selectedColor: KeychatColors.primary,
+      backgroundColor: KeychatColors.surface,
+      labelStyle: TextStyle(
+        color: selected ? Colors.white : KeychatColors.textPrimary,
+        fontWeight: FontWeight.w500,
+      ),
+    );
+  }
+}
+
+class _ScanTab extends StatefulWidget {
+  const _ScanTab();
+
+  @override
+  State<_ScanTab> createState() => _ScanTabState();
+}
+
+class _ScanTabState extends State<_ScanTab> {
+  final _scannerController = MobileScannerController();
+  bool _handling = false;
+
+  @override
+  void dispose() {
+    _scannerController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickFromGallery() async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+    final capture = await _scannerController.analyzeImage(picked.path);
+    final barcodes = capture?.barcodes ?? const [];
+    final value = barcodes.isNotEmpty ? barcodes.first.rawValue : null;
+    if (value != null) {
+      await _handleDetected(value);
+    } else if (mounted) {
+      final l10n = AppLocalizations.of(context)!;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.scanInvalidQr)));
+    }
+  }
+
+  Future<void> _handleDetected(String raw) async {
+    if (_handling) return;
+    setState(() => _handling = true);
+    final l10n = AppLocalizations.of(context)!;
+
+    sync_api.InviteQrPayload payload;
+    try {
+      payload = await sync_api.parseInviteQrPayload(data: raw);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.scanInvalidQr)));
+        setState(() => _handling = false);
+      }
+      return;
+    }
+
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: KeychatColors.background,
+        title: Text(l10n.sendRequestConfirmTitle),
+        content: Text(l10n.sendRequestConfirmBody(payload.displayName)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(
+              MaterialLocalizations.of(dialogContext).cancelButtonLabel,
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.sendRequestButton),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      setState(() => _handling = false);
+      return;
+    }
+
+    const secureStorage = FlutterSecureStorage();
+    final mnemonic = await secureStorage.read(key: seedStorageKey);
+    final storageDir = await getApplicationDocumentsDirectory();
+    if (mnemonic != null) {
+      await sync_api.sendFriendRequest(
+        mnemonic: mnemonic,
+        storageDir: storageDir.path,
+        invitePubkey: payload.pubkey,
+        inviteRelays: payload.relays,
+      );
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.requestSentMessage)));
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Stack(
+      children: [
+        MobileScanner(
+          controller: _scannerController,
+          onDetect: (capture) {
+            if (capture.barcodes.isEmpty) return;
+            final value = capture.barcodes.first.rawValue;
+            if (value != null) unawaited(_handleDetected(value));
+          },
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 32,
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  l10n.scanPrompt,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                ),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _pickFromGallery,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.white),
+                  backgroundColor: Colors.black.withValues(alpha: 0.3),
+                ),
+                icon: const Icon(Icons.photo_library_outlined, size: 18),
+                label: Text(l10n.pickFromGallery),
+              ),
+            ],
+          ),
+        ),
+        if (_handling)
+          Container(
+            color: Colors.black.withValues(alpha: 0.3),
+            child: const Center(child: CircularProgressIndicator()),
+          ),
+      ],
+    );
+  }
+}
+
+/// Lists every invite this device has created (active or not), with a way
+/// to manually revoke one — e.g. if its QR leaked and started attracting
+/// spam requests.
+class ActiveInvitesScreen extends StatefulWidget {
+  const ActiveInvitesScreen({super.key});
+
+  @override
+  State<ActiveInvitesScreen> createState() => _ActiveInvitesScreenState();
+}
+
+class _ActiveInvitesScreenState extends State<ActiveInvitesScreen> {
+  List<invites_api.Invite> _invites = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final storageDir = await getApplicationDocumentsDirectory();
+    final invites = await invites_api.listActiveInvites(
+      storageDir: storageDir.path,
+    );
+    if (!mounted) return;
+    setState(() {
+      _invites = invites;
+      _loading = false;
+    });
+  }
+
+  Future<void> _revoke(invites_api.Invite invite) async {
+    final storageDir = await getApplicationDocumentsDirectory();
+    await invites_api.revokeInvite(
+      storageDir: storageDir.path,
+      accountIndex: invite.accountIndex,
+    );
+    _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Scaffold(
+      backgroundColor: KeychatColors.background,
+      appBar: AppBar(
+        backgroundColor: KeychatColors.background,
+        elevation: 0,
+        foregroundColor: KeychatColors.textPrimary,
+        title: Text(l10n.activeInvitesTitle),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _invites.isEmpty
+          ? Center(
+              child: Text(
+                l10n.noActiveInvites,
+                style: const TextStyle(color: KeychatColors.textSecondary),
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _invites.length,
+              itemBuilder: (context, index) {
+                final invite = _invites[index];
+                final nowSeconds =
+                    DateTime.now().millisecondsSinceEpoch ~/ 1000;
+                final expiresAt = invite.expiresAt;
+                final subtitle = [
+                  invite.maxUses == null
+                      ? l10n.invitesUsesUsedUnlimited(invite.useCount)
+                      : l10n.invitesUsesUsed(invite.useCount, invite.maxUses!),
+                  if (expiresAt != null)
+                    l10n.invitesExpiresIn(
+                      ((expiresAt - nowSeconds) / 86400).ceil(),
+                    ),
+                ].join(' · ');
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: KeychatColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('#${invite.accountIndex}'),
+                    subtitle: Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: KeychatColors.textSecondary,
+                      ),
+                    ),
+                    trailing: TextButton(
+                      onPressed: () => _revoke(invite),
+                      child: Text(
+                        l10n.revokeInvite,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}

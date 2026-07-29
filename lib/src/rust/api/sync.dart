@@ -6,8 +6,9 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `fetch_latest_backup_event`, `fetch_one`, `publish_one`, `publish_to_relays`, `runtime`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `BackupPayload`
+// These functions are ignored because they are not marked as `pub`: `fetch_events`, `fetch_latest_backup_event`, `fetch_one`, `listen_for_friend_events`, `publish_one`, `publish_to_relays`, `read_avatar_base64`, `run_friend_event_subscription`, `runtime`, `save_friend_avatar`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `BackupPayload`, `FriendPayload`, `Watch`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`
 
 /// Encrypts the given account info (NIP-44, to self) and publishes it to
 /// `relay_urls` as a kind-30078 parameterized-replaceable event, signed with
@@ -47,6 +48,282 @@ Future<void> deleteAccountBackup({
   mnemonic: mnemonic,
   relayUrls: relayUrls,
 );
+
+/// Builds the QR payload (as JSON) for the given invite's account index.
+Future<String> buildInviteQrPayload({
+  required String mnemonic,
+  required String storageDir,
+  required int accountIndex,
+}) => RustLib.instance.api.crateApiSyncBuildInviteQrPayload(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+  accountIndex: accountIndex,
+);
+
+/// Parses a scanned QR's JSON payload back into its fields.
+Future<InviteQrPayload> parseInviteQrPayload({required String data}) =>
+    RustLib.instance.api.crateApiSyncParseInviteQrPayload(data: data);
+
+/// Sends a friend request to whichever invite `invite_pubkey`/`invite_relays`
+/// (scanned from someone's QR code) describe. Mints a fresh per-relationship
+/// key for this contact — distinct from our account identity and every
+/// other friend's key — and remembers where to look for their acceptance.
+Future<void> sendFriendRequest({
+  required String mnemonic,
+  required String storageDir,
+  required String invitePubkey,
+  required List<String> inviteRelays,
+}) => RustLib.instance.api.crateApiSyncSendFriendRequest(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+  invitePubkey: invitePubkey,
+  inviteRelays: inviteRelays,
+);
+
+/// Fetches and decrypts pending friend requests addressed to any of our
+/// still-active invites, across `relay_urls` (this device's own relays —
+/// the same ones advertised in the QR). Already-known friends and blocked
+/// pubkeys are filtered out.
+Future<List<PendingFriendRequest>> fetchPendingFriendRequests({
+  required String mnemonic,
+  required String storageDir,
+  required List<String> relayUrls,
+}) => RustLib.instance.api.crateApiSyncFetchPendingFriendRequests(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+  relayUrls: relayUrls,
+);
+
+/// Accepts a pending friend request: mints a fresh per-relationship key,
+/// tells the requester about it (encrypted to their contact pubkey,
+/// published to their relays), and saves them locally as a friend.
+Future<void> acceptFriendRequest({
+  required String mnemonic,
+  required String storageDir,
+  required int inviteAccountIndex,
+  required String requesterPubkey,
+  required String requesterDisplayName,
+  required String requesterStatusMessage,
+  required List<String> requesterRelays,
+  String? requesterAvatarBase64,
+}) => RustLib.instance.api.crateApiSyncAcceptFriendRequest(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+  inviteAccountIndex: inviteAccountIndex,
+  requesterPubkey: requesterPubkey,
+  requesterDisplayName: requesterDisplayName,
+  requesterStatusMessage: requesterStatusMessage,
+  requesterRelays: requesterRelays,
+  requesterAvatarBase64: requesterAvatarBase64,
+);
+
+/// Permanently blocks a requester's contact pubkey so their (rejected)
+/// friend request stops showing up, even if resent.
+Future<void> rejectFriendRequest({
+  required String storageDir,
+  required String requesterPubkey,
+}) => RustLib.instance.api.crateApiSyncRejectFriendRequest(
+  storageDir: storageDir,
+  requesterPubkey: requesterPubkey,
+);
+
+/// Publishes the given profile info to every existing friend, each using
+/// the per-relationship key already established for them, encrypted to
+/// their contact pubkey and sent to their last-known relays.
+Future<void> publishProfileUpdateToFriends({
+  required String mnemonic,
+  required String storageDir,
+  required String displayName,
+  required String statusMessage,
+  String? avatarPath,
+}) => RustLib.instance.api.crateApiSyncPublishProfileUpdateToFriends(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+  displayName: displayName,
+  statusMessage: statusMessage,
+  avatarPath: avatarPath,
+);
+
+/// Checks every friend request we've sent that hasn't been resolved yet,
+/// and turns any that were accepted into saved friends. Returns the newly
+/// added friends (e.g. for a "X accepted your request" notification).
+Future<List<AcceptedFriend>> fetchFriendAccepts({
+  required String mnemonic,
+  required String storageDir,
+}) => RustLib.instance.api.crateApiSyncFetchFriendAccepts(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+);
+
+/// Opens a connection to this account's relays (plus any outstanding
+/// outgoing requests' relays) and streams friend-request / friend-accept
+/// events as they arrive, for as long as the returned Dart stream is
+/// listened to. Reflects the set of invites/requests that existed at the
+/// moment this was called — call again (the Dart side cancels the old
+/// subscription first) after creating a new invite or sending a request.
+Stream<FriendEvent> subscribeFriendEvents({
+  required String mnemonic,
+  required String storageDir,
+}) => RustLib.instance.api.crateApiSyncSubscribeFriendEvents(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+);
+
+/// A friend request we sent that the other side has accepted.
+class AcceptedFriend {
+  final String pubkey;
+  final String displayName;
+  final String statusMessage;
+
+  const AcceptedFriend({
+    required this.pubkey,
+    required this.displayName,
+    required this.statusMessage,
+  });
+
+  @override
+  int get hashCode =>
+      pubkey.hashCode ^ displayName.hashCode ^ statusMessage.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AcceptedFriend &&
+          runtimeType == other.runtimeType &&
+          pubkey == other.pubkey &&
+          displayName == other.displayName &&
+          statusMessage == other.statusMessage;
+}
+
+/// A live update about a friend request or acceptance, delivered while
+/// this device stays connected to its relays. Cheaper than re-polling: the
+/// connection just sits idle (a few bytes of keepalive) until a relay
+/// actually has something to send.
+class FriendEvent {
+  /// `"request"` or `"accepted"`.
+  final String kind;
+  final String pubkey;
+  final String displayName;
+  final String statusMessage;
+
+  /// Only set for `"request"` — which invite it arrived on, needed to
+  /// accept it.
+  final int? inviteAccountIndex;
+
+  /// Only set for `"request"` — the requester's relays, needed to accept it.
+  final List<String> relays;
+
+  const FriendEvent({
+    required this.kind,
+    required this.pubkey,
+    required this.displayName,
+    required this.statusMessage,
+    this.inviteAccountIndex,
+    required this.relays,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^
+      pubkey.hashCode ^
+      displayName.hashCode ^
+      statusMessage.hashCode ^
+      inviteAccountIndex.hashCode ^
+      relays.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FriendEvent &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          pubkey == other.pubkey &&
+          displayName == other.displayName &&
+          statusMessage == other.statusMessage &&
+          inviteAccountIndex == other.inviteAccountIndex &&
+          relays == other.relays;
+}
+
+/// The data a "my QR" screen encodes: enough for a scanner to send a
+/// friend request without any prior relay round-trip. Shown in person, so
+/// including the display name/status here isn't a public disclosure the
+/// way publishing them to a relay would be.
+class InviteQrPayload {
+  final String pubkey;
+  final List<String> relays;
+  final String displayName;
+  final String statusMessage;
+
+  const InviteQrPayload({
+    required this.pubkey,
+    required this.relays,
+    required this.displayName,
+    required this.statusMessage,
+  });
+
+  @override
+  int get hashCode =>
+      pubkey.hashCode ^
+      relays.hashCode ^
+      displayName.hashCode ^
+      statusMessage.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is InviteQrPayload &&
+          runtimeType == other.runtimeType &&
+          pubkey == other.pubkey &&
+          relays == other.relays &&
+          displayName == other.displayName &&
+          statusMessage == other.statusMessage;
+}
+
+/// A pending incoming friend request, decrypted and ready to show the user.
+class PendingFriendRequest {
+  /// Which of our invites this request was sent to.
+  final int inviteAccountIndex;
+
+  /// The requester's contact pubkey (hex) — distinct per relationship.
+  final String pubkey;
+  final String displayName;
+  final String statusMessage;
+  final List<String> relays;
+
+  /// Base64-encoded avatar image, if the requester has one — passed
+  /// through unchanged so `accept_friend_request` can cache it.
+  final String? avatarBase64;
+
+  const PendingFriendRequest({
+    required this.inviteAccountIndex,
+    required this.pubkey,
+    required this.displayName,
+    required this.statusMessage,
+    required this.relays,
+    this.avatarBase64,
+  });
+
+  @override
+  int get hashCode =>
+      inviteAccountIndex.hashCode ^
+      pubkey.hashCode ^
+      displayName.hashCode ^
+      statusMessage.hashCode ^
+      relays.hashCode ^
+      avatarBase64.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PendingFriendRequest &&
+          runtimeType == other.runtimeType &&
+          inviteAccountIndex == other.inviteAccountIndex &&
+          pubkey == other.pubkey &&
+          displayName == other.displayName &&
+          statusMessage == other.statusMessage &&
+          relays == other.relays &&
+          avatarBase64 == other.avatarBase64;
+}
 
 /// Account info decrypted from a relay-hosted backup.
 class RemoteAccount {

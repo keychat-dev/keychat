@@ -20,9 +20,20 @@ pub fn validate_mnemonic(mnemonic: String) -> Result<(), String> {
     Ok(())
 }
 
-/// Deterministically derives this account's Nostr identity keys from its
-/// seed phrase (NIP-06). Same mnemonic always yields the same keys, so
-/// nothing needs to be stored beyond the mnemonic itself.
+/// Deterministically derives this account's core identity keys from its
+/// seed phrase (NIP-06 account 0). Used for the relay-hosted account
+/// backup — same mnemonic always yields the same keys, so nothing needs
+/// to be stored beyond the mnemonic itself.
 pub(crate) fn derive_keys(mnemonic: &str) -> Result<Keys, String> {
-    Keys::from_mnemonic(mnemonic.trim(), None).map_err(|e| e.to_string())
+    derive_contact_keys(mnemonic, 0)
+}
+
+/// Deterministically derives a per-contact key pair from the seed phrase,
+/// using NIP-06's multi-account derivation (`m/44'/1237'/<account>'/0/0`).
+/// Each invite/friend gets a distinct `account` index so that if a key
+/// shared with one contact ever leaks, it can't be linked to any other
+/// contact or to this device's core account identity (account 0).
+pub(crate) fn derive_contact_keys(mnemonic: &str, account: u32) -> Result<Keys, String> {
+    Keys::from_mnemonic_with_account(mnemonic.trim(), None, Some(account))
+        .map_err(|e| e.to_string())
 }

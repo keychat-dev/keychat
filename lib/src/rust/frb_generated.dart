@@ -4,6 +4,8 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/account.dart';
+import 'api/friends.dart';
+import 'api/invites.dart';
 import 'api/keys.dart';
 import 'api/relay.dart';
 import 'api/simple.dart';
@@ -70,7 +72,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0-beta.4';
 
   @override
-  int get rustContentHash => -2114088968;
+  int get rustContentHash => -920019310;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -82,8 +84,46 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
+  Future<void> crateApiSyncAcceptFriendRequest({
+    required String mnemonic,
+    required String storageDir,
+    required int inviteAccountIndex,
+    required String requesterPubkey,
+    required String requesterDisplayName,
+    required String requesterStatusMessage,
+    required List<String> requesterRelays,
+    String? requesterAvatarBase64,
+  });
+
+  Future<void> crateApiFriendsAddFriend({
+    required String storageDir,
+    required String pubkey,
+    required int myAccountIndex,
+    required String displayName,
+    required String statusMessage,
+    required List<String> relays,
+    String? avatarPath,
+  });
+
+  Future<void> crateApiFriendsBlockPubkey({
+    required String storageDir,
+    required String pubkey,
+  });
+
+  Future<String> crateApiSyncBuildInviteQrPayload({
+    required String mnemonic,
+    required String storageDir,
+    required int accountIndex,
+  });
+
   Future<List<bool>> crateApiRelayCheckRelayStatuses({
     required List<String> urls,
+  });
+
+  Future<Invite> crateApiInvitesCreateInvite({
+    required String storageDir,
+    PlatformInt64? ttlSeconds,
+    int? maxUses,
   });
 
   Future<List<String>> crateApiRelayDefaultRelays();
@@ -98,15 +138,43 @@ abstract class RustLibApi extends BaseApi {
     required List<String> relayUrls,
   });
 
+  Future<List<AcceptedFriend>> crateApiSyncFetchFriendAccepts({
+    required String mnemonic,
+    required String storageDir,
+  });
+
+  Future<List<PendingFriendRequest>> crateApiSyncFetchPendingFriendRequests({
+    required String mnemonic,
+    required String storageDir,
+    required List<String> relayUrls,
+  });
+
   Future<String> crateApiKeysGenerateMnemonic();
 
   String crateApiSimpleGreet({required String name});
 
   Future<void> crateApiSimpleInitApp();
 
+  Future<bool> crateApiInvitesInviteIsActive({
+    required Invite that,
+    required PlatformInt64 now,
+  });
+
+  Future<List<Invite>> crateApiInvitesListActiveInvites({
+    required String storageDir,
+  });
+
+  Future<List<Invite>> crateApiInvitesListInvites({required String storageDir});
+
   Future<Account?> crateApiAccountLoadAccount({required String storageDir});
 
+  Future<List<Friend>> crateApiFriendsLoadFriends({required String storageDir});
+
   Future<RelayList> crateApiRelayLoadRelayList({required String storageDir});
+
+  Future<InviteQrPayload> crateApiSyncParseInviteQrPayload({
+    required String data,
+  });
 
   Future<void> crateApiSyncPublishAccountBackup({
     required String mnemonic,
@@ -114,6 +182,34 @@ abstract class RustLibApi extends BaseApi {
     required String displayName,
     required String statusMessage,
     required PlatformInt64 updatedAt,
+  });
+
+  Future<void> crateApiSyncPublishProfileUpdateToFriends({
+    required String mnemonic,
+    required String storageDir,
+    required String displayName,
+    required String statusMessage,
+    String? avatarPath,
+  });
+
+  Future<void> crateApiInvitesRecordInviteUse({
+    required String storageDir,
+    required int accountIndex,
+  });
+
+  Future<void> crateApiSyncRejectFriendRequest({
+    required String storageDir,
+    required String requesterPubkey,
+  });
+
+  Future<void> crateApiFriendsRemoveFriend({
+    required String storageDir,
+    required String pubkey,
+  });
+
+  Future<void> crateApiInvitesRevokeInvite({
+    required String storageDir,
+    required int accountIndex,
   });
 
   Future<void> crateApiAccountSaveAccount({
@@ -136,6 +232,18 @@ abstract class RustLibApi extends BaseApi {
     required List<String> urls,
   });
 
+  Future<void> crateApiSyncSendFriendRequest({
+    required String mnemonic,
+    required String storageDir,
+    required String invitePubkey,
+    required List<String> inviteRelays,
+  });
+
+  Stream<FriendEvent> crateApiSyncSubscribeFriendEvents({
+    required String mnemonic,
+    required String storageDir,
+  });
+
   Future<void> crateApiKeysValidateMnemonic({required String mnemonic});
 }
 
@@ -146,6 +254,202 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required super.generalizedFrbRustBinding,
     required super.portManager,
   });
+
+  @override
+  Future<void> crateApiSyncAcceptFriendRequest({
+    required String mnemonic,
+    required String storageDir,
+    required int inviteAccountIndex,
+    required String requesterPubkey,
+    required String requesterDisplayName,
+    required String requesterStatusMessage,
+    required List<String> requesterRelays,
+    String? requesterAvatarBase64,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mnemonic, serializer);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_u_32(inviteAccountIndex, serializer);
+          sse_encode_String(requesterPubkey, serializer);
+          sse_encode_String(requesterDisplayName, serializer);
+          sse_encode_String(requesterStatusMessage, serializer);
+          sse_encode_list_String(requesterRelays, serializer);
+          sse_encode_opt_String(requesterAvatarBase64, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 1,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSyncAcceptFriendRequestConstMeta,
+        argValues: [
+          mnemonic,
+          storageDir,
+          inviteAccountIndex,
+          requesterPubkey,
+          requesterDisplayName,
+          requesterStatusMessage,
+          requesterRelays,
+          requesterAvatarBase64,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncAcceptFriendRequestConstMeta =>
+      const TaskConstMeta(
+        debugName: "accept_friend_request",
+        argNames: [
+          "mnemonic",
+          "storageDir",
+          "inviteAccountIndex",
+          "requesterPubkey",
+          "requesterDisplayName",
+          "requesterStatusMessage",
+          "requesterRelays",
+          "requesterAvatarBase64",
+        ],
+      );
+
+  @override
+  Future<void> crateApiFriendsAddFriend({
+    required String storageDir,
+    required String pubkey,
+    required int myAccountIndex,
+    required String displayName,
+    required String statusMessage,
+    required List<String> relays,
+    String? avatarPath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_String(pubkey, serializer);
+          sse_encode_u_32(myAccountIndex, serializer);
+          sse_encode_String(displayName, serializer);
+          sse_encode_String(statusMessage, serializer);
+          sse_encode_list_String(relays, serializer);
+          sse_encode_opt_String(avatarPath, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 2,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiFriendsAddFriendConstMeta,
+        argValues: [
+          storageDir,
+          pubkey,
+          myAccountIndex,
+          displayName,
+          statusMessage,
+          relays,
+          avatarPath,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFriendsAddFriendConstMeta => const TaskConstMeta(
+    debugName: "add_friend",
+    argNames: [
+      "storageDir",
+      "pubkey",
+      "myAccountIndex",
+      "displayName",
+      "statusMessage",
+      "relays",
+      "avatarPath",
+    ],
+  );
+
+  @override
+  Future<void> crateApiFriendsBlockPubkey({
+    required String storageDir,
+    required String pubkey,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_String(pubkey, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 3,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiFriendsBlockPubkeyConstMeta,
+        argValues: [storageDir, pubkey],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFriendsBlockPubkeyConstMeta => const TaskConstMeta(
+    debugName: "block_pubkey",
+    argNames: ["storageDir", "pubkey"],
+  );
+
+  @override
+  Future<String> crateApiSyncBuildInviteQrPayload({
+    required String mnemonic,
+    required String storageDir,
+    required int accountIndex,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mnemonic, serializer);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_u_32(accountIndex, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSyncBuildInviteQrPayloadConstMeta,
+        argValues: [mnemonic, storageDir, accountIndex],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncBuildInviteQrPayloadConstMeta =>
+      const TaskConstMeta(
+        debugName: "build_invite_qr_payload",
+        argNames: ["mnemonic", "storageDir", "accountIndex"],
+      );
 
   @override
   Future<List<bool>> crateApiRelayCheckRelayStatuses({
@@ -159,7 +463,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 1,
+            funcId: 5,
             port: port_,
           );
         },
@@ -181,6 +485,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<Invite> crateApiInvitesCreateInvite({
+    required String storageDir,
+    PlatformInt64? ttlSeconds,
+    int? maxUses,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_opt_box_autoadd_i_64(ttlSeconds, serializer);
+          sse_encode_opt_box_autoadd_u_32(maxUses, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_invite,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiInvitesCreateInviteConstMeta,
+        argValues: [storageDir, ttlSeconds, maxUses],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiInvitesCreateInviteConstMeta =>
+      const TaskConstMeta(
+        debugName: "create_invite",
+        argNames: ["storageDir", "ttlSeconds", "maxUses"],
+      );
+
+  @override
   Future<List<String>> crateApiRelayDefaultRelays() {
     return handler.executeNormal(
       NormalTask(
@@ -189,7 +530,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 2,
+            funcId: 7,
             port: port_,
           );
         },
@@ -221,7 +562,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 3,
+            funcId: 8,
             port: port_,
           );
         },
@@ -256,7 +597,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 9,
             port: port_,
           );
         },
@@ -278,6 +619,78 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<AcceptedFriend>> crateApiSyncFetchFriendAccepts({
+    required String mnemonic,
+    required String storageDir,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mnemonic, serializer);
+          sse_encode_String(storageDir, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 10,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_accepted_friend,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSyncFetchFriendAcceptsConstMeta,
+        argValues: [mnemonic, storageDir],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncFetchFriendAcceptsConstMeta =>
+      const TaskConstMeta(
+        debugName: "fetch_friend_accepts",
+        argNames: ["mnemonic", "storageDir"],
+      );
+
+  @override
+  Future<List<PendingFriendRequest>> crateApiSyncFetchPendingFriendRequests({
+    required String mnemonic,
+    required String storageDir,
+    required List<String> relayUrls,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mnemonic, serializer);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_list_String(relayUrls, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 11,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_pending_friend_request,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSyncFetchPendingFriendRequestsConstMeta,
+        argValues: [mnemonic, storageDir, relayUrls],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncFetchPendingFriendRequestsConstMeta =>
+      const TaskConstMeta(
+        debugName: "fetch_pending_friend_requests",
+        argNames: ["mnemonic", "storageDir", "relayUrls"],
+      );
+
+  @override
   Future<String> crateApiKeysGenerateMnemonic() {
     return handler.executeNormal(
       NormalTask(
@@ -286,7 +699,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 12,
             port: port_,
           );
         },
@@ -311,7 +724,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(name, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -336,7 +749,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 14,
             port: port_,
           );
         },
@@ -355,6 +768,104 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "init_app", argNames: []);
 
   @override
+  Future<bool> crateApiInvitesInviteIsActive({
+    required Invite that,
+    required PlatformInt64 now,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_invite(that, serializer);
+          sse_encode_i_64(now, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 15,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiInvitesInviteIsActiveConstMeta,
+        argValues: [that, now],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiInvitesInviteIsActiveConstMeta =>
+      const TaskConstMeta(
+        debugName: "invite_is_active",
+        argNames: ["that", "now"],
+      );
+
+  @override
+  Future<List<Invite>> crateApiInvitesListActiveInvites({
+    required String storageDir,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(storageDir, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 16,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_invite,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiInvitesListActiveInvitesConstMeta,
+        argValues: [storageDir],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiInvitesListActiveInvitesConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_active_invites",
+        argNames: ["storageDir"],
+      );
+
+  @override
+  Future<List<Invite>> crateApiInvitesListInvites({
+    required String storageDir,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(storageDir, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 17,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_invite,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiInvitesListInvitesConstMeta,
+        argValues: [storageDir],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiInvitesListInvitesConstMeta =>
+      const TaskConstMeta(debugName: "list_invites", argNames: ["storageDir"]);
+
+  @override
   Future<Account?> crateApiAccountLoadAccount({required String storageDir}) {
     return handler.executeNormal(
       NormalTask(
@@ -364,7 +875,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 18,
             port: port_,
           );
         },
@@ -383,6 +894,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "load_account", argNames: ["storageDir"]);
 
   @override
+  Future<List<Friend>> crateApiFriendsLoadFriends({
+    required String storageDir,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(storageDir, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 19,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_friend,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiFriendsLoadFriendsConstMeta,
+        argValues: [storageDir],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFriendsLoadFriendsConstMeta =>
+      const TaskConstMeta(debugName: "load_friends", argNames: ["storageDir"]);
+
+  @override
   Future<RelayList> crateApiRelayLoadRelayList({required String storageDir}) {
     return handler.executeNormal(
       NormalTask(
@@ -392,7 +933,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 20,
             port: port_,
           );
         },
@@ -411,6 +952,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     debugName: "load_relay_list",
     argNames: ["storageDir"],
   );
+
+  @override
+  Future<InviteQrPayload> crateApiSyncParseInviteQrPayload({
+    required String data,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(data, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 21,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_invite_qr_payload,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSyncParseInviteQrPayloadConstMeta,
+        argValues: [data],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncParseInviteQrPayloadConstMeta =>
+      const TaskConstMeta(
+        debugName: "parse_invite_qr_payload",
+        argNames: ["data"],
+      );
 
   @override
   Future<void> crateApiSyncPublishAccountBackup({
@@ -432,7 +1006,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 22,
             port: port_,
           );
         },
@@ -460,6 +1034,199 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiSyncPublishProfileUpdateToFriends({
+    required String mnemonic,
+    required String storageDir,
+    required String displayName,
+    required String statusMessage,
+    String? avatarPath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mnemonic, serializer);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_String(displayName, serializer);
+          sse_encode_String(statusMessage, serializer);
+          sse_encode_opt_String(avatarPath, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 23,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSyncPublishProfileUpdateToFriendsConstMeta,
+        argValues: [
+          mnemonic,
+          storageDir,
+          displayName,
+          statusMessage,
+          avatarPath,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncPublishProfileUpdateToFriendsConstMeta =>
+      const TaskConstMeta(
+        debugName: "publish_profile_update_to_friends",
+        argNames: [
+          "mnemonic",
+          "storageDir",
+          "displayName",
+          "statusMessage",
+          "avatarPath",
+        ],
+      );
+
+  @override
+  Future<void> crateApiInvitesRecordInviteUse({
+    required String storageDir,
+    required int accountIndex,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_u_32(accountIndex, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 24,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiInvitesRecordInviteUseConstMeta,
+        argValues: [storageDir, accountIndex],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiInvitesRecordInviteUseConstMeta =>
+      const TaskConstMeta(
+        debugName: "record_invite_use",
+        argNames: ["storageDir", "accountIndex"],
+      );
+
+  @override
+  Future<void> crateApiSyncRejectFriendRequest({
+    required String storageDir,
+    required String requesterPubkey,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_String(requesterPubkey, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 25,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSyncRejectFriendRequestConstMeta,
+        argValues: [storageDir, requesterPubkey],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncRejectFriendRequestConstMeta =>
+      const TaskConstMeta(
+        debugName: "reject_friend_request",
+        argNames: ["storageDir", "requesterPubkey"],
+      );
+
+  @override
+  Future<void> crateApiFriendsRemoveFriend({
+    required String storageDir,
+    required String pubkey,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_String(pubkey, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 26,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiFriendsRemoveFriendConstMeta,
+        argValues: [storageDir, pubkey],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFriendsRemoveFriendConstMeta =>
+      const TaskConstMeta(
+        debugName: "remove_friend",
+        argNames: ["storageDir", "pubkey"],
+      );
+
+  @override
+  Future<void> crateApiInvitesRevokeInvite({
+    required String storageDir,
+    required int accountIndex,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_u_32(accountIndex, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 27,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiInvitesRevokeInviteConstMeta,
+        argValues: [storageDir, accountIndex],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiInvitesRevokeInviteConstMeta =>
+      const TaskConstMeta(
+        debugName: "revoke_invite",
+        argNames: ["storageDir", "accountIndex"],
+      );
+
+  @override
   Future<void> crateApiAccountSaveAccount({
     required String storageDir,
     required String displayName,
@@ -477,7 +1244,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 28,
             port: port_,
           );
         },
@@ -517,7 +1284,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 29,
             port: port_,
           );
         },
@@ -564,7 +1331,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 30,
             port: port_,
           );
         },
@@ -585,6 +1352,85 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiSyncSendFriendRequest({
+    required String mnemonic,
+    required String storageDir,
+    required String invitePubkey,
+    required List<String> inviteRelays,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mnemonic, serializer);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_String(invitePubkey, serializer);
+          sse_encode_list_String(inviteRelays, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 31,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSyncSendFriendRequestConstMeta,
+        argValues: [mnemonic, storageDir, invitePubkey, inviteRelays],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSyncSendFriendRequestConstMeta =>
+      const TaskConstMeta(
+        debugName: "send_friend_request",
+        argNames: ["mnemonic", "storageDir", "invitePubkey", "inviteRelays"],
+      );
+
+  @override
+  Stream<FriendEvent> crateApiSyncSubscribeFriendEvents({
+    required String mnemonic,
+    required String storageDir,
+  }) {
+    final sink = RustStreamSink<FriendEvent>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_String(mnemonic, serializer);
+            sse_encode_String(storageDir, serializer);
+            sse_encode_StreamSink_friend_event_Sse(sink, serializer);
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 32,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: null,
+          ),
+          constMeta: kCrateApiSyncSubscribeFriendEventsConstMeta,
+          argValues: [mnemonic, storageDir, sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiSyncSubscribeFriendEventsConstMeta =>
+      const TaskConstMeta(
+        debugName: "subscribe_friend_events",
+        argNames: ["mnemonic", "storageDir", "sink"],
+      );
+
+  @override
   Future<void> crateApiKeysValidateMnemonic({required String mnemonic}) {
     return handler.executeNormal(
       NormalTask(
@@ -594,7 +1440,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 33,
             port: port_,
           );
         },
@@ -616,9 +1462,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @protected
+  AnyhowException dco_decode_AnyhowException(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return AnyhowException(raw as String);
+  }
+
+  @protected
+  RustStreamSink<FriendEvent> dco_decode_StreamSink_friend_event_Sse(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
   String dco_decode_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as String;
+  }
+
+  @protected
+  AcceptedFriend dco_decode_accepted_friend(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return AcceptedFriend(
+      pubkey: dco_decode_String(arr[0]),
+      displayName: dco_decode_String(arr[1]),
+      statusMessage: dco_decode_String(arr[2]),
+    );
   }
 
   @protected
@@ -648,9 +1521,60 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_i_64(raw);
+  }
+
+  @protected
+  Invite dco_decode_box_autoadd_invite(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_invite(raw);
+  }
+
+  @protected
   RemoteAccount dco_decode_box_autoadd_remote_account(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_remote_account(raw);
+  }
+
+  @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
+  Friend dco_decode_friend(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return Friend(
+      pubkey: dco_decode_String(arr[0]),
+      myAccountIndex: dco_decode_u_32(arr[1]),
+      displayName: dco_decode_String(arr[2]),
+      statusMessage: dco_decode_String(arr[3]),
+      relays: dco_decode_list_String(arr[4]),
+      avatarPath: dco_decode_opt_String(arr[5]),
+      addedAt: dco_decode_i_64(arr[6]),
+    );
+  }
+
+  @protected
+  FriendEvent dco_decode_friend_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return FriendEvent(
+      kind: dco_decode_String(arr[0]),
+      pubkey: dco_decode_String(arr[1]),
+      displayName: dco_decode_String(arr[2]),
+      statusMessage: dco_decode_String(arr[3]),
+      inviteAccountIndex: dco_decode_opt_box_autoadd_u_32(arr[4]),
+      relays: dco_decode_list_String(arr[5]),
+    );
   }
 
   @protected
@@ -660,15 +1584,73 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Invite dco_decode_invite(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return Invite(
+      accountIndex: dco_decode_u_32(arr[0]),
+      createdAt: dco_decode_i_64(arr[1]),
+      expiresAt: dco_decode_opt_box_autoadd_i_64(arr[2]),
+      maxUses: dco_decode_opt_box_autoadd_u_32(arr[3]),
+      useCount: dco_decode_u_32(arr[4]),
+      revoked: dco_decode_bool(arr[5]),
+    );
+  }
+
+  @protected
+  InviteQrPayload dco_decode_invite_qr_payload(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return InviteQrPayload(
+      pubkey: dco_decode_String(arr[0]),
+      relays: dco_decode_list_String(arr[1]),
+      displayName: dco_decode_String(arr[2]),
+      statusMessage: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_String).toList();
   }
 
   @protected
+  List<AcceptedFriend> dco_decode_list_accepted_friend(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_accepted_friend).toList();
+  }
+
+  @protected
   List<bool> dco_decode_list_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_bool).toList();
+  }
+
+  @protected
+  List<Friend> dco_decode_list_friend(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_friend).toList();
+  }
+
+  @protected
+  List<Invite> dco_decode_list_invite(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_invite).toList();
+  }
+
+  @protected
+  List<PendingFriendRequest> dco_decode_list_pending_friend_request(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_pending_friend_request)
+        .toList();
   }
 
   @protected
@@ -690,9 +1672,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_i_64(raw);
+  }
+
+  @protected
   RemoteAccount? dco_decode_opt_box_autoadd_remote_account(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_remote_account(raw);
+  }
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_u_32(raw);
+  }
+
+  @protected
+  PendingFriendRequest dco_decode_pending_friend_request(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return PendingFriendRequest(
+      inviteAccountIndex: dco_decode_u_32(arr[0]),
+      pubkey: dco_decode_String(arr[1]),
+      displayName: dco_decode_String(arr[2]),
+      statusMessage: dco_decode_String(arr[3]),
+      relays: dco_decode_list_String(arr[4]),
+      avatarBase64: dco_decode_opt_String(arr[5]),
+    );
   }
 
   @protected
@@ -718,6 +1728,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int dco_decode_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
   int dco_decode_u_8(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -730,10 +1746,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_String(deserializer);
+    return AnyhowException(inner);
+  }
+
+  @protected
+  RustStreamSink<FriendEvent> sse_decode_StreamSink_friend_event_Sse(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
   String sse_decode_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_list_prim_u_8_strict(deserializer);
     return utf8.decoder.convert(inner);
+  }
+
+  @protected
+  AcceptedFriend sse_decode_accepted_friend(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_pubkey = sse_decode_String(deserializer);
+    var var_displayName = sse_decode_String(deserializer);
+    var var_statusMessage = sse_decode_String(deserializer);
+    return AcceptedFriend(
+      pubkey: var_pubkey,
+      displayName: var_displayName,
+      statusMessage: var_statusMessage,
+    );
   }
 
   @protected
@@ -764,6 +1808,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_i_64(deserializer));
+  }
+
+  @protected
+  Invite sse_decode_box_autoadd_invite(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_invite(deserializer));
+  }
+
+  @protected
   RemoteAccount sse_decode_box_autoadd_remote_account(
     SseDeserializer deserializer,
   ) {
@@ -772,9 +1828,89 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_u_32(deserializer));
+  }
+
+  @protected
+  Friend sse_decode_friend(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_pubkey = sse_decode_String(deserializer);
+    var var_myAccountIndex = sse_decode_u_32(deserializer);
+    var var_displayName = sse_decode_String(deserializer);
+    var var_statusMessage = sse_decode_String(deserializer);
+    var var_relays = sse_decode_list_String(deserializer);
+    var var_avatarPath = sse_decode_opt_String(deserializer);
+    var var_addedAt = sse_decode_i_64(deserializer);
+    return Friend(
+      pubkey: var_pubkey,
+      myAccountIndex: var_myAccountIndex,
+      displayName: var_displayName,
+      statusMessage: var_statusMessage,
+      relays: var_relays,
+      avatarPath: var_avatarPath,
+      addedAt: var_addedAt,
+    );
+  }
+
+  @protected
+  FriendEvent sse_decode_friend_event(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_kind = sse_decode_String(deserializer);
+    var var_pubkey = sse_decode_String(deserializer);
+    var var_displayName = sse_decode_String(deserializer);
+    var var_statusMessage = sse_decode_String(deserializer);
+    var var_inviteAccountIndex = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_relays = sse_decode_list_String(deserializer);
+    return FriendEvent(
+      kind: var_kind,
+      pubkey: var_pubkey,
+      displayName: var_displayName,
+      statusMessage: var_statusMessage,
+      inviteAccountIndex: var_inviteAccountIndex,
+      relays: var_relays,
+    );
+  }
+
+  @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getPlatformInt64();
+  }
+
+  @protected
+  Invite sse_decode_invite(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_accountIndex = sse_decode_u_32(deserializer);
+    var var_createdAt = sse_decode_i_64(deserializer);
+    var var_expiresAt = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_maxUses = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_useCount = sse_decode_u_32(deserializer);
+    var var_revoked = sse_decode_bool(deserializer);
+    return Invite(
+      accountIndex: var_accountIndex,
+      createdAt: var_createdAt,
+      expiresAt: var_expiresAt,
+      maxUses: var_maxUses,
+      useCount: var_useCount,
+      revoked: var_revoked,
+    );
+  }
+
+  @protected
+  InviteQrPayload sse_decode_invite_qr_payload(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_pubkey = sse_decode_String(deserializer);
+    var var_relays = sse_decode_list_String(deserializer);
+    var var_displayName = sse_decode_String(deserializer);
+    var var_statusMessage = sse_decode_String(deserializer);
+    return InviteQrPayload(
+      pubkey: var_pubkey,
+      relays: var_relays,
+      displayName: var_displayName,
+      statusMessage: var_statusMessage,
+    );
   }
 
   @protected
@@ -790,6 +1926,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<AcceptedFriend> sse_decode_list_accepted_friend(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <AcceptedFriend>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_accepted_friend(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<bool> sse_decode_list_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -797,6 +1947,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <bool>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_bool(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<Friend> sse_decode_list_friend(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <Friend>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_friend(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<Invite> sse_decode_list_invite(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <Invite>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_invite(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<PendingFriendRequest> sse_decode_list_pending_friend_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <PendingFriendRequest>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_pending_friend_request(deserializer));
     }
     return ans_;
   }
@@ -831,6 +2019,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_i_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   RemoteAccount? sse_decode_opt_box_autoadd_remote_account(
     SseDeserializer deserializer,
   ) {
@@ -841,6 +2040,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     } else {
       return null;
     }
+  }
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_u_32(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  PendingFriendRequest sse_decode_pending_friend_request(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_inviteAccountIndex = sse_decode_u_32(deserializer);
+    var var_pubkey = sse_decode_String(deserializer);
+    var var_displayName = sse_decode_String(deserializer);
+    var var_statusMessage = sse_decode_String(deserializer);
+    var var_relays = sse_decode_list_String(deserializer);
+    var var_avatarBase64 = sse_decode_opt_String(deserializer);
+    return PendingFriendRequest(
+      inviteAccountIndex: var_inviteAccountIndex,
+      pubkey: var_pubkey,
+      displayName: var_displayName,
+      statusMessage: var_statusMessage,
+      relays: var_relays,
+      avatarBase64: var_avatarBase64,
+    );
   }
 
   @protected
@@ -864,6 +2095,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int sse_decode_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint32();
+  }
+
+  @protected
   int sse_decode_u_8(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8();
@@ -881,9 +2118,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_AnyhowException(
+    AnyhowException self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.message, serializer);
+  }
+
+  @protected
+  void sse_encode_StreamSink_friend_event_Sse(
+    RustStreamSink<FriendEvent> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_friend_event,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
+  }
+
+  @protected
   void sse_encode_String(String self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer);
+  }
+
+  @protected
+  void sse_encode_accepted_friend(
+    AcceptedFriend self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.pubkey, serializer);
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_String(self.statusMessage, serializer);
   }
 
   @protected
@@ -908,6 +2182,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_i_64(
+    PlatformInt64 self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_invite(Invite self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_invite(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_remote_account(
     RemoteAccount self,
     SseSerializer serializer,
@@ -917,9 +2206,61 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self, serializer);
+  }
+
+  @protected
+  void sse_encode_friend(Friend self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.pubkey, serializer);
+    sse_encode_u_32(self.myAccountIndex, serializer);
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_String(self.statusMessage, serializer);
+    sse_encode_list_String(self.relays, serializer);
+    sse_encode_opt_String(self.avatarPath, serializer);
+    sse_encode_i_64(self.addedAt, serializer);
+  }
+
+  @protected
+  void sse_encode_friend_event(FriendEvent self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.kind, serializer);
+    sse_encode_String(self.pubkey, serializer);
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_String(self.statusMessage, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.inviteAccountIndex, serializer);
+    sse_encode_list_String(self.relays, serializer);
+  }
+
+  @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putPlatformInt64(self);
+  }
+
+  @protected
+  void sse_encode_invite(Invite self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.accountIndex, serializer);
+    sse_encode_i_64(self.createdAt, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.expiresAt, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.maxUses, serializer);
+    sse_encode_u_32(self.useCount, serializer);
+    sse_encode_bool(self.revoked, serializer);
+  }
+
+  @protected
+  void sse_encode_invite_qr_payload(
+    InviteQrPayload self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.pubkey, serializer);
+    sse_encode_list_String(self.relays, serializer);
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_String(self.statusMessage, serializer);
   }
 
   @protected
@@ -932,11 +2273,53 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_accepted_friend(
+    List<AcceptedFriend> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_accepted_friend(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_bool(List<bool> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_bool(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_friend(List<Friend> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_friend(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_invite(List<Invite> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_invite(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_pending_friend_request(
+    List<PendingFriendRequest> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_pending_friend_request(item, serializer);
     }
   }
 
@@ -974,6 +2357,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_i_64(
+    PlatformInt64? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_i_64(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_remote_account(
     RemoteAccount? self,
     SseSerializer serializer,
@@ -984,6 +2380,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (self != null) {
       sse_encode_box_autoadd_remote_account(self, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_u_32(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_pending_friend_request(
+    PendingFriendRequest self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.inviteAccountIndex, serializer);
+    sse_encode_String(self.pubkey, serializer);
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_String(self.statusMessage, serializer);
+    sse_encode_list_String(self.relays, serializer);
+    sse_encode_opt_String(self.avatarBase64, serializer);
   }
 
   @protected
@@ -998,6 +2418,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.displayName, serializer);
     sse_encode_String(self.statusMessage, serializer);
     sse_encode_i_64(self.updatedAt, serializer);
+  }
+
+  @protected
+  void sse_encode_u_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint32(self);
   }
 
   @protected

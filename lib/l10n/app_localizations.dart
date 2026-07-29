@@ -224,6 +224,168 @@ abstract class AppLocalizations {
   /// **'Add friend with QR code'**
   String get addFriendByQr;
 
+  /// No description provided for @addFriendTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add friend'**
+  String get addFriendTitle;
+
+  /// No description provided for @myQrTab.
+  ///
+  /// In en, this message translates to:
+  /// **'My QR'**
+  String get myQrTab;
+
+  /// No description provided for @scanTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan'**
+  String get scanTab;
+
+  /// No description provided for @maxUsesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Max uses'**
+  String get maxUsesLabel;
+
+  /// No description provided for @unlimitedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlimited'**
+  String get unlimitedLabel;
+
+  /// No description provided for @customLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get customLabel;
+
+  /// No description provided for @validForLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Valid for (days)'**
+  String get validForLabel;
+
+  /// No description provided for @generateQrButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate QR code'**
+  String get generateQrButton;
+
+  /// No description provided for @regenerateQrButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate new code'**
+  String get regenerateQrButton;
+
+  /// No description provided for @activeInvitesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Active invite codes'**
+  String get activeInvitesTitle;
+
+  /// No description provided for @noActiveInvites.
+  ///
+  /// In en, this message translates to:
+  /// **'No active invite codes'**
+  String get noActiveInvites;
+
+  /// No description provided for @invitesUsesUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Used {used} of {max}'**
+  String invitesUsesUsed(int used, int max);
+
+  /// No description provided for @invitesUsesUsedUnlimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Used {used} (unlimited)'**
+  String invitesUsesUsedUnlimited(int used);
+
+  /// No description provided for @invitesExpiresIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires in {days}d'**
+  String invitesExpiresIn(int days);
+
+  /// No description provided for @revokeInvite.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke'**
+  String get revokeInvite;
+
+  /// No description provided for @scanPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Point your camera at a KeyChat QR code'**
+  String get scanPrompt;
+
+  /// No description provided for @pickFromGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick from gallery'**
+  String get pickFromGallery;
+
+  /// No description provided for @scanInvalidQr.
+  ///
+  /// In en, this message translates to:
+  /// **'This isn\'t a valid KeyChat invite code'**
+  String get scanInvalidQr;
+
+  /// No description provided for @sendRequestConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send friend request?'**
+  String get sendRequestConfirmTitle;
+
+  /// No description provided for @sendRequestConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Send your profile to {name} and request to add them?'**
+  String sendRequestConfirmBody(String name);
+
+  /// No description provided for @sendRequestButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Send request'**
+  String get sendRequestButton;
+
+  /// No description provided for @requestSentMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Friend request sent'**
+  String get requestSentMessage;
+
+  /// No description provided for @friendRequestsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Friend requests'**
+  String get friendRequestsTitle;
+
+  /// No description provided for @noFriendRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'No pending requests'**
+  String get noFriendRequests;
+
+  /// No description provided for @acceptButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept'**
+  String get acceptButton;
+
+  /// No description provided for @rejectButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject'**
+  String get rejectButton;
+
+  /// No description provided for @friendAddedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} added as a friend'**
+  String friendAddedMessage(String name);
+
   /// No description provided for @friendsSectionTitle.
   ///
   /// In en, this message translates to:

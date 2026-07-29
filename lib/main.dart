@@ -43,7 +43,22 @@ class _KeyChatAppState extends State<KeyChatApp> {
     final storageDir = await getApplicationDocumentsDirectory();
     final profile = await account_api.loadAccount(storageDir: storageDir.path);
     if (profile == null) return null;
+    unawaited(_pollFriendAccepts(storageDir.path));
     return reconcileAccountBackup(profile);
+  }
+
+  /// Best-effort: turns any of our outgoing friend requests that have since
+  /// been accepted into saved friends. Never blocks startup or surfaces
+  /// errors — the next app open (or a manual refresh) will retry.
+  Future<void> _pollFriendAccepts(String storageDir) async {
+    const secureStorage = FlutterSecureStorage();
+    final mnemonic = await secureStorage.read(key: seedStorageKey);
+    if (mnemonic == null) return;
+    try {
+      await sync_api.fetchFriendAccepts(mnemonic: mnemonic, storageDir: storageDir);
+    } catch (_) {
+      // Offline or relays unreachable — try again next launch.
+    }
   }
 
   void _selectLocale(Locale locale) {

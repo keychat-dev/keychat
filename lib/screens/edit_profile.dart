@@ -73,6 +73,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
     final saved = (await account_api.loadAccount(storageDir: storageDir.path))!;
     unawaited(publishAccountBackup(saved));
+    unawaited(publishProfileUpdateToFriends(saved));
 
     if (!mounted) return;
     Navigator.of(context).pop(saved);

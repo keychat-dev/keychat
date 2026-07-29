@@ -1300,6 +1300,7 @@ dependencies = [
 name = "rust_lib_workspace"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "bip39",
  "flutter_rust_bridge",
  "futures-util",

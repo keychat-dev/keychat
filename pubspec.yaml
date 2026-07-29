@@ -42,6 +42,8 @@ dependencies:
   path_provider: ^2.1.4
   image_picker: ^1.1.2
   flutter_secure_storage: ^9.2.4
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^6.0.7
 
 dev_dependencies:
   flutter_test:

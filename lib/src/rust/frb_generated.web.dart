@@ -7,6 +7,8 @@
 // ignore_for_file: argument_type_not_assignable
 
 import 'api/account.dart';
+import 'api/friends.dart';
+import 'api/invites.dart';
 import 'api/keys.dart';
 import 'api/relay.dart';
 import 'api/simple.dart';
@@ -25,7 +27,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   });
 
   @protected
+  AnyhowException dco_decode_AnyhowException(dynamic raw);
+
+  @protected
+  RustStreamSink<FriendEvent> dco_decode_StreamSink_friend_event_Sse(
+    dynamic raw,
+  );
+
+  @protected
   String dco_decode_String(dynamic raw);
+
+  @protected
+  AcceptedFriend dco_decode_accepted_friend(dynamic raw);
 
   @protected
   Account dco_decode_account(dynamic raw);
@@ -37,16 +50,51 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Account dco_decode_box_autoadd_account(dynamic raw);
 
   @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  Invite dco_decode_box_autoadd_invite(dynamic raw);
+
+  @protected
   RemoteAccount dco_decode_box_autoadd_remote_account(dynamic raw);
+
+  @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  Friend dco_decode_friend(dynamic raw);
+
+  @protected
+  FriendEvent dco_decode_friend_event(dynamic raw);
 
   @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
+  Invite dco_decode_invite(dynamic raw);
+
+  @protected
+  InviteQrPayload dco_decode_invite_qr_payload(dynamic raw);
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
+  List<AcceptedFriend> dco_decode_list_accepted_friend(dynamic raw);
+
+  @protected
   List<bool> dco_decode_list_bool(dynamic raw);
+
+  @protected
+  List<Friend> dco_decode_list_friend(dynamic raw);
+
+  @protected
+  List<Invite> dco_decode_list_invite(dynamic raw);
+
+  @protected
+  List<PendingFriendRequest> dco_decode_list_pending_friend_request(
+    dynamic raw,
+  );
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
@@ -58,7 +106,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Account? dco_decode_opt_box_autoadd_account(dynamic raw);
 
   @protected
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
+
+  @protected
   RemoteAccount? dco_decode_opt_box_autoadd_remote_account(dynamic raw);
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  PendingFriendRequest dco_decode_pending_friend_request(dynamic raw);
 
   @protected
   RelayList dco_decode_relay_list(dynamic raw);
@@ -67,13 +124,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RemoteAccount dco_decode_remote_account(dynamic raw);
 
   @protected
+  int dco_decode_u_32(dynamic raw);
+
+  @protected
   int dco_decode_u_8(dynamic raw);
 
   @protected
   void dco_decode_unit(dynamic raw);
 
   @protected
+  AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
+
+  @protected
+  RustStreamSink<FriendEvent> sse_decode_StreamSink_friend_event_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   String sse_decode_String(SseDeserializer deserializer);
+
+  @protected
+  AcceptedFriend sse_decode_accepted_friend(SseDeserializer deserializer);
 
   @protected
   Account sse_decode_account(SseDeserializer deserializer);
@@ -85,18 +156,55 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Account sse_decode_box_autoadd_account(SseDeserializer deserializer);
 
   @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  Invite sse_decode_box_autoadd_invite(SseDeserializer deserializer);
+
+  @protected
   RemoteAccount sse_decode_box_autoadd_remote_account(
     SseDeserializer deserializer,
   );
 
   @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  Friend sse_decode_friend(SseDeserializer deserializer);
+
+  @protected
+  FriendEvent sse_decode_friend_event(SseDeserializer deserializer);
+
+  @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+
+  @protected
+  Invite sse_decode_invite(SseDeserializer deserializer);
+
+  @protected
+  InviteQrPayload sse_decode_invite_qr_payload(SseDeserializer deserializer);
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
+  List<AcceptedFriend> sse_decode_list_accepted_friend(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<bool> sse_decode_list_bool(SseDeserializer deserializer);
+
+  @protected
+  List<Friend> sse_decode_list_friend(SseDeserializer deserializer);
+
+  @protected
+  List<Invite> sse_decode_list_invite(SseDeserializer deserializer);
+
+  @protected
+  List<PendingFriendRequest> sse_decode_list_pending_friend_request(
+    SseDeserializer deserializer,
+  );
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
@@ -108,7 +216,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Account? sse_decode_opt_box_autoadd_account(SseDeserializer deserializer);
 
   @protected
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
   RemoteAccount? sse_decode_opt_box_autoadd_remote_account(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  PendingFriendRequest sse_decode_pending_friend_request(
     SseDeserializer deserializer,
   );
 
@@ -117,6 +236,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RemoteAccount sse_decode_remote_account(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_u_32(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_8(SseDeserializer deserializer);
@@ -128,7 +250,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
+  void sse_encode_AnyhowException(
+    AnyhowException self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_friend_event_Sse(
+    RustStreamSink<FriendEvent> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_String(String self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_accepted_friend(
+    AcceptedFriend self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_account(Account self, SseSerializer serializer);
@@ -140,19 +280,64 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_account(Account self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_i_64(
+    PlatformInt64 self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_invite(Invite self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_remote_account(
     RemoteAccount self,
     SseSerializer serializer,
   );
 
   @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_friend(Friend self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_friend_event(FriendEvent self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_invite(Invite self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_invite_qr_payload(
+    InviteQrPayload self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_accepted_friend(
+    List<AcceptedFriend> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_bool(List<bool> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_friend(List<Friend> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_invite(List<Invite> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_pending_friend_request(
+    List<PendingFriendRequest> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_prim_u_8_strict(
@@ -170,8 +355,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_i_64(
+    PlatformInt64? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_remote_account(
     RemoteAccount? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pending_friend_request(
+    PendingFriendRequest self,
     SseSerializer serializer,
   );
 
@@ -180,6 +380,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_remote_account(RemoteAccount self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_u_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_8(int self, SseSerializer serializer);

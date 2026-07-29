@@ -35,6 +35,59 @@
   "navProfileFriends": "Home",
   "editProfile": "Edit profile",
   "addFriendByQr": "Add friend with QR code",
+  "addFriendTitle": "Add friend",
+  "myQrTab": "My QR",
+  "scanTab": "Scan",
+  "maxUsesLabel": "Max uses",
+  "unlimitedLabel": "Unlimited",
+  "customLabel": "Custom",
+  "validForLabel": "Valid for (days)",
+  "generateQrButton": "Generate QR code",
+  "regenerateQrButton": "Generate new code",
+  "activeInvitesTitle": "Active invite codes",
+  "noActiveInvites": "No active invite codes",
+  "invitesUsesUsed": "Used {used} of {max}",
+  "@invitesUsesUsed": {
+    "placeholders": {
+      "used": { "type": "int" },
+      "max": { "type": "int" }
+    }
+  },
+  "invitesUsesUsedUnlimited": "Used {used} (unlimited)",
+  "@invitesUsesUsedUnlimited": {
+    "placeholders": {
+      "used": { "type": "int" }
+    }
+  },
+  "invitesExpiresIn": "Expires in {days}d",
+  "@invitesExpiresIn": {
+    "placeholders": {
+      "days": { "type": "int" }
+    }
+  },
+  "revokeInvite": "Revoke",
+  "scanPrompt": "Point your camera at a KeyChat QR code",
+  "pickFromGallery": "Pick from gallery",
+  "scanInvalidQr": "This isn't a valid KeyChat invite code",
+  "sendRequestConfirmTitle": "Send friend request?",
+  "sendRequestConfirmBody": "Send your profile to {name} and request to add them?",
+  "@sendRequestConfirmBody": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "sendRequestButton": "Send request",
+  "requestSentMessage": "Friend request sent",
+  "friendRequestsTitle": "Friend requests",
+  "noFriendRequests": "No pending requests",
+  "acceptButton": "Accept",
+  "rejectButton": "Reject",
+  "friendAddedMessage": "{name} added as a friend",
+  "@friendAddedMessage": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
   "friendsSectionTitle": "Friends",
   "noFriendsYet": "No friends yet",
   "noFriendsHint": "Add a friend to start chatting",
