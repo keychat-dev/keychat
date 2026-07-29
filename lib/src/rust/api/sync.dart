@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `fetch_events`, `fetch_latest_backup_event`, `listen_for_friend_events`, `publish_to_relays`, `read_avatar_base64`, `run_friend_event_subscription`, `runtime`, `save_friend_avatar`
+// These functions are ignored because they are not marked as `pub`: `fetch_events`, `fetch_latest_backup_event`, `fetch_relay_list_nip65`, `listen_for_friend_events`, `publish_relay_list_nip65`, `publish_to_relays`, `read_avatar_base64`, `run_friend_event_subscription`, `runtime`, `save_friend_avatar`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `BackupPayload`, `FriendPayload`, `Watch`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`
 
@@ -129,7 +129,12 @@ Future<void> rejectFriendRequest({
 
 /// Publishes the given profile info to every existing friend, each using
 /// the per-relationship key already established for them, encrypted to
-/// their contact pubkey and sent to their last-known relays.
+/// their contact pubkey. Sent to the union of their last-known relays and
+/// whatever their NIP-65 relay list (looked up fresh from the bootstrap
+/// relays) currently says — so a friend who's since moved relays without
+/// us hearing about it yet still gets this. Also republishes our own
+/// NIP-65 for that per-relationship key, so *they* can resolve us the same
+/// way if our notice doesn't reach them directly.
 Future<void> publishProfileUpdateToFriends({
   required String mnemonic,
   required String storageDir,
@@ -142,6 +147,19 @@ Future<void> publishProfileUpdateToFriends({
   displayName: displayName,
   statusMessage: statusMessage,
   avatarPath: avatarPath,
+);
+
+/// Called after the user changes their own relay list in Settings.
+/// Republishes NIP-65 (to the fixed bootstrap relays) for every
+/// per-relationship key we've ever given out to a friend, so each of them
+/// — even ones who miss the direct profile-update notice entirely — can
+/// still resolve our current relays by looking up that key there.
+Future<void> publishRelayListUpdate({
+  required String mnemonic,
+  required String storageDir,
+}) => RustLib.instance.api.crateApiSyncPublishRelayListUpdate(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
 );
 
 /// Checks every friend request we've sent that hasn't been resolved yet,

@@ -11,8 +11,9 @@ use futures_util::future::join_all;
 use nostr::event::{Event, EventBuilder, Kind, Tag};
 use nostr::nips::nip09::EventDeletionRequest;
 use nostr::nips::nip44;
+use nostr::nips::nip65;
 use nostr::types::Timestamp;
-use nostr::{Filter, PublicKey};
+use nostr::{Filter, Keys, PublicKey, RelayUrl};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::OnceLock;
@@ -153,6 +154,42 @@ fn save_friend_avatar(storage_dir: &str, pubkey: &str, avatar_base64: &Option<St
     Some(path.to_string_lossy().to_string())
 }
 
+/// Publishes a NIP-65 relay-list-metadata event under `keys` — typically
+/// one of our per-contact keys — to a fixed, always-known bootstrap relay
+/// set (the same 3 defaults every install starts with). This gives anyone
+/// who already knows that pubkey a way to resolve our *current* relays
+/// even if a direct profile-update notice never reached them — e.g. they
+/// moved relays themselves before we could tell them where we are now.
+async fn publish_relay_list_nip65(keys: &Keys, relays: &[String]) {
+    let entries: Vec<(RelayUrl, Option<nip65::RelayMetadata>)> = relays
+        .iter()
+        .filter_map(|url| RelayUrl::parse(url).ok())
+        .map(|url| (url, None))
+        .collect();
+    if entries.is_empty() {
+        return;
+    }
+    let Ok(event) = EventBuilder::relay_list(entries).sign_with_keys(keys) else {
+        return;
+    };
+    let _ = publish_to_relays(&relay::default_relays(), &event).await;
+}
+
+/// Looks up `pubkey`'s most recent NIP-65 relay list from the bootstrap
+/// relay set. Returns an empty list if none is found or reachable.
+async fn fetch_relay_list_nip65(pubkey: &PublicKey) -> Vec<String> {
+    let filter = Filter::new().author(*pubkey).kind(Kind::RelayList).limit(1);
+    let events = fetch_events(&relay::default_relays(), &filter)
+        .await
+        .unwrap_or_default();
+    let Some(event) = events.into_iter().max_by_key(|e| e.created_at) else {
+        return Vec::new();
+    };
+    nip65::extract_relay_list(&event)
+        .map(|(url, _)| url.to_string())
+        .collect()
+}
+
 /// A pending incoming friend request, decrypted and ready to show the user.
 pub struct PendingFriendRequest {
     /// Which of our invites this request was sent to.
@@ -229,7 +266,7 @@ pub fn send_friend_request(
     let payload = FriendPayload {
         display_name: my_account.display_name,
         status_message: my_account.status_message,
-        relays: my_relays,
+        relays: my_relays.clone(),
         avatar_base64: read_avatar_base64(&my_account.avatar_path),
     };
     let plaintext = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
@@ -241,7 +278,11 @@ pub fn send_friend_request(
         .tag(Tag::public_key(target_pubkey))
         .sign_with_keys(&keys)
         .map_err(|e| e.to_string())?;
-    runtime().block_on(publish_to_relays(&invite_relays, &event))?;
+    runtime().block_on(async {
+        publish_to_relays(&invite_relays, &event).await?;
+        publish_relay_list_nip65(&keys, &my_relays).await;
+        Ok::<(), String>(())
+    })?;
 
     requests::add(&storage_dir, index, invite_pubkey, invite_relays)
 }
@@ -317,7 +358,7 @@ pub fn accept_friend_request(
     let payload = FriendPayload {
         display_name: my_account.display_name,
         status_message: my_account.status_message,
-        relays: my_relays,
+        relays: my_relays.clone(),
         avatar_base64: read_avatar_base64(&my_account.avatar_path),
     };
     let plaintext = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
@@ -329,7 +370,11 @@ pub fn accept_friend_request(
         .tag(Tag::public_key(requester))
         .sign_with_keys(&keys)
         .map_err(|e| e.to_string())?;
-    runtime().block_on(publish_to_relays(&requester_relays, &event))?;
+    runtime().block_on(async {
+        publish_to_relays(&requester_relays, &event).await?;
+        publish_relay_list_nip65(&keys, &my_relays).await;
+        Ok::<(), String>(())
+    })?;
 
     invites::record_invite_use(storage_dir.clone(), invite_account_index)?;
     let avatar_path = save_friend_avatar(&storage_dir, &requester_pubkey, &requester_avatar_base64);
@@ -352,7 +397,12 @@ pub fn reject_friend_request(storage_dir: String, requester_pubkey: String) -> R
 
 /// Publishes the given profile info to every existing friend, each using
 /// the per-relationship key already established for them, encrypted to
-/// their contact pubkey and sent to their last-known relays.
+/// their contact pubkey. Sent to the union of their last-known relays and
+/// whatever their NIP-65 relay list (looked up fresh from the bootstrap
+/// relays) currently says — so a friend who's since moved relays without
+/// us hearing about it yet still gets this. Also republishes our own
+/// NIP-65 for that per-relationship key, so *they* can resolve us the same
+/// way if our notice doesn't reach them directly.
 pub fn publish_profile_update_to_friends(
     mnemonic: String,
     storage_dir: String,
@@ -360,10 +410,11 @@ pub fn publish_profile_update_to_friends(
     status_message: String,
     avatar_path: Option<String>,
 ) -> Result<(), String> {
+    let my_relays = relay::load_relay_list(storage_dir.clone()).urls;
     let payload = FriendPayload {
         display_name,
         status_message,
-        relays: relay::load_relay_list(storage_dir.clone()).urls,
+        relays: my_relays.clone(),
         avatar_base64: read_avatar_base64(&avatar_path),
     };
     let plaintext = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
@@ -391,10 +442,35 @@ pub fn publish_profile_update_to_friends(
             else {
                 continue;
             };
-            let _ = publish_to_relays(&friend.relays, &event).await;
+
+            let mut target_relays = friend.relays.clone();
+            for url in fetch_relay_list_nip65(&friend_pubkey).await {
+                if !target_relays.contains(&url) {
+                    target_relays.push(url);
+                }
+            }
+            let _ = publish_to_relays(&target_relays, &event).await;
+            publish_relay_list_nip65(&keys, &my_relays).await;
         }
         Ok(())
     })
+}
+
+/// Called after the user changes their own relay list in Settings.
+/// Republishes NIP-65 (to the fixed bootstrap relays) for every
+/// per-relationship key we've ever given out to a friend, so each of them
+/// — even ones who miss the direct profile-update notice entirely — can
+/// still resolve our current relays by looking up that key there.
+pub fn publish_relay_list_update(mnemonic: String, storage_dir: String) -> Result<(), String> {
+    let my_relays = relay::load_relay_list(storage_dir.clone()).urls;
+    runtime().block_on(async {
+        for friend in friends::load_friends(storage_dir.clone()) {
+            if let Ok(keys) = derive_contact_keys(&mnemonic, friend.my_account_index) {
+                publish_relay_list_nip65(&keys, &my_relays).await;
+            }
+        }
+    });
+    Ok(())
 }
 
 /// Checks every friend request we've sent that hasn't been resolved yet,

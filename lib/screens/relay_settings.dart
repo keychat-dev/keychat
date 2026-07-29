@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:workspace/l10n/app_localizations.dart';
 import 'package:workspace/screens/login.dart';
+import 'package:workspace/services/account_sync.dart';
 import 'package:workspace/src/rust/api/relay.dart' as relay_api;
 
 /// Lets the user view, add, and remove the Nostr relay URLs this device
@@ -68,6 +71,7 @@ class _RelaySettingsScreenState extends State<RelaySettingsScreen> {
   Future<void> _persist() async {
     final storageDir = await getApplicationDocumentsDirectory();
     await relay_api.saveRelayList(storageDir: storageDir.path, urls: _urls);
+    unawaited(announceRelayListUpdate());
   }
 
   void _addRelay() {

@@ -103,6 +103,28 @@ Future<void> publishProfileUpdateToFriends(account_api.Account profile) async {
   }
 }
 
+/// Republishes NIP-65 relay-list metadata (to a fixed bootstrap relay set)
+/// for every friend's per-relationship key, after the user changes their
+/// own relay list. Lets friends resolve our new relays even if they miss
+/// the next profile-update notice. Best-effort: silently does nothing (no
+/// seed) or fails silently (relays unreachable).
+Future<void> announceRelayListUpdate() async {
+  const secureStorage = FlutterSecureStorage();
+  final mnemonic = await secureStorage.read(key: seedStorageKey);
+  if (mnemonic == null) return;
+
+  final storageDir = await getApplicationDocumentsDirectory();
+  try {
+    await sync_api.publishRelayListUpdate(
+      mnemonic: mnemonic,
+      storageDir: storageDir.path,
+    );
+  } catch (_) {
+    // Offline or every relay unreachable — friends fall back to whatever
+    // relay list they already have cached for us.
+  }
+}
+
 /// Counts pending incoming friend requests, for showing a badge on the
 /// "Add friend" entry point. Returns 0 if there's no seed yet or relays
 /// are unreachable — best-effort, never throws.
