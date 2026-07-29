@@ -5,19 +5,19 @@ use crate::api::keys::{derive_contact_keys, derive_keys};
 use crate::api::relay;
 use crate::api::requests;
 use crate::frb_generated::StreamSink;
-use futures_util::{future::join_all, SinkExt, StreamExt};
+use crate::relay_pool;
+use base64::Engine;
+use futures_util::future::join_all;
 use nostr::event::{Event, EventBuilder, Kind, Tag};
 use nostr::nips::nip09::EventDeletionRequest;
 use nostr::nips::nip44;
 use nostr::types::Timestamp;
 use nostr::{Filter, PublicKey};
-use base64::Engine;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::OnceLock;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-use tokio_tungstenite::tungstenite::Message;
 
 fn runtime() -> &'static Runtime {
     static RT: OnceLock<Runtime> = OnceLock::new();
@@ -29,7 +29,6 @@ fn runtime() -> &'static Runtime {
 /// relay and newer publishes replace older ones automatically.
 const ACCOUNT_BACKUP_D_TAG: &str = "keychat-account";
 const ACCOUNT_BACKUP_KIND: Kind = Kind::Custom(30078);
-const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Serialize, Deserialize)]
@@ -527,60 +526,41 @@ async fn run_friend_event_subscription(
     let filter = Filter::new()
         .kinds([FRIEND_REQUEST_KIND, FRIEND_ACCEPT_KIND, FRIEND_PROFILE_UPDATE_KIND])
         .pubkeys(pubkeys);
-    let Ok(req_msg) =
-        serde_json::to_string(&serde_json::json!(["REQ", "keychat-friend-live", filter]))
-    else {
-        return;
-    };
 
     let watch_snapshot: Vec<(PublicKey, Watch)> = watch;
 
     let tasks = relay_set.into_iter().map(|url| {
-        let req_msg = req_msg.clone();
+        let filter = filter.clone();
         let mnemonic = mnemonic.clone();
         let storage_dir = storage_dir.clone();
         let sink = sink.clone();
         let watch_snapshot = watch_snapshot.clone();
         async move {
-            listen_for_friend_events(&url, &req_msg, &watch_snapshot, &mnemonic, &storage_dir, &sink)
+            listen_for_friend_events(&url, &filter, &watch_snapshot, &mnemonic, &storage_dir, &sink)
                 .await
         }
     });
     join_all(tasks).await;
 }
 
-/// Keeps a single relay connection open and pushes decrypted friend events
-/// to `sink` as they arrive (persisting accepted friends along the way).
-/// Returns once the connection drops.
+/// Subscribes on `url`'s pooled connection (reusing it if already open —
+/// e.g. from a recent publish or fetch to the same relay) and pushes
+/// decrypted friend events to `sink` as they arrive (persisting accepted
+/// friends along the way). Returns once the connection drops.
 async fn listen_for_friend_events(
     url: &str,
-    req_msg: &str,
+    filter: &Filter,
     watch: &[(PublicKey, Watch)],
     mnemonic: &str,
     storage_dir: &str,
     sink: &StreamSink<FriendEvent>,
 ) {
-    let Ok(Ok((mut ws, _))) =
-        tokio::time::timeout(CONNECT_TIMEOUT, tokio_tungstenite::connect_async(url)).await
-    else {
+    let Some((sub_id, mut events)) = relay_pool::subscribe(url, filter) else {
         return;
     };
-    if ws.send(Message::Text(req_msg.to_string())).await.is_err() {
-        return;
-    }
 
-    while let Some(Ok(msg)) = ws.next().await {
-        let Message::Text(text) = msg else { continue };
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) else {
-            continue;
-        };
-        if value.get(0).and_then(|v| v.as_str()) != Some("EVENT") {
-            continue;
-        }
-        let Some(event) = value
-            .get(2)
-            .and_then(|v| serde_json::from_value::<Event>(v.clone()).ok())
-        else {
+    while let Some(pool_event) = events.recv().await {
+        let relay_pool::PoolEvent::Event(event) = pool_event else {
             continue;
         };
         let Some((_, matched)) = watch
@@ -657,36 +637,20 @@ async fn listen_for_friend_events(
         };
         let _ = sink.add(friend_event);
     }
+    relay_pool::unsubscribe(url, sub_id);
 }
 
+/// Publishes `event` to every relay in `urls` over each relay's pooled
+/// connection (reused if one's already open, e.g. from the live
+/// subscription — never a fresh dial per publish). Fire-and-forget per
+/// relay; only fails if every relay's queue is already gone.
 async fn publish_to_relays(urls: &[String], event: &Event) -> Result<(), String> {
-    let msg = serde_json::to_string(&serde_json::json!(["EVENT", event])).map_err(|e| e.to_string())?;
-    let tasks = urls.iter().map(|url| {
-        let msg = msg.clone();
-        let url = url.clone();
-        async move { publish_one(&url, &msg).await.is_ok() }
-    });
-    let results = join_all(tasks).await;
-    if results.into_iter().any(|ok| ok) {
+    let ok = urls.iter().any(|url| relay_pool::publish(url, event).is_ok());
+    if ok {
         Ok(())
     } else {
         Err("failed to publish to any relay".to_string())
     }
-}
-
-async fn publish_one(url: &str, msg: &str) -> Result<(), String> {
-    let (mut ws, _) = tokio::time::timeout(CONNECT_TIMEOUT, tokio_tungstenite::connect_async(url))
-        .await
-        .map_err(|_| "connect timeout".to_string())?
-        .map_err(|e| e.to_string())?;
-    ws.send(Message::Text(msg.to_string()))
-        .await
-        .map_err(|e| e.to_string())?;
-    // Best-effort: give the relay a moment to send back an OK, but a missing
-    // reply doesn't mean the publish failed — plenty of relays are slow here.
-    let _ = tokio::time::timeout(Duration::from_secs(3), ws.next()).await;
-    let _ = ws.close(None).await;
-    Ok(())
 }
 
 async fn fetch_latest_backup_event(
@@ -698,13 +662,9 @@ async fn fetch_latest_backup_event(
         .kind(ACCOUNT_BACKUP_KIND)
         .identifier(ACCOUNT_BACKUP_D_TAG)
         .limit(1);
-    let req_msg = serde_json::to_string(&serde_json::json!(["REQ", "keychat-account", filter]))
-        .map_err(|e| e.to_string())?;
-    let tasks = urls.iter().map(|url| {
-        let req_msg = req_msg.clone();
-        let url = url.clone();
-        async move { fetch_one(&url, &req_msg).await.unwrap_or_default() }
-    });
+    let tasks = urls
+        .iter()
+        .map(|url| relay_pool::request(url, &filter, REQUEST_TIMEOUT));
     let results = join_all(tasks).await;
     let mut latest: Option<Event> = None;
     for event in results.into_iter().flatten() {
@@ -716,15 +676,12 @@ async fn fetch_latest_backup_event(
 }
 
 /// Queries `urls` with `filter` and returns every distinct event found
-/// across all of them (deduplicated by event id).
+/// across all of them (deduplicated by event id). Reuses each relay's
+/// pooled connection rather than dialing a fresh one.
 async fn fetch_events(urls: &[String], filter: &Filter) -> Result<Vec<Event>, String> {
-    let req_msg = serde_json::to_string(&serde_json::json!(["REQ", "keychat-query", filter]))
-        .map_err(|e| e.to_string())?;
-    let tasks = urls.iter().map(|url| {
-        let req_msg = req_msg.clone();
-        let url = url.clone();
-        async move { fetch_one(&url, &req_msg).await.unwrap_or_default() }
-    });
+    let tasks = urls
+        .iter()
+        .map(|url| relay_pool::request(url, filter, REQUEST_TIMEOUT));
     let results = join_all(tasks).await;
     let mut seen = std::collections::HashSet::new();
     let mut events = Vec::new();
@@ -733,45 +690,5 @@ async fn fetch_events(urls: &[String], filter: &Filter) -> Result<Vec<Event>, St
             events.push(event);
         }
     }
-    Ok(events)
-}
-
-async fn fetch_one(url: &str, req_msg: &str) -> Result<Vec<Event>, String> {
-    let (mut ws, _) = tokio::time::timeout(CONNECT_TIMEOUT, tokio_tungstenite::connect_async(url))
-        .await
-        .map_err(|_| "connect timeout".to_string())?
-        .map_err(|e| e.to_string())?;
-    ws.send(Message::Text(req_msg.to_string()))
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let mut events = Vec::new();
-    let deadline = tokio::time::Instant::now() + REQUEST_TIMEOUT;
-    loop {
-        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
-        if remaining.is_zero() {
-            break;
-        }
-        let Ok(Some(Ok(Message::Text(text)))) = tokio::time::timeout(remaining, ws.next()).await
-        else {
-            break;
-        };
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) else {
-            continue;
-        };
-        match value.get(0).and_then(|v| v.as_str()) {
-            Some("EVENT") => {
-                if let Some(event) = value
-                    .get(2)
-                    .and_then(|v| serde_json::from_value::<Event>(v.clone()).ok())
-                {
-                    events.push(event);
-                }
-            }
-            Some("EOSE") => break,
-            _ => {}
-        }
-    }
-    let _ = ws.close(None).await;
     Ok(events)
 }
