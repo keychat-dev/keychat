@@ -77,13 +77,17 @@ pub fn add_friend(
 }
 
 /// Updates a friend's display info (e.g. after they push a profile update),
-/// leaving their relays/index/added_at untouched. A no-op if there's no
-/// friend with that pubkey.
+/// including their current relay list — every friend-protocol event
+/// carries the sender's up-to-date relays, so this is also how we notice a
+/// friend has moved to different relays and keep publishing where they'll
+/// actually see it. Leaves `my_account_index`/`added_at` untouched. A
+/// no-op if there's no friend with that pubkey.
 pub(crate) fn update_friend_profile(
     storage_dir: &str,
     pubkey: &str,
     display_name: String,
     status_message: String,
+    relays: Vec<String>,
     avatar_path: Option<String>,
 ) -> Result<(), String> {
     let mut friends = load_friends(storage_dir.to_string());
@@ -91,6 +95,9 @@ pub(crate) fn update_friend_profile(
         if friend.pubkey == pubkey {
             friend.display_name = display_name;
             friend.status_message = status_message;
+            if !relays.is_empty() {
+                friend.relays = relays;
+            }
             if avatar_path.is_some() {
                 friend.avatar_path = avatar_path;
             }

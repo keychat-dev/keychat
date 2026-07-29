@@ -622,6 +622,7 @@ async fn listen_for_friend_events(
                     friend_pubkey,
                     payload.display_name.clone(),
                     payload.status_message.clone(),
+                    payload.relays.clone(),
                     avatar_path,
                 );
                 FriendEvent {
