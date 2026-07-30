@@ -186,6 +186,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noStatusMessage => 'No status message';
 
   @override
+  String get startChat => 'Talk';
+
+  @override
   String get addToFavorites => 'Add to Favorites';
 
   @override
@@ -201,7 +204,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get blockFriendConfirmBody =>
-      'They\'ll be removed from your friends list and won\'t be able to send you friend requests again.';
+      'You\'ll stop receiving their messages and profile updates. They stay in your friends list so you can unblock them later.';
+
+  @override
+  String get unblockFriend => 'Unblock';
 
   @override
   String get deleteFriend => 'Delete friend';
@@ -213,7 +219,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deleteFriendConfirmBody =>
-      'This removes them from your friends list. They can send you a new friend request later.';
+      'This permanently removes them from your friends list. They can send you a new friend request later.';
 
   @override
   String get noChatsYet => 'No conversations yet';
@@ -253,6 +259,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get accountSettingsTitle => 'Account';
+
+  @override
+  String get myUid => 'My UID';
+
+  @override
+  String get uidLabel => 'UID';
+
+  @override
+  String get uidCopiedMessage => 'UID copied to clipboard';
 
   @override
   String get seedBackupButton => 'Backup seed phrase';
@@ -336,4 +351,38 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get relayCountHint => 'Recommended: 3-5 relays';
+
+  @override
+  String get clearChatButton => 'Clear chat';
+
+  @override
+  String get clearChatConfirmTitle => 'Clear this chat?';
+
+  @override
+  String clearChatConfirmBody(String name) {
+    return 'This deletes the message history with $name from this device only. They can still message you and the chat will start fresh.';
+  }
+
+  @override
+  String get blockedSendConfirmTitle => 'This friend is blocked';
+
+  @override
+  String get blockedSendConfirmBody =>
+      'You can\'t send messages while they\'re blocked. Unblock them now?';
+
+  @override
+  String get friendAlreadyAddedMessage =>
+      'This friend is already added. Their info has been updated.';
+
+  @override
+  String get createTalkRoom => 'Create talk room';
+
+  @override
+  String get createGroup => 'Create group';
+
+  @override
+  String get searchByNameHint => 'Search by name';
+
+  @override
+  String get noSearchResults => 'No matches found';
 }

@@ -6,15 +6,15 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `fetch_latest_backup_event`, `listen_for_friend_events`, `publish_to_relays`, `read_avatar_base64`, `run_friend_event_subscription`, `runtime`, `save_friend_avatar`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `BackupPayload`, `FriendPayload`, `Watch`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`
+// These functions are ignored because they are not marked as `pub`: `encrypt_self`, `fetch_latest_backup_event`, `listen_for_account_sync`, `listen_for_friend_events`, `load_sync_state`, `now`, `publish_account_incoming_backup`, `publish_account_outgoing_backup`, `publish_backup_event`, `publish_to_relays`, `read_avatar_base64`, `run_friend_event_subscription`, `runtime`, `save_friend_avatar`, `save_sync_state`, `sync_state_path`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `AvatarBackupPayload`, `BlockedBackupPayload`, `ChatClearedBackupPayload`, `ChatStartedBackupPayload`, `ConfigBackupPayload`, `FriendPayload`, `FriendsBackupPayload`, `IncomingBackupPayload`, `InvitesBackupPayload`, `OutgoingBackupPayload`, `ReadStateBackupPayload`, `RelaysBackupPayload`, `TextBackupPayload`, `Watch`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`
 
-/// Encrypts the given account info (NIP-44, to self) and publishes it to
-/// `relay_urls` as a kind-30078 parameterized-replaceable event, signed with
-/// the Nostr keys derived from `mnemonic` (NIP-06). The seed phrase itself
-/// is never transmitted — only the deterministically-derived public
-/// identity and the encrypted payload.
+/// Encrypts the given account text (NIP-44, to self) and publishes it as a
+/// kind-30078 parameterized-replaceable event, signed with the Nostr keys
+/// derived from `mnemonic` (NIP-06). The seed phrase itself is never
+/// transmitted — only the deterministically-derived public identity and
+/// the encrypted payload.
 Future<void> publishAccountBackup({
   required String mnemonic,
   required List<String> relayUrls,
@@ -29,8 +29,9 @@ Future<void> publishAccountBackup({
   updatedAt: updatedAt,
 );
 
-/// Fetches and decrypts the newest account backup for `mnemonic`'s derived
-/// identity across `relay_urls`. Returns `None` if no relay has one yet.
+/// Fetches and decrypts the newest account text backup for `mnemonic`'s
+/// derived identity across `relay_urls`. Returns `None` if no relay has
+/// one yet.
 Future<RemoteAccount?> fetchAccountBackup({
   required String mnemonic,
   required List<String> relayUrls,
@@ -39,8 +40,178 @@ Future<RemoteAccount?> fetchAccountBackup({
   relayUrls: relayUrls,
 );
 
-/// Requests relays to erase this account's backup event (NIP-09 deletion
-/// request). A no-op if no backup exists yet.
+/// Publishes the account avatar as its own backup slot — call only when
+/// the avatar actually changed, so it isn't re-sent alongside every text
+/// edit.
+Future<void> publishAccountAvatarBackup({
+  required String mnemonic,
+  required List<String> relayUrls,
+  required String avatarPath,
+  required PlatformInt64 updatedAt,
+}) => RustLib.instance.api.crateApiSyncPublishAccountAvatarBackup(
+  mnemonic: mnemonic,
+  relayUrls: relayUrls,
+  avatarPath: avatarPath,
+  updatedAt: updatedAt,
+);
+
+Future<RemoteAvatar?> fetchAccountAvatarBackup({
+  required String mnemonic,
+  required List<String> relayUrls,
+}) => RustLib.instance.api.crateApiSyncFetchAccountAvatarBackup(
+  mnemonic: mnemonic,
+  relayUrls: relayUrls,
+);
+
+/// Publishes the account's relay list as its own backup slot — so
+/// restoring on another device can pick up the full relay list instead of
+/// requiring it to be re-entered by hand.
+Future<void> publishAccountRelaysBackup({
+  required String mnemonic,
+  required List<String> relayUrls,
+  required List<String> relays,
+  required PlatformInt64 updatedAt,
+}) => RustLib.instance.api.crateApiSyncPublishAccountRelaysBackup(
+  mnemonic: mnemonic,
+  relayUrls: relayUrls,
+  relays: relays,
+  updatedAt: updatedAt,
+);
+
+Future<RemoteRelays?> fetchAccountRelaysBackup({
+  required String mnemonic,
+  required List<String> relayUrls,
+}) => RustLib.instance.api.crateApiSyncFetchAccountRelaysBackup(
+  mnemonic: mnemonic,
+  relayUrls: relayUrls,
+);
+
+/// Publishes the local friends list (pubkey/account-index/display info,
+/// no avatars) as its own backup slot. Call after any change to the
+/// friends list (add, accept, favorite, block, delete) so another device
+/// can reconstruct the same per-relationship keys and — since chat history
+/// is just each device independently pulling and unwrapping the Gift Wraps
+/// addressed to those keys — pick up existing conversations too.
+Future<void> publishAccountFriendsBackup({
+  required String mnemonic,
+  required String storageDir,
+  required List<String> relayUrls,
+  required PlatformInt64 updatedAt,
+}) => RustLib.instance.api.crateApiSyncPublishAccountFriendsBackup(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+  relayUrls: relayUrls,
+  updatedAt: updatedAt,
+);
+
+Future<RemoteFriends?> fetchAccountFriendsBackup({
+  required String mnemonic,
+  required List<String> relayUrls,
+}) => RustLib.instance.api.crateApiSyncFetchAccountFriendsBackup(
+  mnemonic: mnemonic,
+  relayUrls: relayUrls,
+);
+
+/// Publishes the blocked-pubkey list as its own backup slot — call after
+/// [friends::block_pubkey]/[friends::unblock_pubkey] so a block (or
+/// unblock) takes effect on every device signed into this account, not
+/// just the one it was done on.
+Future<void> publishAccountBlockedBackup({
+  required String mnemonic,
+  required String storageDir,
+  required List<String> relayUrls,
+  required PlatformInt64 updatedAt,
+}) => RustLib.instance.api.crateApiSyncPublishAccountBlockedBackup(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+  relayUrls: relayUrls,
+  updatedAt: updatedAt,
+);
+
+/// Publishes the invite list (and the shared `account` index counter) as
+/// its own backup slot — call after creating/revoking an invite, so a QR
+/// code shown from any device is recognized (and correctly tracks
+/// use-count/revocation) from every device.
+Future<void> publishAccountInvitesBackup({
+  required String mnemonic,
+  required String storageDir,
+  required List<String> relayUrls,
+  required PlatformInt64 updatedAt,
+}) => RustLib.instance.api.crateApiSyncPublishAccountInvitesBackup(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+  relayUrls: relayUrls,
+  updatedAt: updatedAt,
+);
+
+/// Publishes the chat read-state map (friend pubkey -> last-read
+/// timestamp) as its own backup slot — call after [chat::mark_thread_read]
+/// so unread counts stay consistent across devices instead of a thread
+/// read on one device still showing unread on another.
+Future<void> publishAccountReadstateBackup({
+  required String mnemonic,
+  required String storageDir,
+  required List<String> relayUrls,
+  required PlatformInt64 updatedAt,
+}) => RustLib.instance.api.crateApiSyncPublishAccountReadstateBackup(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+  relayUrls: relayUrls,
+  updatedAt: updatedAt,
+);
+
+/// Publishes personal app preferences (e.g. language) as their own backup
+/// slot — call after changing them, so the choice follows this account to
+/// every device instead of resetting to "follow device locale" on each
+/// one. Never included in any friend-facing payload.
+Future<void> publishAccountConfigBackup({
+  required String mnemonic,
+  required String storageDir,
+  required List<String> relayUrls,
+  required PlatformInt64 updatedAt,
+}) => RustLib.instance.api.crateApiSyncPublishAccountConfigBackup(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+  relayUrls: relayUrls,
+  updatedAt: updatedAt,
+);
+
+/// Publishes the set of friends whose chat thread has been explicitly
+/// started as its own backup slot — call after [chat::mark_chat_started],
+/// so a thread started on one device shows up in the Talk tab on every
+/// device signed into this account.
+Future<void> publishAccountChatstartedBackup({
+  required String mnemonic,
+  required String storageDir,
+  required List<String> relayUrls,
+  required PlatformInt64 updatedAt,
+}) => RustLib.instance.api.crateApiSyncPublishAccountChatstartedBackup(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+  relayUrls: relayUrls,
+  updatedAt: updatedAt,
+);
+
+/// Publishes the per-friend "chat cleared at" map as its own backup slot —
+/// call after [chat::clear_chat_history], so a cleared thread stays
+/// cleared on every device instead of the friend's (and now our own
+/// self-addressed) Gift Wraps still sitting on relays quietly repopulating
+/// it there.
+Future<void> publishAccountChatclearedBackup({
+  required String mnemonic,
+  required String storageDir,
+  required List<String> relayUrls,
+  required PlatformInt64 updatedAt,
+}) => RustLib.instance.api.crateApiSyncPublishAccountChatclearedBackup(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+  relayUrls: relayUrls,
+  updatedAt: updatedAt,
+);
+
+/// Requests relays to erase every one of this account's backup slots
+/// (NIP-09 deletion request). A no-op per-slot if that slot was never
+/// published.
 Future<void> deleteAccountBackup({
   required String mnemonic,
   required List<String> relayUrls,
@@ -94,11 +265,17 @@ Future<List<PendingFriendRequest>> loadPendingFriendRequests({
 /// Accepts a pending friend request: mints a fresh per-relationship key,
 /// tells the requester about it (encrypted to their contact pubkey,
 /// published to their relays), and saves them locally as a friend.
-Future<void> acceptFriendRequest({
+///
+/// Returns `true` if the requester's UID matched an existing friend (they
+/// re-friended us under a new relationship key) — that old entry was
+/// merged into this one rather than creating a duplicate, so the caller
+/// can tell the user "already a friend, info updated".
+Future<bool> acceptFriendRequest({
   required String mnemonic,
   required String storageDir,
   required int inviteAccountIndex,
   required String requesterPubkey,
+  required String requesterUid,
   required String requesterDisplayName,
   required String requesterStatusMessage,
   required List<String> requesterRelays,
@@ -108,6 +285,7 @@ Future<void> acceptFriendRequest({
   storageDir: storageDir,
   inviteAccountIndex: inviteAccountIndex,
   requesterPubkey: requesterPubkey,
+  requesterUid: requesterUid,
   requesterDisplayName: requesterDisplayName,
   requesterStatusMessage: requesterStatusMessage,
   requesterRelays: requesterRelays,
@@ -117,10 +295,14 @@ Future<void> acceptFriendRequest({
 /// Permanently blocks a requester's contact pubkey so their (rejected)
 /// friend request stops showing up, even if resent.
 Future<void> rejectFriendRequest({
+  required String mnemonic,
   required String storageDir,
+  required List<String> relayUrls,
   required String requesterPubkey,
 }) => RustLib.instance.api.crateApiSyncRejectFriendRequest(
+  mnemonic: mnemonic,
   storageDir: storageDir,
+  relayUrls: relayUrls,
   requesterPubkey: requesterPubkey,
 );
 
@@ -160,12 +342,64 @@ Stream<FriendEvent> subscribeFriendEvents({
   storageDir: storageDir,
 );
 
+/// One friend as carried in the friends-list backup — enough for another
+/// device to derive the same per-relationship key (`my_account_index`) and
+/// resume talking to (and pulling chat history for) this friend on its
+/// own. Deliberately excludes the avatar (each device re-caches it from
+/// the friend directly, the same way it originally arrived).
+class FriendBackupEntry {
+  final String pubkey;
+  final String uid;
+  final int myAccountIndex;
+  final String displayName;
+  final String statusMessage;
+  final List<String> relays;
+  final bool isFavorite;
+
+  const FriendBackupEntry({
+    required this.pubkey,
+    required this.uid,
+    required this.myAccountIndex,
+    required this.displayName,
+    required this.statusMessage,
+    required this.relays,
+    required this.isFavorite,
+  });
+
+  @override
+  int get hashCode =>
+      pubkey.hashCode ^
+      uid.hashCode ^
+      myAccountIndex.hashCode ^
+      displayName.hashCode ^
+      statusMessage.hashCode ^
+      relays.hashCode ^
+      isFavorite.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FriendBackupEntry &&
+          runtimeType == other.runtimeType &&
+          pubkey == other.pubkey &&
+          uid == other.uid &&
+          myAccountIndex == other.myAccountIndex &&
+          displayName == other.displayName &&
+          statusMessage == other.statusMessage &&
+          relays == other.relays &&
+          isFavorite == other.isFavorite;
+}
+
 /// A live update about a friend request or acceptance, delivered while
 /// this device stays connected to its relays. Cheaper than re-polling: the
 /// connection just sits idle (a few bytes of keepalive) until a relay
 /// actually has something to send.
 class FriendEvent {
-  /// `"request"`, `"accepted"`, `"profile_updated"`, or `"message"`.
+  /// `"request"`, `"accepted"`, `"profile_updated"`, `"message"`, or
+  /// `"account_synced"` (a newer copy of our own text/avatar/relays/
+  /// friends backup arrived from another device and was applied locally).
+  /// `"reconnecting"` is also sent (and safely ignorable) each time a
+  /// relay connection drops and this subscription is about to retry it.
   final String kind;
   final String pubkey;
   final String displayName;
@@ -225,11 +459,19 @@ class InviteQrPayload {
   final String displayName;
   final String statusMessage;
 
+  /// The inviter's stable account UID (see `keys::derive_uid`). Lets a
+  /// scanner recognize "I already have this account as a friend" right
+  /// at scan time — before sending a request and waiting for an accept
+  /// round-trip — even though `pubkey` above is a fresh per-invite key
+  /// that won't match any existing friend entry.
+  final String uid;
+
   const InviteQrPayload({
     required this.pubkey,
     required this.relays,
     required this.displayName,
     required this.statusMessage,
+    required this.uid,
   });
 
   @override
@@ -237,7 +479,8 @@ class InviteQrPayload {
       pubkey.hashCode ^
       relays.hashCode ^
       displayName.hashCode ^
-      statusMessage.hashCode;
+      statusMessage.hashCode ^
+      uid.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -247,7 +490,8 @@ class InviteQrPayload {
           pubkey == other.pubkey &&
           relays == other.relays &&
           displayName == other.displayName &&
-          statusMessage == other.statusMessage;
+          statusMessage == other.statusMessage &&
+          uid == other.uid;
 }
 
 /// A pending incoming friend request, decrypted and ready to show the user.
@@ -257,6 +501,9 @@ class PendingFriendRequest {
 
   /// The requester's contact pubkey (hex) — distinct per relationship.
   final String pubkey;
+
+  /// The requester's stable account UID (see `keys::derive_uid`).
+  final String uid;
   final String displayName;
   final String statusMessage;
   final List<String> relays;
@@ -268,6 +515,7 @@ class PendingFriendRequest {
   const PendingFriendRequest({
     required this.inviteAccountIndex,
     required this.pubkey,
+    required this.uid,
     required this.displayName,
     required this.statusMessage,
     required this.relays,
@@ -278,6 +526,7 @@ class PendingFriendRequest {
   int get hashCode =>
       inviteAccountIndex.hashCode ^
       pubkey.hashCode ^
+      uid.hashCode ^
       displayName.hashCode ^
       statusMessage.hashCode ^
       relays.hashCode ^
@@ -290,13 +539,14 @@ class PendingFriendRequest {
           runtimeType == other.runtimeType &&
           inviteAccountIndex == other.inviteAccountIndex &&
           pubkey == other.pubkey &&
+          uid == other.uid &&
           displayName == other.displayName &&
           statusMessage == other.statusMessage &&
           relays == other.relays &&
           avatarBase64 == other.avatarBase64;
 }
 
-/// Account info decrypted from a relay-hosted backup.
+/// Account text (display name / status) decrypted from a relay-hosted backup.
 class RemoteAccount {
   final String displayName;
   final String statusMessage;
@@ -320,4 +570,130 @@ class RemoteAccount {
           displayName == other.displayName &&
           statusMessage == other.statusMessage &&
           updatedAt == other.updatedAt;
+}
+
+class RemoteAvatar {
+  final String avatarBase64;
+  final PlatformInt64 updatedAt;
+
+  const RemoteAvatar({required this.avatarBase64, required this.updatedAt});
+
+  @override
+  int get hashCode => avatarBase64.hashCode ^ updatedAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RemoteAvatar &&
+          runtimeType == other.runtimeType &&
+          avatarBase64 == other.avatarBase64 &&
+          updatedAt == other.updatedAt;
+}
+
+class RemoteFriends {
+  final List<FriendBackupEntry> friends;
+  final PlatformInt64 updatedAt;
+
+  const RemoteFriends({required this.friends, required this.updatedAt});
+
+  @override
+  int get hashCode => friends.hashCode ^ updatedAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RemoteFriends &&
+          runtimeType == other.runtimeType &&
+          friends == other.friends &&
+          updatedAt == other.updatedAt;
+}
+
+class RemoteRelays {
+  final List<String> relays;
+  final PlatformInt64 updatedAt;
+
+  const RemoteRelays({required this.relays, required this.updatedAt});
+
+  @override
+  int get hashCode => relays.hashCode ^ updatedAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RemoteRelays &&
+          runtimeType == other.runtimeType &&
+          relays == other.relays &&
+          updatedAt == other.updatedAt;
+}
+
+/// Tracks the `updated_at` of the last-applied avatar/relays/friends backup
+/// per storage dir, so [listen_for_account_sync] can reject stale or
+/// duplicate events by timestamp rather than by content — content-equality
+/// alone isn't enough: an older event arriving after a newer one (relays
+/// don't guarantee delivery order across each other, and this filter has no
+/// `since` so a fresh subscription replays whatever each individual relay
+/// currently has) would otherwise overwrite the newer local state right
+/// back to the older content. The text backup already tracks this via
+/// `Account.updated_at`; this covers the other three slots, which have no
+/// existing local timestamp field of their own to compare against.
+class SyncState {
+  final PlatformInt64 avatarUpdatedAt;
+  final PlatformInt64 relaysUpdatedAt;
+  final PlatformInt64 friendsUpdatedAt;
+  final PlatformInt64 blockedUpdatedAt;
+  final PlatformInt64 invitesUpdatedAt;
+  final PlatformInt64 outgoingUpdatedAt;
+  final PlatformInt64 incomingUpdatedAt;
+  final PlatformInt64 readstateUpdatedAt;
+  final PlatformInt64 configUpdatedAt;
+  final PlatformInt64 chatstartedUpdatedAt;
+  final PlatformInt64 chatclearedUpdatedAt;
+
+  const SyncState({
+    required this.avatarUpdatedAt,
+    required this.relaysUpdatedAt,
+    required this.friendsUpdatedAt,
+    required this.blockedUpdatedAt,
+    required this.invitesUpdatedAt,
+    required this.outgoingUpdatedAt,
+    required this.incomingUpdatedAt,
+    required this.readstateUpdatedAt,
+    required this.configUpdatedAt,
+    required this.chatstartedUpdatedAt,
+    required this.chatclearedUpdatedAt,
+  });
+
+  static Future<SyncState> default_() =>
+      RustLib.instance.api.crateApiSyncSyncStateDefault();
+
+  @override
+  int get hashCode =>
+      avatarUpdatedAt.hashCode ^
+      relaysUpdatedAt.hashCode ^
+      friendsUpdatedAt.hashCode ^
+      blockedUpdatedAt.hashCode ^
+      invitesUpdatedAt.hashCode ^
+      outgoingUpdatedAt.hashCode ^
+      incomingUpdatedAt.hashCode ^
+      readstateUpdatedAt.hashCode ^
+      configUpdatedAt.hashCode ^
+      chatstartedUpdatedAt.hashCode ^
+      chatclearedUpdatedAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncState &&
+          runtimeType == other.runtimeType &&
+          avatarUpdatedAt == other.avatarUpdatedAt &&
+          relaysUpdatedAt == other.relaysUpdatedAt &&
+          friendsUpdatedAt == other.friendsUpdatedAt &&
+          blockedUpdatedAt == other.blockedUpdatedAt &&
+          invitesUpdatedAt == other.invitesUpdatedAt &&
+          outgoingUpdatedAt == other.outgoingUpdatedAt &&
+          incomingUpdatedAt == other.incomingUpdatedAt &&
+          readstateUpdatedAt == other.readstateUpdatedAt &&
+          configUpdatedAt == other.configUpdatedAt &&
+          chatstartedUpdatedAt == other.chatstartedUpdatedAt &&
+          chatclearedUpdatedAt == other.chatclearedUpdatedAt;
 }

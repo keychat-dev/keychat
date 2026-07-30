@@ -6,18 +6,43 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `blocked_path`, `friends_path`, `load_blocked`, `now`, `save_friends_list`, `update_friend_profile`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`
+// These functions are ignored because they are not marked as `pub`: `block_pubkey_with_uid`, `blocked_path`, `friends_path`, `load_blocked_entries`, `load_blocked_uids`, `load_blocked`, `now`, `save_blocked_entries`, `save_friends_list`, `set_blocked_snapshot`, `update_friend_profile`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `BlockedEntry`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`
+
+/// Whether `uid` (a non-empty account UID) already belongs to a friend —
+/// used at QR-scan time, before any request/accept round-trip, so the
+/// scanner can be told "you already have this account as a friend" right
+/// away (the scanned invite's own pubkey is a fresh per-invite key, so it
+/// can't be matched directly).
+Future<bool> isKnownUid({required String storageDir, required String uid}) =>
+    RustLib.instance.api.crateApiFriendsIsKnownUid(
+      storageDir: storageDir,
+      uid: uid,
+    );
 
 /// Loads the saved friends list, or an empty list if none has been saved yet.
+/// Each entry's `is_blocked` is filled in from `blocked.json` — a blocked
+/// friend stays in this list (so the UI can still show/unblock them) but
+/// their events are dropped by the live subscription (see `sync.rs`).
 Future<List<Friend>> loadFriends({required String storageDir}) =>
     RustLib.instance.api.crateApiFriendsLoadFriends(storageDir: storageDir);
 
 /// Adds (or updates the info of) a friend, deduplicating by their contact
-/// pubkey.
-Future<void> addFriend({
+/// pubkey — and also by `uid` when it's non-empty: if an existing friend
+/// entry has the same UID but a different pubkey (they re-friended us under
+/// a fresh relationship key, e.g. after we deleted the old entry), that old
+/// entry is folded into this one rather than creating a second friend. Its
+/// pubkey/account-index are kept in `prior_identities` so old chat history
+/// stays reachable, and its `is_favorite` flag carries over.
+///
+/// Returns `true` if this call merged into an existing UID match (so the
+/// caller can tell the user "already a friend, info updated" instead of
+/// "friend added").
+Future<bool> addFriend({
   required String storageDir,
   required String pubkey,
+  required String uid,
   required int myAccountIndex,
   required String displayName,
   required String statusMessage,
@@ -26,6 +51,7 @@ Future<void> addFriend({
 }) => RustLib.instance.api.crateApiFriendsAddFriend(
   storageDir: storageDir,
   pubkey: pubkey,
+  uid: uid,
   myAccountIndex: myAccountIndex,
   displayName: displayName,
   statusMessage: statusMessage,
@@ -55,11 +81,26 @@ Future<void> removeFriend({
 );
 
 /// Permanently blocks a contact pubkey — e.g. after rejecting their friend
-/// request, so re-sending it (with the same leaked/reused key) has no effect.
+/// request, so re-sending it (with the same leaked/reused key) has no
+/// effect. Also records their account UID (looked up from `friends.json`
+/// if not passed in), so a re-request from a *new* relationship key on the
+/// same account is caught too.
 Future<void> blockPubkey({
   required String storageDir,
   required String pubkey,
 }) => RustLib.instance.api.crateApiFriendsBlockPubkey(
+  storageDir: storageDir,
+  pubkey: pubkey,
+);
+
+/// Reverses [block_pubkey] — removes a contact pubkey from the blocked
+/// list, e.g. to resume a friendship that's still in `friends.json`
+/// (blocking no longer removes the friend entry, only silences their
+/// events until unblocked).
+Future<void> unblockPubkey({
+  required String storageDir,
+  required String pubkey,
+}) => RustLib.instance.api.crateApiFriendsUnblockPubkey(
   storageDir: storageDir,
   pubkey: pubkey,
 );
@@ -72,6 +113,12 @@ class Friend {
   /// The friend's contact pubkey (hex) — distinct from their account's
   /// core identity, minted specifically for this relationship.
   final String pubkey;
+
+  /// The friend's stable account UID (see `keys::derive_uid`) — constant
+  /// across every relationship they have, unlike `pubkey`. Used to
+  /// recognize them again if they re-friend us with a new relationship
+  /// key after being blocked.
+  final String uid;
 
   /// Which of our own `account` indices we use to talk to this friend.
   final int myAccountIndex;
@@ -90,8 +137,25 @@ class Friend {
   /// User-set flag to pin this friend near the top of the friends list.
   final bool isFavorite;
 
+  /// `updated_at` of the last-applied profile-update event from this
+  /// friend — lets [update_friend_profile] reject a stale/reordered
+  /// event instead of overwriting newer info with older.
+  final PlatformInt64 profileUpdatedAt;
+
+  /// Whether this friend's contact pubkey is currently on the blocked
+  /// list. Derived from `blocked.json` at load time, not stored in
+  /// `friends.json` itself — [block_pubkey]/[unblock_pubkey] are the
+  /// source of truth, this is just a convenience for the UI.
+  final bool isBlocked;
+
+  /// Earlier contact pubkeys this same account (by UID) used with us,
+  /// preserved by [add_friend] when it merges a re-friend under a new
+  /// relationship key — so past chat history isn't orphaned.
+  final List<PriorIdentity> priorIdentities;
+
   const Friend({
     required this.pubkey,
+    required this.uid,
     required this.myAccountIndex,
     required this.displayName,
     required this.statusMessage,
@@ -99,18 +163,25 @@ class Friend {
     this.avatarPath,
     required this.addedAt,
     required this.isFavorite,
+    required this.profileUpdatedAt,
+    required this.isBlocked,
+    required this.priorIdentities,
   });
 
   @override
   int get hashCode =>
       pubkey.hashCode ^
+      uid.hashCode ^
       myAccountIndex.hashCode ^
       displayName.hashCode ^
       statusMessage.hashCode ^
       relays.hashCode ^
       avatarPath.hashCode ^
       addedAt.hashCode ^
-      isFavorite.hashCode;
+      isFavorite.hashCode ^
+      profileUpdatedAt.hashCode ^
+      isBlocked.hashCode ^
+      priorIdentities.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -118,11 +189,38 @@ class Friend {
       other is Friend &&
           runtimeType == other.runtimeType &&
           pubkey == other.pubkey &&
+          uid == other.uid &&
           myAccountIndex == other.myAccountIndex &&
           displayName == other.displayName &&
           statusMessage == other.statusMessage &&
           relays == other.relays &&
           avatarPath == other.avatarPath &&
           addedAt == other.addedAt &&
-          isFavorite == other.isFavorite;
+          isFavorite == other.isFavorite &&
+          profileUpdatedAt == other.profileUpdatedAt &&
+          isBlocked == other.isBlocked &&
+          priorIdentities == other.priorIdentities;
+}
+
+/// A contact pubkey/account-index pair this friend used before being
+/// re-added under a new relationship key (see [add_friend]'s UID merge).
+/// Kept only so past chat history under the old identity still shows up —
+/// never used for sending, since the friend has since minted a new key for
+/// this relationship.
+class PriorIdentity {
+  final String pubkey;
+  final int myAccountIndex;
+
+  const PriorIdentity({required this.pubkey, required this.myAccountIndex});
+
+  @override
+  int get hashCode => pubkey.hashCode ^ myAccountIndex.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PriorIdentity &&
+          runtimeType == other.runtimeType &&
+          pubkey == other.pubkey &&
+          myAccountIndex == other.myAccountIndex;
 }

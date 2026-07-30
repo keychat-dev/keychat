@@ -1,20 +1,30 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:workspace/l10n/app_localizations.dart';
 import 'package:workspace/screens/login.dart';
+import 'package:workspace/services/account_sync.dart';
 import 'package:workspace/src/rust/api/relay.dart' as relay_api;
+import 'package:workspace/src/rust/api/sync.dart' as sync_api;
 
 /// Lets the user view, add, and remove the Nostr relay URLs this device
 /// uses. Persisted as JSON on the Rust side (relays.json), separate from
 /// the display profile.
 class RelaySettingsScreen extends StatefulWidget {
-  const RelaySettingsScreen({super.key, this.onContinue});
+  const RelaySettingsScreen({super.key, this.onContinue, this.messageEvents});
 
   /// When set, this screen is being shown as an onboarding step (right
   /// after profile setup): a "Continue" button is shown at the bottom
   /// instead of expecting the user to navigate back manually.
   final VoidCallback? onContinue;
+
+  /// The live friend/account-sync event stream owned by [HomeScreen], if
+  /// this screen was reached from there — lets the relay list refresh in
+  /// place when another device publishes a newer one, instead of only
+  /// picking it up the next time this screen is opened.
+  final Stream<sync_api.FriendEvent>? messageEvents;
 
   @override
   State<RelaySettingsScreen> createState() => _RelaySettingsScreenState();
@@ -24,21 +34,29 @@ class _RelaySettingsScreenState extends State<RelaySettingsScreen> {
   final _urlController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   List<String> _urls = [];
+  // The list as last saved/published — used as the "previous" set so a
+  // relay-list change is announced on both the old and new relays.
+  List<String> _lastPersistedUrls = [];
   bool _loading = true;
 
   // null = not checked yet, otherwise online/offline per URL.
   final Map<String, bool?> _status = {};
   bool _checkingStatus = false;
+  StreamSubscription<sync_api.FriendEvent>? _eventsSub;
 
   @override
   void initState() {
     super.initState();
     _loadRelays();
+    _eventsSub = widget.messageEvents?.listen((event) {
+      if (event.kind == 'account_synced') _loadRelays();
+    });
   }
 
   @override
   void dispose() {
     _urlController.dispose();
+    _eventsSub?.cancel();
     super.dispose();
   }
 
@@ -47,6 +65,7 @@ class _RelaySettingsScreenState extends State<RelaySettingsScreen> {
     final relayList = await relay_api.loadRelayList(storageDir: storageDir.path);
     setState(() {
       _urls = relayList.urls;
+      _lastPersistedUrls = relayList.urls;
       _loading = false;
     });
     _checkStatuses();
@@ -67,7 +86,10 @@ class _RelaySettingsScreenState extends State<RelaySettingsScreen> {
 
   Future<void> _persist() async {
     final storageDir = await getApplicationDocumentsDirectory();
+    final previousUrls = _lastPersistedUrls;
     await relay_api.saveRelayList(storageDir: storageDir.path, urls: _urls);
+    unawaited(publishAccountRelaysBackup(_urls, previousRelays: previousUrls));
+    _lastPersistedUrls = List.of(_urls);
   }
 
   void _addRelay() {

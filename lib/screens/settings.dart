@@ -6,6 +6,7 @@ import 'package:workspace/screens/edit_profile.dart';
 import 'package:workspace/screens/login.dart';
 import 'package:workspace/screens/relay_settings.dart';
 import 'package:workspace/src/rust/api/account.dart' as account_api;
+import 'package:workspace/src/rust/api/sync.dart' as sync_api;
 
 /// Settings menu reachable from the top-right gear icon on Home. Links to
 /// the profile edit screen and relay configuration.
@@ -16,12 +17,14 @@ class SettingsScreen extends StatelessWidget {
     required this.onProfileUpdated,
     required this.onSelectLanguage,
     required this.onLogout,
+    this.messageEvents,
   });
 
   final account_api.Account profile;
   final ValueChanged<account_api.Account> onProfileUpdated;
   final ValueChanged<Locale> onSelectLanguage;
   final VoidCallback onLogout;
+  final Stream<sync_api.FriendEvent>? messageEvents;
 
   void _openAccountSettings(BuildContext context) {
     Navigator.of(context).push(
@@ -41,7 +44,9 @@ class SettingsScreen extends StatelessWidget {
 
   void _openRelaySettings(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const RelaySettingsScreen()),
+      MaterialPageRoute(
+        builder: (_) => RelaySettingsScreen(messageEvents: messageEvents),
+      ),
     );
   }
 

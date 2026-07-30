@@ -183,6 +183,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get noStatusMessage => 'ステータスメッセージ未設定';
 
   @override
+  String get startChat => 'トーク';
+
+  @override
   String get addToFavorites => 'お気に入りに追加';
 
   @override
@@ -198,7 +201,10 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get blockFriendConfirmBody =>
-      '友達リストから削除され、今後このユーザーからのフレンド申請を受け付けなくなります。';
+      'このユーザーからのメッセージ・プロフィール更新を今後受け取らなくなります。友達リストにはそのまま残るので、後でブロックを解除できます。';
+
+  @override
+  String get unblockFriend => 'ブロック解除';
 
   @override
   String get deleteFriend => '友達を削除';
@@ -210,7 +216,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get deleteFriendConfirmBody =>
-      '友達リストから削除されます。相手は後で改めてフレンド申請を送ることができます。';
+      '友達リストから完全に削除されます。相手は後で改めてフレンド申請を送ることができます。';
 
   @override
   String get noChatsYet => 'まだ会話がありません';
@@ -250,6 +256,15 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get accountSettingsTitle => 'アカウント';
+
+  @override
+  String get myUid => '自分のUID';
+
+  @override
+  String get uidLabel => 'UID';
+
+  @override
+  String get uidCopiedMessage => 'UIDをコピーしました';
 
   @override
   String get seedBackupButton => 'シードフレーズをバックアップ';
@@ -331,4 +346,36 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get relayCountHint => '推奨: 3〜5個程度';
+
+  @override
+  String get clearChatButton => 'トークを削除';
+
+  @override
+  String get clearChatConfirmTitle => 'このトークを削除しますか?';
+
+  @override
+  String clearChatConfirmBody(String name) {
+    return '$nameさんとのメッセージ履歴がこの端末からのみ削除されます。相手からは引き続きメッセージを送ることができ、トークは新しく始まります。';
+  }
+
+  @override
+  String get blockedSendConfirmTitle => '現在ブロック中です';
+
+  @override
+  String get blockedSendConfirmBody => 'ブロック中はメッセージを送信できません。ブロックを解除しますか?';
+
+  @override
+  String get friendAlreadyAddedMessage => 'このフレンドは追加済みです。相手のユーザー情報を更新しました。';
+
+  @override
+  String get createTalkRoom => 'トークルームを作成';
+
+  @override
+  String get createGroup => 'グループを作成';
+
+  @override
+  String get searchByNameHint => '名前で検索';
+
+  @override
+  String get noSearchResults => '該当する友達が見つかりません';
 }

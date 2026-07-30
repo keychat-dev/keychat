@@ -22,7 +22,9 @@ class ChatListTab extends StatefulWidget {
     required this.messageEvents,
     required this.onToggleFavorite,
     required this.onBlockFriend,
+    required this.onUnblockFriend,
     required this.onDeleteFriend,
+    required this.onClearChat,
   });
 
   final List<friends_api.Friend> friends;
@@ -34,7 +36,9 @@ class ChatListTab extends StatefulWidget {
 
   final Future<void> Function(friends_api.Friend friend) onToggleFavorite;
   final Future<void> Function(friends_api.Friend friend) onBlockFriend;
+  final Future<void> Function(friends_api.Friend friend) onUnblockFriend;
   final Future<void> Function(friends_api.Friend friend) onDeleteFriend;
+  final Future<void> Function(friends_api.Friend friend) onClearChat;
 
   @override
   State<ChatListTab> createState() => _ChatListTabState();
@@ -127,11 +131,64 @@ class _ChatListTabState extends State<ChatListTab> {
           messageEvents: widget.messageEvents,
           onToggleFavorite: widget.onToggleFavorite,
           onBlockFriend: widget.onBlockFriend,
+          onUnblockFriend: widget.onUnblockFriend,
           onDeleteFriend: widget.onDeleteFriend,
+          onClearChat: widget.onClearChat,
         ),
       ),
     );
     _loadUnreadCounts();
+  }
+
+  /// Long-press on a row: shows a small menu with "Clear chat", which then
+  /// asks for confirmation before actually wiping the local history.
+  Future<void> _showChatMenu(friends_api.Friend friend) async {
+    final l10n = AppLocalizations.of(context)!;
+    final action = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        title: Text(friend.displayName),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(dialogContext).pop('clear'),
+            child: Row(
+              children: [
+                const Icon(Icons.delete_outline, color: Colors.redAccent),
+                const SizedBox(width: 12),
+                Text(l10n.clearChatButton, style: const TextStyle(color: Colors.redAccent)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (action != 'clear' || !mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.clearChatConfirmTitle),
+        content: Text(l10n.clearChatConfirmBody(friend.displayName)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(MaterialLocalizations.of(dialogContext).cancelButtonLabel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: Text(l10n.clearChatButton),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await widget.onClearChat(friend);
+    if (!mounted) return;
+    setState(() {
+      _previews.remove(friend.pubkey);
+      _unreadCounts.remove(friend.pubkey);
+    });
   }
 
   @override
@@ -184,6 +241,7 @@ class _ChatListTabState extends State<ChatListTab> {
         final hasAvatar = friend.avatarPath != null && File(friend.avatarPath!).existsSync();
         return InkWell(
           onTap: () => _openThread(friend),
+          onLongPress: () => _showChatMenu(friend),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(

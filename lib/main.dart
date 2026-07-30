@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -15,6 +16,8 @@ import 'package:workspace/screens/seed_backup.dart';
 import 'package:workspace/screens/setup_complete.dart';
 import 'package:workspace/services/account_sync.dart';
 import 'package:workspace/src/rust/api/account.dart' as account_api;
+import 'package:workspace/src/rust/api/chat.dart' as chat_api;
+import 'package:workspace/src/rust/api/config.dart' as config_api;
 import 'package:workspace/src/rust/api/keys.dart' as keys_api;
 import 'package:workspace/src/rust/api/relay.dart' as relay_api;
 import 'package:workspace/src/rust/api/sync.dart' as sync_api;
@@ -34,32 +37,74 @@ class KeyChatApp extends StatefulWidget {
 
 class _KeyChatAppState extends State<KeyChatApp> {
   // Null means "follow the device locale". Set explicitly when the user
-  // picks a language from the language selector on the login screen.
+  // picks a language from the language selector, or loaded from a
+  // previously-saved (and possibly cross-device-synced) choice at startup.
   Locale? _locale;
 
   late final Future<account_api.Account?> _profileFuture = _loadProfile();
 
   Future<account_api.Account?> _loadProfile() async {
     final storageDir = await getApplicationDocumentsDirectory();
+    final config = await config_api.loadConfig(storageDir: storageDir.path);
+    final language = config.language;
+    if (language != null && mounted) {
+      setState(() => _locale = Locale(language));
+    }
     final profile = await account_api.loadAccount(storageDir: storageDir.path);
     if (profile == null) return null;
     return reconcileAccountBackup(profile);
   }
 
-  void _selectLocale(Locale locale) {
+  Future<void> _selectLocale(Locale locale) async {
+    setState(() => _locale = locale);
+    final storageDir = await getApplicationDocumentsDirectory();
+    await config_api.saveConfig(
+      storageDir: storageDir.path,
+      config: config_api.AppConfig(language: locale.languageCode),
+    );
+    unawaited(publishAccountConfigBackup());
+  }
+
+  /// Applies a language change that arrived via sync from another device
+  /// — display-only, since that device already persisted and published it.
+  void _applySyncedLocale(Locale locale) {
     setState(() => _locale = locale);
   }
 
   Future<void> _logout(BuildContext context) async {
     final storageDir = await getApplicationDocumentsDirectory();
+    const jsonFiles = {
+      'account.json',
+      'relays.json',
+      'friends.json',
+      'blocked.json',
+      'outgoing_requests.json',
+      'incoming_requests.json',
+      'invites.json',
+      'chat_read_state.json',
+      'chat_started.json',
+      // Tracks *this device's* last-applied backup timestamps per slot —
+      // must be wiped on logout, or a different account logging in on
+      // this device could have its genuinely-newer events rejected as
+      // "not newer" against the previous account's stale watermarks.
+      'account_sync_state.json',
+      'config.json',
+    };
     for (final entity in storageDir.listSync()) {
-      if (entity is File) {
-        final name = entity.uri.pathSegments.last;
-        if (name == 'account.json' || name == 'relays.json' || name.startsWith('avatar.')) {
-          await entity.delete();
-        }
+      final name = entity.uri.pathSegments.where((s) => s.isNotEmpty).last;
+      if (entity is File &&
+          (jsonFiles.contains(name) || name.startsWith('avatar.') || name == 'avatar_synced')) {
+        await entity.delete();
+      } else if (entity is Directory && name == 'chat.lmdb') {
+        await entity.delete(recursive: true);
       }
     }
+    // The chat database handle is cached for the lifetime of the process
+    // (every account shares the same on-device storage directory) — drop it
+    // now that chat.lmdb is gone, so a different account logging in within
+    // this same app run reopens a fresh one instead of reusing a handle
+    // into deleted files.
+    chat_api.resetChatDb();
     const secureStorage = FlutterSecureStorage();
     await secureStorage.delete(key: seedStorageKey);
     if (!context.mounted) return;
@@ -110,10 +155,52 @@ class _KeyChatAppState extends State<KeyChatApp> {
     }
     if (remote == null) return l10n.restoreNoBackupFound;
 
+    // Best-effort: pull the avatar/relays/friends backup slots too, so a
+    // restored device picks up everything, not just display name/status.
+    // None of these block the restore if they fail or are simply unset.
+    String? avatarPath;
+    try {
+      final remoteAvatar = await sync_api.fetchAccountAvatarBackup(
+        mnemonic: mnemonic,
+        relayUrls: relayUrls,
+      );
+      if (remoteAvatar != null) {
+        final bytes = base64Decode(remoteAvatar.avatarBase64);
+        final destination = File('${storageDir.path}/avatar_synced');
+        await destination.writeAsBytes(bytes);
+        avatarPath = destination.path;
+      }
+    } catch (_) {
+      // No avatar backup, or relays unreachable — proceed without one.
+    }
+
+    try {
+      final remoteRelays = await sync_api.fetchAccountRelaysBackup(
+        mnemonic: mnemonic,
+        relayUrls: relayUrls,
+      );
+      if (remoteRelays != null && remoteRelays.relays.isNotEmpty) {
+        await relay_api.saveRelayList(storageDir: storageDir.path, urls: remoteRelays.relays);
+      }
+    } catch (_) {
+      // No relays backup, or relays unreachable — keep the manually-chosen ones.
+    }
+
+    // Friends (and blocked/invites/pending-requests/read-state/config) are
+    // deliberately NOT fetched here — HomeScreen doesn't need them to
+    // render, and opening the live subscription there delivers each
+    // slot's current snapshot within moments anyway (Nostr replays the
+    // latest stored event per d-tag to a fresh subscription), the same
+    // path ongoing cross-device sync already uses. Account text/avatar
+    // and relays stay eager above: HomeScreen can't even be reached
+    // without account.json existing, and relays must be known before any
+    // subscription can open at all.
+
     await account_api.saveAccountWithTimestamp(
       storageDir: storageDir.path,
       displayName: remote.displayName,
       statusMessage: remote.statusMessage,
+      avatarPath: avatarPath,
       updatedAt: remote.updatedAt,
     );
     const secureStorage = FlutterSecureStorage();
@@ -127,6 +214,7 @@ class _KeyChatAppState extends State<KeyChatApp> {
           builder: (context) => HomeScreen(
             profile: profile,
             onSelectLanguage: _selectLocale,
+            onLocaleSynced: _applySyncedLocale,
             onLogout: () => _logout(context),
           ),
         ),
@@ -183,6 +271,7 @@ class _KeyChatAppState extends State<KeyChatApp> {
                                   builder: (context) => HomeScreen(
                                     profile: profile,
                                     onSelectLanguage: _selectLocale,
+                                    onLocaleSynced: _applySyncedLocale,
                                     onLogout: () => _logout(context),
                                   ),
                                 ),
@@ -237,6 +326,7 @@ class _KeyChatAppState extends State<KeyChatApp> {
               builder: (context) => HomeScreen(
                 profile: existingProfile,
                 onSelectLanguage: _selectLocale,
+                onLocaleSynced: _applySyncedLocale,
                 onLogout: () => _logout(context),
               ),
             );

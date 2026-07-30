@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:workspace/l10n/app_localizations.dart';
@@ -87,6 +88,20 @@ class AccountSettingsScreen extends StatelessWidget {
     onLogout();
   }
 
+  Future<String?> _loadUid() async {
+    const secureStorage = FlutterSecureStorage();
+    final mnemonic = await secureStorage.read(key: seedStorageKey);
+    if (mnemonic == null) return null;
+    return keys_api.getAccountUid(mnemonic: mnemonic);
+  }
+
+  Future<void> _copyUid(BuildContext context, String uid) async {
+    final l10n = AppLocalizations.of(context)!;
+    await Clipboard.setData(ClipboardData(text: uid));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.uidCopiedMessage)));
+  }
+
   Future<void> _openSeedBackup(BuildContext context) async {
     const storage = FlutterSecureStorage();
     var mnemonic = await storage.read(key: seedStorageKey);
@@ -114,6 +129,28 @@ class AccountSettingsScreen extends StatelessWidget {
       body: SafeArea(
         child: ListView(
           children: [
+            FutureBuilder<String?>(
+              future: _loadUid(),
+              builder: (context, snapshot) {
+                final uid = snapshot.data;
+                return ListTile(
+                  leading: const Icon(Icons.badge_outlined, color: KeychatColors.textSecondary),
+                  title: Text(l10n.myUid),
+                  subtitle: uid == null
+                      ? null
+                      : Text(
+                          '${uid.substring(0, 16)}...',
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            color: KeychatColors.textSecondary,
+                          ),
+                        ),
+                  trailing: const Icon(Icons.copy_outlined, color: KeychatColors.textSecondary),
+                  onTap: uid == null ? null : () => _copyUid(context, uid),
+                );
+              },
+            ),
+            const Divider(height: 1, color: Color(0x14000000)),
             ListTile(
               leading: const Icon(Icons.key_outlined, color: KeychatColors.textSecondary),
               title: Text(l10n.seedBackupButton),

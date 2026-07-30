@@ -8,6 +8,7 @@
 
 import 'api/account.dart';
 import 'api/chat.dart';
+import 'api/config.dart';
 import 'api/friends.dart';
 import 'api/invites.dart';
 import 'api/keys.dart';
@@ -42,10 +43,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Account dco_decode_account(dynamic raw);
 
   @protected
+  AppConfig dco_decode_app_config(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
   Account dco_decode_box_autoadd_account(dynamic raw);
+
+  @protected
+  AppConfig dco_decode_box_autoadd_app_config(dynamic raw);
 
   @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
@@ -57,6 +64,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RemoteAccount dco_decode_box_autoadd_remote_account(dynamic raw);
 
   @protected
+  RemoteAvatar dco_decode_box_autoadd_remote_avatar(dynamic raw);
+
+  @protected
+  RemoteFriends dco_decode_box_autoadd_remote_friends(dynamic raw);
+
+  @protected
+  RemoteRelays dco_decode_box_autoadd_remote_relays(dynamic raw);
+
+  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
@@ -64,6 +80,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Friend dco_decode_friend(dynamic raw);
+
+  @protected
+  FriendBackupEntry dco_decode_friend_backup_entry(dynamic raw);
 
   @protected
   FriendEvent dco_decode_friend_event(dynamic raw);
@@ -90,6 +109,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<Friend> dco_decode_list_friend(dynamic raw);
 
   @protected
+  List<FriendBackupEntry> dco_decode_list_friend_backup_entry(dynamic raw);
+
+  @protected
   List<Invite> dco_decode_list_invite(dynamic raw);
 
   @protected
@@ -99,6 +121,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  List<PriorIdentity> dco_decode_list_prior_identity(dynamic raw);
 
   @protected
   List<UnreadCount> dco_decode_list_unread_count(dynamic raw);
@@ -116,16 +141,40 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RemoteAccount? dco_decode_opt_box_autoadd_remote_account(dynamic raw);
 
   @protected
+  RemoteAvatar? dco_decode_opt_box_autoadd_remote_avatar(dynamic raw);
+
+  @protected
+  RemoteFriends? dco_decode_opt_box_autoadd_remote_friends(dynamic raw);
+
+  @protected
+  RemoteRelays? dco_decode_opt_box_autoadd_remote_relays(dynamic raw);
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
   PendingFriendRequest dco_decode_pending_friend_request(dynamic raw);
 
   @protected
+  PriorIdentity dco_decode_prior_identity(dynamic raw);
+
+  @protected
   RelayList dco_decode_relay_list(dynamic raw);
 
   @protected
   RemoteAccount dco_decode_remote_account(dynamic raw);
+
+  @protected
+  RemoteAvatar dco_decode_remote_avatar(dynamic raw);
+
+  @protected
+  RemoteFriends dco_decode_remote_friends(dynamic raw);
+
+  @protected
+  RemoteRelays dco_decode_remote_relays(dynamic raw);
+
+  @protected
+  SyncState dco_decode_sync_state(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -154,10 +203,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Account sse_decode_account(SseDeserializer deserializer);
 
   @protected
+  AppConfig sse_decode_app_config(SseDeserializer deserializer);
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
   Account sse_decode_box_autoadd_account(SseDeserializer deserializer);
+
+  @protected
+  AppConfig sse_decode_box_autoadd_app_config(SseDeserializer deserializer);
 
   @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
@@ -171,6 +226,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RemoteAvatar sse_decode_box_autoadd_remote_avatar(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RemoteFriends sse_decode_box_autoadd_remote_friends(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RemoteRelays sse_decode_box_autoadd_remote_relays(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
@@ -178,6 +248,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Friend sse_decode_friend(SseDeserializer deserializer);
+
+  @protected
+  FriendBackupEntry sse_decode_friend_backup_entry(
+    SseDeserializer deserializer,
+  );
 
   @protected
   FriendEvent sse_decode_friend_event(SseDeserializer deserializer);
@@ -204,6 +279,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<Friend> sse_decode_list_friend(SseDeserializer deserializer);
 
   @protected
+  List<FriendBackupEntry> sse_decode_list_friend_backup_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<Invite> sse_decode_list_invite(SseDeserializer deserializer);
 
   @protected
@@ -213,6 +293,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  List<PriorIdentity> sse_decode_list_prior_identity(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<UnreadCount> sse_decode_list_unread_count(SseDeserializer deserializer);
@@ -232,6 +317,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RemoteAvatar? sse_decode_opt_box_autoadd_remote_avatar(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RemoteFriends? sse_decode_opt_box_autoadd_remote_friends(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RemoteRelays? sse_decode_opt_box_autoadd_remote_relays(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
@@ -240,10 +340,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  PriorIdentity sse_decode_prior_identity(SseDeserializer deserializer);
+
+  @protected
   RelayList sse_decode_relay_list(SseDeserializer deserializer);
 
   @protected
   RemoteAccount sse_decode_remote_account(SseDeserializer deserializer);
+
+  @protected
+  RemoteAvatar sse_decode_remote_avatar(SseDeserializer deserializer);
+
+  @protected
+  RemoteFriends sse_decode_remote_friends(SseDeserializer deserializer);
+
+  @protected
+  RemoteRelays sse_decode_remote_relays(SseDeserializer deserializer);
+
+  @protected
+  SyncState sse_decode_sync_state(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -279,10 +394,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_account(Account self, SseSerializer serializer);
 
   @protected
+  void sse_encode_app_config(AppConfig self, SseSerializer serializer);
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_account(Account self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_app_config(
+    AppConfig self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_i_64(
@@ -300,6 +424,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_remote_avatar(
+    RemoteAvatar self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_remote_friends(
+    RemoteFriends self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_remote_relays(
+    RemoteRelays self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
@@ -307,6 +449,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_friend(Friend self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_friend_backup_entry(
+    FriendBackupEntry self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_friend_event(FriendEvent self, SseSerializer serializer);
@@ -339,6 +487,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_friend(List<Friend> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_friend_backup_entry(
+    List<FriendBackupEntry> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_invite(List<Invite> self, SseSerializer serializer);
 
   @protected
@@ -350,6 +504,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prior_identity(
+    List<PriorIdentity> self,
     SseSerializer serializer,
   );
 
@@ -381,6 +541,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_remote_avatar(
+    RemoteAvatar? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_remote_friends(
+    RemoteFriends? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_remote_relays(
+    RemoteRelays? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
@@ -390,10 +568,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_prior_identity(PriorIdentity self, SseSerializer serializer);
+
+  @protected
   void sse_encode_relay_list(RelayList self, SseSerializer serializer);
 
   @protected
   void sse_encode_remote_account(RemoteAccount self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_remote_avatar(RemoteAvatar self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_remote_friends(RemoteFriends self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_remote_relays(RemoteRelays self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_sync_state(SyncState self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);

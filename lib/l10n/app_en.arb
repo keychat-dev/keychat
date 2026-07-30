@@ -93,6 +93,7 @@
   "noFriendsYet": "No friends yet",
   "noFriendsHint": "Add a friend to start chatting",
   "noStatusMessage": "No status message",
+  "startChat": "Talk",
   "addToFavorites": "Add to Favorites",
   "removeFromFavorites": "Remove from Favorites",
   "blockFriend": "Block",
@@ -102,7 +103,8 @@
       "name": { "type": "String" }
     }
   },
-  "blockFriendConfirmBody": "They'll be removed from your friends list and won't be able to send you friend requests again.",
+  "blockFriendConfirmBody": "You'll stop receiving their messages and profile updates. They stay in your friends list so you can unblock them later.",
+  "unblockFriend": "Unblock",
   "deleteFriend": "Delete friend",
   "deleteFriendConfirmTitle": "Delete {name}?",
   "@deleteFriendConfirmTitle": {
@@ -110,7 +112,7 @@
       "name": { "type": "String" }
     }
   },
-  "deleteFriendConfirmBody": "This removes them from your friends list. They can send you a new friend request later.",
+  "deleteFriendConfirmBody": "This permanently removes them from your friends list. They can send you a new friend request later.",
   "noChatsYet": "No conversations yet",
   "noChatsHint": "Messages with your friends will show up here",
   "noMessagesYet": "No messages yet — say hi!",
@@ -124,6 +126,9 @@
   "settingsLanguage": "Language",
   "settingsAccount": "Account",
   "accountSettingsTitle": "Account",
+  "myUid": "My UID",
+  "uidLabel": "UID",
+  "uidCopiedMessage": "UID copied to clipboard",
   "seedBackupButton": "Backup seed phrase",
   "seedBackupWarning": "Write down these words in order and keep them somewhere safe. Anyone with this phrase can restore your account.",
   "seedBackupOnboardingNote": "You can review this phrase again anytime from Settings > Account.",
@@ -155,5 +160,20 @@
   },
   "noRelaysYet": "No relays configured",
   "invalidRelayUrl": "Relay URL must start with wss:// or ws://",
-  "relayCountHint": "Recommended: 3-5 relays"
+  "relayCountHint": "Recommended: 3-5 relays",
+  "clearChatButton": "Clear chat",
+  "clearChatConfirmTitle": "Clear this chat?",
+  "clearChatConfirmBody": "This deletes the message history with {name} from this device only. They can still message you and the chat will start fresh.",
+  "@clearChatConfirmBody": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "blockedSendConfirmTitle": "This friend is blocked",
+  "blockedSendConfirmBody": "You can't send messages while they're blocked. Unblock them now?",
+  "friendAlreadyAddedMessage": "This friend is already added. Their info has been updated.",
+  "createTalkRoom": "Create talk room",
+  "createGroup": "Create group",
+  "searchByNameHint": "Search by name",
+  "noSearchResults": "No matches found"
 }

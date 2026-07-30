@@ -117,6 +117,25 @@ pub fn list_invites(storage_dir: String) -> Vec<Invite> {
     load_file(&storage_dir).invites
 }
 
+pub(crate) fn next_account_index(storage_dir: &str) -> u32 {
+    load_file(storage_dir).next_account_index
+}
+
+/// Replaces the invite list from a newer backup and fast-forwards the
+/// index counter to at least `next_account_index` — never moves it
+/// backward, since indices already allocated locally (for invites,
+/// accepted friends, or outgoing requests) must never be reused.
+pub(crate) fn set_invites_snapshot(
+    storage_dir: &str,
+    next_account_index: u32,
+    invites: Vec<Invite>,
+) -> Result<(), String> {
+    let mut file = load_file(storage_dir);
+    file.next_account_index = file.next_account_index.max(next_account_index);
+    file.invites = invites;
+    save_file(storage_dir, &file)
+}
+
 /// Lists only currently-usable invites (not revoked, not expired, not
 /// over their use limit) — the ones that should be polled for incoming
 /// friend requests.

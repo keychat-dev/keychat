@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `derive_contact_keys`, `derive_keys`
+// These functions are ignored because they are not marked as `pub`: `derive_contact_keys`, `derive_keys`, `derive_uid`
 
 /// Generates a new 12-word BIP-39 seed phrase. The caller is responsible for
 /// persisting it (e.g. via platform secure storage) — this function is pure
@@ -18,3 +18,8 @@ Future<String> generateMnemonic() =>
 /// derive Nostr keys (NIP-06).
 Future<void> validateMnemonic({required String mnemonic}) =>
     RustLib.instance.api.crateApiKeysValidateMnemonic(mnemonic: mnemonic);
+
+/// Dart-callable wrapper around [derive_uid] — lets the profile screen show
+/// the account's own UID (e.g. for the user to compare against a friend's).
+Future<String> getAccountUid({required String mnemonic}) =>
+    RustLib.instance.api.crateApiKeysGetAccountUid(mnemonic: mnemonic);

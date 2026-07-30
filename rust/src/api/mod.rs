@@ -1,5 +1,6 @@
 pub mod account;
 pub mod chat;
+pub mod config;
 pub mod friends;
 pub mod invites;
 pub mod keys;

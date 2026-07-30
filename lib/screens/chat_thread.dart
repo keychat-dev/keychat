@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MaxLengthEnforcement;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:workspace/l10n/app_localizations.dart';
 import 'package:workspace/screens/friend_profile.dart';
 import 'package:workspace/screens/login.dart';
 import 'package:workspace/screens/logout.dart' show seedStorageKey;
+import 'package:workspace/services/account_sync.dart';
 import 'package:workspace/src/rust/api/chat.dart' as chat_api;
 import 'package:workspace/src/rust/api/friends.dart' as friends_api;
 import 'package:workspace/src/rust/api/sync.dart' as sync_api;
@@ -31,7 +33,9 @@ class ChatThreadScreen extends StatefulWidget {
     required this.messageEvents,
     required this.onToggleFavorite,
     required this.onBlockFriend,
+    required this.onUnblockFriend,
     required this.onDeleteFriend,
+    required this.onClearChat,
   });
 
   final friends_api.Friend friend;
@@ -42,7 +46,9 @@ class ChatThreadScreen extends StatefulWidget {
 
   final Future<void> Function(friends_api.Friend friend) onToggleFavorite;
   final Future<void> Function(friends_api.Friend friend) onBlockFriend;
+  final Future<void> Function(friends_api.Friend friend) onUnblockFriend;
   final Future<void> Function(friends_api.Friend friend) onDeleteFriend;
+  final Future<void> Function(friends_api.Friend friend) onClearChat;
 
   @override
   State<ChatThreadScreen> createState() => _ChatThreadScreenState();
@@ -53,6 +59,8 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   final _scrollController = ScrollController();
   List<chat_api.ChatMessage> _messages = [];
   bool _sending = false;
+  late bool _isBlocked = widget.friend.isBlocked;
+  int _maxMessageChars = 4000;
   StreamSubscription<sync_api.FriendEvent>? _sub;
 
   @override
@@ -60,6 +68,19 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     super.initState();
     _loadHistory();
     _subscribe();
+    chat_api.maxMessageChars().then((max) {
+      if (mounted) setState(() => _maxMessageChars = max);
+    });
+  }
+
+  Future<void> _handleBlock(friends_api.Friend friend) async {
+    setState(() => _isBlocked = true);
+    await widget.onBlockFriend(friend);
+  }
+
+  Future<void> _handleUnblock(friends_api.Friend friend) async {
+    setState(() => _isBlocked = false);
+    await widget.onUnblockFriend(friend);
   }
 
   void _subscribe() {
@@ -101,6 +122,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     setState(() => _messages = history);
     _scrollToBottom();
     await chat_api.markThreadRead(storageDir: storageDir.path, friendPubkey: widget.friend.pubkey);
+    unawaited(publishAccountReadStateBackup());
   }
 
   Future<void> _openProfile(BuildContext context) async {
@@ -109,12 +131,42 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         builder: (_) => FriendProfileScreen(
           friend: widget.friend,
           onToggleFavorite: widget.onToggleFavorite,
-          onBlockFriend: widget.onBlockFriend,
+          onBlockFriend: _handleBlock,
+          onUnblockFriend: _handleUnblock,
           onDeleteFriend: widget.onDeleteFriend,
+          onClearChat: widget.onClearChat,
+          messageEvents: widget.messageEvents,
         ),
       ),
     );
     if (removed == true && context.mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _clearChat(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.clearChatConfirmTitle),
+        content: Text(l10n.clearChatConfirmBody(widget.friend.displayName)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(MaterialLocalizations.of(dialogContext).cancelButtonLabel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: Text(l10n.clearChatButton),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await widget.onClearChat(widget.friend);
+    if (!context.mounted) return;
+    setState(() => _messages = []);
+    Navigator.of(context).pop();
   }
 
   void _scrollToBottom() {
@@ -124,9 +176,40 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     });
   }
 
+  /// Asks whether to unblock so the pending message can go out — shown
+  /// when the user tries to send while [_isBlocked] is true, rather than
+  /// silently failing (the Rust side also rejects the send either way).
+  Future<bool> _confirmUnblockToSend() async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.blockedSendConfirmTitle),
+        content: Text(l10n.blockedSendConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(MaterialLocalizations.of(dialogContext).cancelButtonLabel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.unblockFriend),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return false;
+    await _handleUnblock(widget.friend);
+    return true;
+  }
+
   Future<void> _send() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty || _sending) return;
+    if (text.isEmpty || _sending || text.runes.length > _maxMessageChars) return;
+    if (_isBlocked) {
+      final unblocked = await _confirmUnblockToSend();
+      if (!unblocked || !mounted) return;
+    }
     setState(() => _sending = true);
     const secureStorage = FlutterSecureStorage();
     final mnemonic = await secureStorage.read(key: seedStorageKey);
@@ -179,6 +262,13 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
             ],
           ),
         ),
+        actions: [
+          IconButton(
+            tooltip: l10n.clearChatButton,
+            onPressed: () => _clearChat(context),
+            icon: const Icon(Icons.delete_outline),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -213,6 +303,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
               sending: _sending,
               onSend: _send,
               hint: l10n.typeMessageHint,
+              maxLength: _maxMessageChars,
             ),
           ],
         ),
@@ -324,59 +415,75 @@ class _Composer extends StatelessWidget {
     required this.sending,
     required this.onSend,
     required this.hint,
+    required this.maxLength,
   });
 
   final TextEditingController controller;
   final bool sending;
   final VoidCallback onSend;
   final String hint;
+  final int maxLength;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Expanded(
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 44),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: const [
-                  BoxShadow(color: Color(0x11000000), blurRadius: 2, offset: Offset(0, 1)),
-                ],
-              ),
-              child: TextField(
-                controller: controller,
-                minLines: 1,
-                maxLines: 5,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => onSend(),
-                decoration: InputDecoration(
-                  hintText: hint,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final length = controller.text.runes.length;
+        final overLimit = length > maxLength;
+        final nearLimit = !overLimit && length > maxLength * 0.9;
+        final warnColor = overLimit ? Colors.redAccent : Colors.orange;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 44),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: (overLimit || nearLimit) ? Border.all(color: warnColor, width: 1.5) : null,
+                    boxShadow: const [
+                      BoxShadow(color: Color(0x11000000), blurRadius: 2, offset: Offset(0, 1)),
+                    ],
+                  ),
+                  child: TextField(
+                    controller: controller,
+                    minLines: 1,
+                    maxLines: 5,
+                    maxLength: maxLength,
+                    maxLengthEnforcement: MaxLengthEnforcement.none,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => onSend(),
+                    decoration: InputDecoration(
+                      hintText: hint,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                      counterText: (overLimit || nearLimit) ? '$length/$maxLength' : '',
+                      counterStyle: TextStyle(color: warnColor, fontWeight: FontWeight.w600),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Material(
-            color: KeychatColors.primaryDark,
-            shape: const CircleBorder(),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: sending ? null : onSend,
-              child: const Padding(
-                padding: EdgeInsets.all(11),
-                child: Icon(Icons.send, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Material(
+                color: KeychatColors.primaryDark,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: (sending || overLimit) ? null : onSend,
+                  child: const Padding(
+                    padding: EdgeInsets.all(11),
+                    child: Icon(Icons.send, color: Colors.white, size: 20),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

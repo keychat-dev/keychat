@@ -61,6 +61,13 @@ pub(crate) fn remove(storage_dir: &str, my_account_index: u32) -> Result<(), Str
     save(storage_dir, &requests)
 }
 
+pub(crate) fn set_outgoing_snapshot(
+    storage_dir: &str,
+    requests: Vec<OutgoingRequest>,
+) -> Result<(), String> {
+    save(storage_dir, &requests)
+}
+
 /// A friend request someone else sent us, persisted as soon as it arrives
 /// over the live subscription so the "pending requests" screen can just
 /// read this local file instead of re-querying relays every time it opens.
@@ -68,6 +75,8 @@ pub(crate) fn remove(storage_dir: &str, my_account_index: u32) -> Result<(), Str
 pub struct IncomingRequest {
     pub invite_account_index: u32,
     pub pubkey: String,
+    #[serde(default)]
+    pub uid: String,
     pub display_name: String,
     pub status_message: String,
     pub relays: Vec<String>,
@@ -97,6 +106,7 @@ pub(crate) fn add_incoming(
     storage_dir: &str,
     invite_account_index: u32,
     pubkey: String,
+    uid: String,
     display_name: String,
     status_message: String,
     relays: Vec<String>,
@@ -107,6 +117,7 @@ pub(crate) fn add_incoming(
     requests.push(IncomingRequest {
         invite_account_index,
         pubkey,
+        uid,
         display_name,
         status_message,
         relays,
@@ -121,5 +132,12 @@ pub(crate) fn add_incoming(
 pub(crate) fn remove_incoming(storage_dir: &str, pubkey: &str) -> Result<(), String> {
     let mut requests = load_incoming(storage_dir);
     requests.retain(|r| r.pubkey != pubkey);
+    save_incoming(storage_dir, &requests)
+}
+
+pub(crate) fn set_incoming_snapshot(
+    storage_dir: &str,
+    requests: Vec<IncomingRequest>,
+) -> Result<(), String> {
     save_incoming(storage_dir, &requests)
 }

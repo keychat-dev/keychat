@@ -6,6 +6,7 @@ import 'package:workspace/screens/friend_profile.dart';
 import 'package:workspace/screens/login.dart';
 import 'package:workspace/src/rust/api/account.dart' as account_api;
 import 'package:workspace/src/rust/api/friends.dart' as friends_api;
+import 'package:workspace/src/rust/api/sync.dart' as sync_api;
 
 /// Profile & Friends tab: shows the local display profile at the top and the
 /// friends list below.
@@ -19,7 +20,11 @@ class AccountFriendsTab extends StatelessWidget {
     required this.onRefreshFriends,
     required this.onToggleFavorite,
     required this.onBlockFriend,
+    required this.onUnblockFriend,
     required this.onDeleteFriend,
+    required this.onClearChat,
+    required this.onFriendProfileClosed,
+    this.messageEvents,
   });
 
   final account_api.Account profile;
@@ -34,7 +39,17 @@ class AccountFriendsTab extends StatelessWidget {
 
   final Future<void> Function(friends_api.Friend friend) onToggleFavorite;
   final Future<void> Function(friends_api.Friend friend) onBlockFriend;
+  final Future<void> Function(friends_api.Friend friend) onUnblockFriend;
   final Future<void> Function(friends_api.Friend friend) onDeleteFriend;
+  final Future<void> Function(friends_api.Friend friend) onClearChat;
+
+  /// Called after returning from a friend's profile screen — e.g. tapping
+  /// "Talk" there starts a chat thread, so the Talk tab needs to notice.
+  final VoidCallback onFriendProfileClosed;
+
+  /// Live friend-protocol events, passed through to the friend profile
+  /// screen (and from there, to a chat thread opened via "Talk").
+  final Stream<sync_api.FriendEvent>? messageEvents;
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +97,11 @@ class AccountFriendsTab extends StatelessWidget {
                       friends: friends,
                       onToggleFavorite: onToggleFavorite,
                       onBlockFriend: onBlockFriend,
+                      onUnblockFriend: onUnblockFriend,
                       onDeleteFriend: onDeleteFriend,
+                      onClearChat: onClearChat,
+                      onFriendProfileClosed: onFriendProfileClosed,
+                      messageEvents: messageEvents,
                     ),
             ),
           ),
@@ -97,25 +116,37 @@ class _FriendsList extends StatelessWidget {
     required this.friends,
     required this.onToggleFavorite,
     required this.onBlockFriend,
+    required this.onUnblockFriend,
     required this.onDeleteFriend,
+    required this.onClearChat,
+    required this.onFriendProfileClosed,
+    this.messageEvents,
   });
 
   final List<friends_api.Friend> friends;
   final Future<void> Function(friends_api.Friend friend) onToggleFavorite;
   final Future<void> Function(friends_api.Friend friend) onBlockFriend;
+  final Future<void> Function(friends_api.Friend friend) onUnblockFriend;
   final Future<void> Function(friends_api.Friend friend) onDeleteFriend;
+  final Future<void> Function(friends_api.Friend friend) onClearChat;
+  final VoidCallback onFriendProfileClosed;
+  final Stream<sync_api.FriendEvent>? messageEvents;
 
-  void _openProfile(BuildContext context, friends_api.Friend friend) {
-    Navigator.of(context).push(
+  Future<void> _openProfile(BuildContext context, friends_api.Friend friend) async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => FriendProfileScreen(
           friend: friend,
           onToggleFavorite: onToggleFavorite,
           onBlockFriend: onBlockFriend,
+          onUnblockFriend: onUnblockFriend,
           onDeleteFriend: onDeleteFriend,
+          onClearChat: onClearChat,
+          messageEvents: messageEvents,
         ),
       ),
     );
+    onFriendProfileClosed();
   }
 
   @override

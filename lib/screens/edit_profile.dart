@@ -74,6 +74,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final saved = (await account_api.loadAccount(storageDir: storageDir.path))!;
     final avatarChanged = avatarPath != widget.profile.avatarPath;
     unawaited(publishAccountBackup(saved));
+    if (avatarChanged) unawaited(publishAccountAvatarBackup(saved));
     unawaited(publishProfileUpdateToFriends(saved, avatarChanged: avatarChanged));
 
     if (!mounted) return;

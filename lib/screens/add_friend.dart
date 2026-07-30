@@ -11,6 +11,7 @@ import 'package:workspace/screens/friend_requests.dart';
 import 'package:workspace/screens/login.dart';
 import 'package:workspace/screens/logout.dart' show seedStorageKey;
 import 'package:workspace/services/account_sync.dart';
+import 'package:workspace/src/rust/api/friends.dart' as friends_api;
 import 'package:workspace/src/rust/api/invites.dart' as invites_api;
 import 'package:workspace/src/rust/api/sync.dart' as sync_api;
 
@@ -154,6 +155,7 @@ class _MyQrTabState extends State<_MyQrTab> {
       ttlSeconds: ttlSeconds,
       maxUses: maxUses,
     );
+    unawaited(publishAccountInvitesBackup());
     final payload = await sync_api.buildInviteQrPayload(
       mnemonic: mnemonic,
       storageDir: storageDir.path,
@@ -425,7 +427,16 @@ class _ScanTabState extends State<_ScanTab> {
     const secureStorage = FlutterSecureStorage();
     final mnemonic = await secureStorage.read(key: seedStorageKey);
     final storageDir = await getApplicationDocumentsDirectory();
+    var alreadyFriend = false;
     if (mnemonic != null) {
+      // The scanned invite's pubkey is a fresh per-invite key, so it can't
+      // be matched against existing friends directly — but the inviter's
+      // stable UID (also in the QR) can, letting us recognize "already a
+      // friend" right now instead of only after they accept.
+      alreadyFriend = await friends_api.isKnownUid(
+        storageDir: storageDir.path,
+        uid: payload.uid,
+      );
       await sync_api.sendFriendRequest(
         mnemonic: mnemonic,
         storageDir: storageDir.path,
@@ -434,9 +445,11 @@ class _ScanTabState extends State<_ScanTab> {
       );
     }
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(l10n.requestSentMessage)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(alreadyFriend ? l10n.friendAlreadyAddedMessage : l10n.requestSentMessage),
+      ),
+    );
     Navigator.of(context).pop();
   }
 
@@ -535,6 +548,7 @@ class _ActiveInvitesScreenState extends State<ActiveInvitesScreen> {
       storageDir: storageDir.path,
       accountIndex: invite.accountIndex,
     );
+    unawaited(publishAccountInvitesBackup());
     _load();
   }
 

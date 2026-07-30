@@ -416,6 +416,12 @@ abstract class AppLocalizations {
   /// **'No status message'**
   String get noStatusMessage;
 
+  /// No description provided for @startChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Talk'**
+  String get startChat;
+
   /// No description provided for @addToFavorites.
   ///
   /// In en, this message translates to:
@@ -443,8 +449,14 @@ abstract class AppLocalizations {
   /// No description provided for @blockFriendConfirmBody.
   ///
   /// In en, this message translates to:
-  /// **'They\'ll be removed from your friends list and won\'t be able to send you friend requests again.'**
+  /// **'You\'ll stop receiving their messages and profile updates. They stay in your friends list so you can unblock them later.'**
   String get blockFriendConfirmBody;
+
+  /// No description provided for @unblockFriend.
+  ///
+  /// In en, this message translates to:
+  /// **'Unblock'**
+  String get unblockFriend;
 
   /// No description provided for @deleteFriend.
   ///
@@ -461,7 +473,7 @@ abstract class AppLocalizations {
   /// No description provided for @deleteFriendConfirmBody.
   ///
   /// In en, this message translates to:
-  /// **'This removes them from your friends list. They can send you a new friend request later.'**
+  /// **'This permanently removes them from your friends list. They can send you a new friend request later.'**
   String get deleteFriendConfirmBody;
 
   /// No description provided for @noChatsYet.
@@ -541,6 +553,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Account'**
   String get accountSettingsTitle;
+
+  /// No description provided for @myUid.
+  ///
+  /// In en, this message translates to:
+  /// **'My UID'**
+  String get myUid;
+
+  /// No description provided for @uidLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'UID'**
+  String get uidLabel;
+
+  /// No description provided for @uidCopiedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'UID copied to clipboard'**
+  String get uidCopiedMessage;
 
   /// No description provided for @seedBackupButton.
   ///
@@ -691,6 +721,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recommended: 3-5 relays'**
   String get relayCountHint;
+
+  /// No description provided for @clearChatButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear chat'**
+  String get clearChatButton;
+
+  /// No description provided for @clearChatConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear this chat?'**
+  String get clearChatConfirmTitle;
+
+  /// No description provided for @clearChatConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This deletes the message history with {name} from this device only. They can still message you and the chat will start fresh.'**
+  String clearChatConfirmBody(String name);
+
+  /// No description provided for @blockedSendConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This friend is blocked'**
+  String get blockedSendConfirmTitle;
+
+  /// No description provided for @blockedSendConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t send messages while they\'re blocked. Unblock them now?'**
+  String get blockedSendConfirmBody;
+
+  /// No description provided for @friendAlreadyAddedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This friend is already added. Their info has been updated.'**
+  String get friendAlreadyAddedMessage;
+
+  /// No description provided for @createTalkRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Create talk room'**
+  String get createTalkRoom;
+
+  /// No description provided for @createGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Create group'**
+  String get createGroup;
+
+  /// No description provided for @searchByNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by name'**
+  String get searchByNameHint;
+
+  /// No description provided for @noSearchResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No matches found'**
+  String get noSearchResults;
 }
 
 class _AppLocalizationsDelegate

@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:workspace/l10n/app_localizations.dart';
 import 'package:workspace/screens/login.dart';
 import 'package:workspace/screens/logout.dart' show seedStorageKey;
+import 'package:workspace/src/rust/api/relay.dart' as relay_api;
 import 'package:workspace/src/rust/api/sync.dart' as sync_api;
 
 /// Shows pending incoming friend requests (sent to any of our still-active
@@ -42,16 +43,23 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
     final mnemonic = await secureStorage.read(key: seedStorageKey);
     final storageDir = await getApplicationDocumentsDirectory();
     if (mnemonic != null) {
-      await sync_api.acceptFriendRequest(
+      final alreadyFriend = await sync_api.acceptFriendRequest(
         mnemonic: mnemonic,
         storageDir: storageDir.path,
         inviteAccountIndex: request.inviteAccountIndex,
         requesterPubkey: request.pubkey,
+        requesterUid: request.uid,
         requesterDisplayName: request.displayName,
         requesterStatusMessage: request.statusMessage,
         requesterRelays: request.relays,
         requesterAvatarBase64: request.avatarBase64,
       );
+      if (alreadyFriend && mounted) {
+        final l10n = AppLocalizations.of(context)!;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.friendAlreadyAddedMessage)));
+      }
     }
     if (!mounted) return;
     setState(() {
@@ -62,11 +70,18 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
 
   Future<void> _reject(sync_api.PendingFriendRequest request) async {
     setState(() => _busy.add(request.pubkey));
+    const secureStorage = FlutterSecureStorage();
+    final mnemonic = await secureStorage.read(key: seedStorageKey);
     final storageDir = await getApplicationDocumentsDirectory();
-    await sync_api.rejectFriendRequest(
-      storageDir: storageDir.path,
-      requesterPubkey: request.pubkey,
-    );
+    if (mnemonic != null) {
+      final relayList = await relay_api.loadRelayList(storageDir: storageDir.path);
+      await sync_api.rejectFriendRequest(
+        mnemonic: mnemonic,
+        storageDir: storageDir.path,
+        relayUrls: relayList.urls,
+        requesterPubkey: request.pubkey,
+      );
+    }
     if (!mounted) return;
     setState(() {
       _requests = _requests.where((r) => r.pubkey != request.pubkey).toList();

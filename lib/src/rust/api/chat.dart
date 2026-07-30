@@ -6,11 +6,34 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `db`, `decrypt_seal`, `load_read_state`, `read_state_path`, `receive_gift_wrap`, `save_read_state`
+// These functions are ignored because they are not marked as `pub`: `cleared_path`, `cleared_snapshot`, `db_cell`, `db`, `decrypt_seal`, `has_chat_history`, `held_path`, `hold_message`, `load_cleared`, `load_held`, `load_read_state`, `load_started`, `read_state_path`, `read_state_snapshot`, `receive_gift_wrap`, `save_cleared`, `save_read_state`, `set_cleared_snapshot`, `set_read_state_snapshot`, `set_started_snapshot`, `started_path`, `started_snapshot`
+
+/// Drops the cached chat database handle so the next access reopens it from
+/// disk. Every account shares the same on-device storage directory, so
+/// logging out (which deletes `chat.lmdb`) would otherwise leave this
+/// process holding a handle into files that no longer exist — call this
+/// right after wiping local storage, before a different account can log in
+/// within the same app run.
+Future<void> resetChatDb() => RustLib.instance.api.crateApiChatResetChatDb();
+
+/// Dart-callable accessor for [MAX_MESSAGE_CHARS] — lets the composer
+/// enforce the same limit client-side instead of only finding out via a
+/// failed [send_chat_message] call.
+Future<int> maxMessageChars() =>
+    RustLib.instance.api.crateApiChatMaxMessageChars();
 
 /// Builds a Gift Wrap for `message` addressed to `friend_pubkey`, persists
 /// our own copy of the `Seal` locally (so our own sent messages show up in
-/// [load_chat_history] too), and publishes the wrap to the friend's relays.
+/// [load_chat_history] immediately, even offline or if publishing fails),
+/// and publishes it to the friend's relays.
+///
+/// Also wraps the same `Seal` a second time for ourselves and publishes it
+/// to our own relays — the friend's relays have no reason to keep an event
+/// we sent *them*, but this self-addressed copy means our own subscription
+/// (which watches our own relays) can refetch our sent messages after a
+/// reinstall or on another device, instead of them existing only in this
+/// one local database. Best-effort: a failure to publish this copy doesn't
+/// fail the send, since the message already reached the friend either way.
 Future<void> sendChatMessage({
   required String mnemonic,
   required String storageDir,
@@ -26,6 +49,13 @@ Future<void> sendChatMessage({
 /// Loads the full decrypted message history with `friend_pubkey` from
 /// local storage (no relay round-trip — the live subscription and
 /// [send_chat_message] are what keep it current), oldest first.
+///
+/// Includes messages under any of the friend's `prior_identities` too —
+/// each old (pubkey, my_account_index) pair this same account used before
+/// being re-friended under a new relationship key (see
+/// `friends::add_friend`'s UID merge) — so history from before a
+/// delete-and-re-add isn't lost, even though it was encrypted with keys
+/// distinct from the current relationship's.
 Future<List<ChatMessage>> loadChatHistory({
   required String mnemonic,
   required String storageDir,
@@ -36,12 +66,48 @@ Future<List<ChatMessage>> loadChatHistory({
   friendPubkey: friendPubkey,
 );
 
+/// Marks `friend_pubkey`'s thread as started — call when the user taps
+/// "Talk" on their profile, before opening the thread for the first time.
+Future<void> markChatStarted({
+  required String storageDir,
+  required String friendPubkey,
+}) => RustLib.instance.api.crateApiChatMarkChatStarted(
+  storageDir: storageDir,
+  friendPubkey: friendPubkey,
+);
+
+/// Pubkeys of friends who should show up in the Talk tab: either the user
+/// explicitly started that thread, or a message already exists in either
+/// direction.
+Future<List<String>> listActiveChatPubkeys({
+  required String mnemonic,
+  required String storageDir,
+}) => RustLib.instance.api.crateApiChatListActiveChatPubkeys(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+);
+
 /// Marks every message currently in `friend_pubkey`'s thread as read —
 /// call when the user opens that thread.
 Future<void> markThreadRead({
   required String storageDir,
   required String friendPubkey,
 }) => RustLib.instance.api.crateApiChatMarkThreadRead(
+  storageDir: storageDir,
+  friendPubkey: friendPubkey,
+);
+
+/// Deletes the entire local message history with `friend_pubkey` (both
+/// directions) and resets the thread back to "not started" — the friend
+/// drops out of the Talk tab until either side messages again. Purely
+/// local: doesn't notify the friend or affect the friendship itself, so
+/// they can still message and reopen the thread later.
+Future<void> clearChatHistory({
+  required String mnemonic,
+  required String storageDir,
+  required String friendPubkey,
+}) => RustLib.instance.api.crateApiChatClearChatHistory(
+  mnemonic: mnemonic,
   storageDir: storageDir,
   friendPubkey: friendPubkey,
 );
