@@ -2,6 +2,7 @@
 name = "rust_lib_workspace"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 
 [lib]
 crate-type = ["cdylib", "staticlib"]
@@ -24,6 +25,9 @@ reqwest = { version = "0.13.4", default-features = false, features = ["rustls", 
 hex = "0.4.3"
 webpki-roots = "0.26"
 chacha20poly1305 = "0.10"
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+hkdf = "0.12"
+hmac = "0.12"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

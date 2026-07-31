@@ -107,6 +107,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get regenerateQrButton => 'Generate new code';
 
   @override
+  String get saveQrToDeviceButton => 'Save to device';
+
+  @override
+  String get qrSavedToDeviceMessage => 'QR code saved to your photos';
+
+  @override
+  String get qrSaveFailedMessage => 'Couldn\'t save the QR code';
+
+  @override
   String get activeInvitesTitle => 'Active invite codes';
 
   @override
@@ -259,6 +268,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsAttachmentServer => 'File upload server';
+
+  @override
+  String get settingsLicenses => 'Open source licenses';
 
   @override
   String get attachmentServerDialogTitle => 'File upload server';
@@ -453,6 +465,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get createGroup => 'Create group';
+
+  @override
+  String get groupNameLabel => 'Group name';
+
+  @override
+  String get selectMembersLabel => 'Select members';
+
+  @override
+  String groupMembersCount(int count) {
+    return '$count members';
+  }
+
+  @override
+  String get noGroupsYet => 'No groups yet';
 
   @override
   String get searchByNameHint => 'Search by name';

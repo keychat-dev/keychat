@@ -44,6 +44,9 @@
   "validForLabel": "Valid for (days)",
   "generateQrButton": "Generate QR code",
   "regenerateQrButton": "Generate new code",
+  "saveQrToDeviceButton": "Save to device",
+  "qrSavedToDeviceMessage": "QR code saved to your photos",
+  "qrSaveFailedMessage": "Couldn't save the QR code",
   "activeInvitesTitle": "Active invite codes",
   "noActiveInvites": "No active invite codes",
   "invitesUsesUsed": "Used {used} of {max}",
@@ -126,6 +129,7 @@
   "settingsLanguage": "Language",
   "settingsAccount": "Account",
   "settingsAttachmentServer": "File upload server",
+  "settingsLicenses": "Open source licenses",
   "attachmentServerDialogTitle": "File upload server",
   "attachmentServerHint": "https://your-blossom-server.example",
   "attachmentServerNotConfigured": "Not set — set a server to send images/files",
@@ -206,6 +210,15 @@
   "friendAlreadyAddedMessage": "This friend is already added. Their info has been updated.",
   "createTalkRoom": "Create talk room",
   "createGroup": "Create group",
+  "groupNameLabel": "Group name",
+  "selectMembersLabel": "Select members",
+  "groupMembersCount": "{count} members",
+  "@groupMembersCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "noGroupsYet": "No groups yet",
   "searchByNameHint": "Search by name",
   "noSearchResults": "No matches found",
   "editMessage": "Edit",

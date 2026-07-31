@@ -57,6 +57,14 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  void _openLicensePage(BuildContext context) {
+    showLicensePage(
+      context: context,
+      applicationName: 'KeyChat',
+      applicationVersion: '1.0.0',
+    );
+  }
+
   Future<void> _openLanguagePicker(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
     final currentCode = Localizations.localeOf(context).languageCode;
@@ -129,6 +137,12 @@ class SettingsScreen extends StatelessWidget {
               title: Text(l10n.settingsAccount),
               trailing: const Icon(Icons.chevron_right, color: KeychatColors.textSecondary),
               onTap: () => _openAccountSettings(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.description_outlined, color: KeychatColors.textSecondary),
+              title: Text(l10n.settingsLicenses),
+              trailing: const Icon(Icons.chevron_right, color: KeychatColors.textSecondary),
+              onTap: () => _openLicensePage(context),
             ),
           ],
         ),

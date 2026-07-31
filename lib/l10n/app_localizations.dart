@@ -278,6 +278,24 @@ abstract class AppLocalizations {
   /// **'Generate new code'**
   String get regenerateQrButton;
 
+  /// No description provided for @saveQrToDeviceButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to device'**
+  String get saveQrToDeviceButton;
+
+  /// No description provided for @qrSavedToDeviceMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'QR code saved to your photos'**
+  String get qrSavedToDeviceMessage;
+
+  /// No description provided for @qrSaveFailedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save the QR code'**
+  String get qrSaveFailedMessage;
+
   /// No description provided for @activeInvitesTitle.
   ///
   /// In en, this message translates to:
@@ -553,6 +571,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'File upload server'**
   String get settingsAttachmentServer;
+
+  /// No description provided for @settingsLicenses.
+  ///
+  /// In en, this message translates to:
+  /// **'Open source licenses'**
+  String get settingsLicenses;
 
   /// No description provided for @attachmentServerDialogTitle.
   ///
@@ -901,6 +925,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Create group'**
   String get createGroup;
+
+  /// No description provided for @groupNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name'**
+  String get groupNameLabel;
+
+  /// No description provided for @selectMembersLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Select members'**
+  String get selectMembersLabel;
+
+  /// No description provided for @groupMembersCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} members'**
+  String groupMembersCount(int count);
+
+  /// No description provided for @noGroupsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No groups yet'**
+  String get noGroupsYet;
 
   /// No description provided for @searchByNameHint.
   ///

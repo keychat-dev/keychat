@@ -104,6 +104,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get regenerateQrButton => '新しいコードを生成';
 
   @override
+  String get saveQrToDeviceButton => '端末に保存';
+
+  @override
+  String get qrSavedToDeviceMessage => 'QRコードを写真に保存しました';
+
+  @override
+  String get qrSaveFailedMessage => 'QRコードを保存できませんでした';
+
+  @override
   String get activeInvitesTitle => '有効な招待コード';
 
   @override
@@ -256,6 +265,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settingsAttachmentServer => 'ファイル送信サーバー';
+
+  @override
+  String get settingsLicenses => 'オープンソースライセンス';
 
   @override
   String get attachmentServerDialogTitle => 'ファイル送信サーバー';
@@ -443,6 +455,20 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get createGroup => 'グループを作成';
+
+  @override
+  String get groupNameLabel => 'グループ名';
+
+  @override
+  String get selectMembersLabel => 'メンバーを選択';
+
+  @override
+  String groupMembersCount(int count) {
+    return 'メンバー$count人';
+  }
+
+  @override
+  String get noGroupsYet => 'まだグループがありません';
 
   @override
   String get searchByNameHint => '名前で検索';
