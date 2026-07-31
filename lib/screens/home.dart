@@ -235,7 +235,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       friendPubkey: friend.pubkey,
     );
     await _loadActiveChatPubkeys();
-    unawaited(publishAccountChatClearedBackup());
   }
 
   /// "Create talk room" from the Talk tab's "+" menu: pick a friend and

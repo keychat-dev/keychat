@@ -548,6 +548,138 @@ abstract class AppLocalizations {
   /// **'Account'**
   String get settingsAccount;
 
+  /// No description provided for @settingsAttachmentServer.
+  ///
+  /// In en, this message translates to:
+  /// **'File upload server'**
+  String get settingsAttachmentServer;
+
+  /// No description provided for @attachmentServerDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'File upload server'**
+  String get attachmentServerDialogTitle;
+
+  /// No description provided for @attachmentServerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://your-blossom-server.example'**
+  String get attachmentServerHint;
+
+  /// No description provided for @attachmentServerNotConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set — set a server to send images/files'**
+  String get attachmentServerNotConfigured;
+
+  /// No description provided for @attachmentUploadFailedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Attachment failed'**
+  String get attachmentUploadFailedLabel;
+
+  /// No description provided for @attachmentServerSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'File upload servers'**
+  String get attachmentServerSettingsTitle;
+
+  /// No description provided for @attachmentServerDefaultBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get attachmentServerDefaultBadge;
+
+  /// No description provided for @setAsDefaultServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Set as default'**
+  String get setAsDefaultServer;
+
+  /// No description provided for @addAttachmentServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get addAttachmentServer;
+
+  /// No description provided for @attachmentServerUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Server URL'**
+  String get attachmentServerUrlLabel;
+
+  /// No description provided for @invalidAttachmentServerUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Server URL must start with https:// or http://'**
+  String get invalidAttachmentServerUrl;
+
+  /// No description provided for @noAttachmentServersYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No servers configured'**
+  String get noAttachmentServersYet;
+
+  /// No description provided for @removeAttachmentServerConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove server?'**
+  String get removeAttachmentServerConfirmTitle;
+
+  /// No description provided for @removeAttachmentServerConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {url} from your server list?'**
+  String removeAttachmentServerConfirmBody(String url);
+
+  /// No description provided for @cannotRemoveOnlyServer.
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t remove your only server'**
+  String get cannotRemoveOnlyServer;
+
+  /// No description provided for @resetAttachmentServers.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to defaults'**
+  String get resetAttachmentServers;
+
+  /// No description provided for @resetAttachmentServersConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset servers?'**
+  String get resetAttachmentServersConfirmTitle;
+
+  /// No description provided for @resetAttachmentServersConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This replaces your server list with the default servers.'**
+  String get resetAttachmentServersConfirmBody;
+
+  /// No description provided for @attachmentServerSwitchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch upload server?'**
+  String get attachmentServerSwitchTitle;
+
+  /// No description provided for @attachmentServerSwitchBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending failed. Try {url} instead?'**
+  String attachmentServerSwitchBody(String url);
+
+  /// No description provided for @attachmentServerSetDefaultCheckbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Make this the default server'**
+  String get attachmentServerSetDefaultCheckbox;
+
+  /// No description provided for @attachmentServerSwitchButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch'**
+  String get attachmentServerSwitchButton;
+
   /// No description provided for @accountSettingsTitle.
   ///
   /// In en, this message translates to:
@@ -781,6 +913,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No matches found'**
   String get noSearchResults;
+
+  /// No description provided for @editMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get editMessage;
+
+  /// No description provided for @unsendMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsend'**
+  String get unsendMessage;
+
+  /// No description provided for @editMessageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit message'**
+  String get editMessageTitle;
+
+  /// No description provided for @unsendMessageConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsend this message?'**
+  String get unsendMessageConfirmTitle;
+
+  /// No description provided for @unsendMessageConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This message will be removed for both you and {name}.'**
+  String unsendMessageConfirmBody(String name);
+
+  /// No description provided for @messageEditedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'(edited)'**
+  String get messageEditedLabel;
+
+  /// No description provided for @messageUnsentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'This message was unsent'**
+  String get messageUnsentLabel;
+
+  /// No description provided for @hideMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide for me'**
+  String get hideMessage;
+
+  /// No description provided for @hideMessageConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide this message?'**
+  String get hideMessageConfirmTitle;
+
+  /// No description provided for @hideMessageConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This hides it for you only (across all your devices) — it stays visible to {name}.'**
+  String hideMessageConfirmBody(String name);
+
+  /// No description provided for @replyToMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Reply'**
+  String get replyToMessage;
+
+  /// No description provided for @replyingToLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Replying to {name}'**
+  String replyingToLabel(String name);
+
+  /// No description provided for @originalMessageUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Original message unavailable'**
+  String get originalMessageUnavailable;
+
+  /// No description provided for @youLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get youLabel;
 }
 
 class _AppLocalizationsDelegate

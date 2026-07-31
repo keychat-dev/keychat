@@ -258,6 +258,80 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAccount => 'Account';
 
   @override
+  String get settingsAttachmentServer => 'File upload server';
+
+  @override
+  String get attachmentServerDialogTitle => 'File upload server';
+
+  @override
+  String get attachmentServerHint => 'https://your-blossom-server.example';
+
+  @override
+  String get attachmentServerNotConfigured =>
+      'Not set — set a server to send images/files';
+
+  @override
+  String get attachmentUploadFailedLabel => 'Attachment failed';
+
+  @override
+  String get attachmentServerSettingsTitle => 'File upload servers';
+
+  @override
+  String get attachmentServerDefaultBadge => 'Default';
+
+  @override
+  String get setAsDefaultServer => 'Set as default';
+
+  @override
+  String get addAttachmentServer => 'Add';
+
+  @override
+  String get attachmentServerUrlLabel => 'Server URL';
+
+  @override
+  String get invalidAttachmentServerUrl =>
+      'Server URL must start with https:// or http://';
+
+  @override
+  String get noAttachmentServersYet => 'No servers configured';
+
+  @override
+  String get removeAttachmentServerConfirmTitle => 'Remove server?';
+
+  @override
+  String removeAttachmentServerConfirmBody(String url) {
+    return 'Remove $url from your server list?';
+  }
+
+  @override
+  String get cannotRemoveOnlyServer => 'You can\'t remove your only server';
+
+  @override
+  String get resetAttachmentServers => 'Reset to defaults';
+
+  @override
+  String get resetAttachmentServersConfirmTitle => 'Reset servers?';
+
+  @override
+  String get resetAttachmentServersConfirmBody =>
+      'This replaces your server list with the default servers.';
+
+  @override
+  String get attachmentServerSwitchTitle => 'Switch upload server?';
+
+  @override
+  String attachmentServerSwitchBody(String url) {
+    return 'Sending failed. Try $url instead?';
+  }
+
+  @override
+  String get attachmentServerSetDefaultCheckbox =>
+      'Make this the default server';
+
+  @override
+  String get attachmentServerSwitchButton => 'Switch';
+
+  @override
   String get accountSettingsTitle => 'Account';
 
   @override
@@ -385,4 +459,52 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noSearchResults => 'No matches found';
+
+  @override
+  String get editMessage => 'Edit';
+
+  @override
+  String get unsendMessage => 'Unsend';
+
+  @override
+  String get editMessageTitle => 'Edit message';
+
+  @override
+  String get unsendMessageConfirmTitle => 'Unsend this message?';
+
+  @override
+  String unsendMessageConfirmBody(String name) {
+    return 'This message will be removed for both you and $name.';
+  }
+
+  @override
+  String get messageEditedLabel => '(edited)';
+
+  @override
+  String get messageUnsentLabel => 'This message was unsent';
+
+  @override
+  String get hideMessage => 'Hide for me';
+
+  @override
+  String get hideMessageConfirmTitle => 'Hide this message?';
+
+  @override
+  String hideMessageConfirmBody(String name) {
+    return 'This hides it for you only (across all your devices) — it stays visible to $name.';
+  }
+
+  @override
+  String get replyToMessage => 'Reply';
+
+  @override
+  String replyingToLabel(String name) {
+    return 'Replying to $name';
+  }
+
+  @override
+  String get originalMessageUnavailable => 'Original message unavailable';
+
+  @override
+  String get youLabel => 'You';
 }

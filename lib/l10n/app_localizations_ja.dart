@@ -255,6 +255,77 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsAccount => 'アカウント';
 
   @override
+  String get settingsAttachmentServer => 'ファイル送信サーバー';
+
+  @override
+  String get attachmentServerDialogTitle => 'ファイル送信サーバー';
+
+  @override
+  String get attachmentServerHint => 'https://your-blossom-server.example';
+
+  @override
+  String get attachmentServerNotConfigured => '未設定 — 画像・ファイルを送るにはサーバーを設定してください';
+
+  @override
+  String get attachmentUploadFailedLabel => '送信に失敗しました';
+
+  @override
+  String get attachmentServerSettingsTitle => 'ファイル送信サーバー';
+
+  @override
+  String get attachmentServerDefaultBadge => 'デフォルト';
+
+  @override
+  String get setAsDefaultServer => 'デフォルトにする';
+
+  @override
+  String get addAttachmentServer => '追加';
+
+  @override
+  String get attachmentServerUrlLabel => 'サーバーURL';
+
+  @override
+  String get invalidAttachmentServerUrl =>
+      'サーバーURLはhttps://またはhttp://で始まる必要があります';
+
+  @override
+  String get noAttachmentServersYet => 'サーバーが設定されていません';
+
+  @override
+  String get removeAttachmentServerConfirmTitle => 'サーバーを削除しますか?';
+
+  @override
+  String removeAttachmentServerConfirmBody(String url) {
+    return '$url をサーバー一覧から削除しますか?';
+  }
+
+  @override
+  String get cannotRemoveOnlyServer => '唯一のサーバーは削除できません';
+
+  @override
+  String get resetAttachmentServers => '初期値に戻す';
+
+  @override
+  String get resetAttachmentServersConfirmTitle => 'サーバーをリセットしますか?';
+
+  @override
+  String get resetAttachmentServersConfirmBody => '現在のサーバー一覧が初期値に置き換わります。';
+
+  @override
+  String get attachmentServerSwitchTitle => 'アップロードサーバーを切り替えますか?';
+
+  @override
+  String attachmentServerSwitchBody(String url) {
+    return '送信に失敗しました。$url で試しますか?';
+  }
+
+  @override
+  String get attachmentServerSetDefaultCheckbox => 'このサーバーをデフォルトサーバーにしますか?';
+
+  @override
+  String get attachmentServerSwitchButton => '切り替える';
+
+  @override
   String get accountSettingsTitle => 'アカウント';
 
   @override
@@ -378,4 +449,52 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get noSearchResults => '該当する友達が見つかりません';
+
+  @override
+  String get editMessage => '編集';
+
+  @override
+  String get unsendMessage => '送信取り消し';
+
+  @override
+  String get editMessageTitle => 'メッセージを編集';
+
+  @override
+  String get unsendMessageConfirmTitle => '送信を取り消しますか?';
+
+  @override
+  String unsendMessageConfirmBody(String name) {
+    return 'このメッセージは$nameさんの画面からも削除されます。';
+  }
+
+  @override
+  String get messageEditedLabel => '(編集済み)';
+
+  @override
+  String get messageUnsentLabel => 'このメッセージは送信取り消しされました';
+
+  @override
+  String get hideMessage => '自分の画面から非表示';
+
+  @override
+  String get hideMessageConfirmTitle => 'このメッセージを非表示にしますか?';
+
+  @override
+  String hideMessageConfirmBody(String name) {
+    return '自分のみ非表示になります。$nameさんやトークルーム内の他のユーザーには引き続き表示されます。';
+  }
+
+  @override
+  String get replyToMessage => '返信';
+
+  @override
+  String replyingToLabel(String name) {
+    return '$nameさんに返信';
+  }
+
+  @override
+  String get originalMessageUnavailable => '元のメッセージは表示できません';
+
+  @override
+  String get youLabel => '自分';
 }

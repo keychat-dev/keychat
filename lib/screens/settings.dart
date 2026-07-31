@@ -5,6 +5,7 @@ import 'package:workspace/screens/logout.dart';
 import 'package:workspace/screens/edit_profile.dart';
 import 'package:workspace/screens/login.dart';
 import 'package:workspace/screens/relay_settings.dart';
+import 'package:workspace/screens/attachment_server_settings.dart';
 import 'package:workspace/src/rust/api/account.dart' as account_api;
 import 'package:workspace/src/rust/api/sync.dart' as sync_api;
 
@@ -47,6 +48,12 @@ class SettingsScreen extends StatelessWidget {
       MaterialPageRoute(
         builder: (_) => RelaySettingsScreen(messageEvents: messageEvents),
       ),
+    );
+  }
+
+  void _openAttachmentServerSettings(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AttachmentServerSettingsScreen()),
     );
   }
 
@@ -104,6 +111,12 @@ class SettingsScreen extends StatelessWidget {
               title: Text(l10n.settingsRelay),
               trailing: const Icon(Icons.chevron_right, color: KeychatColors.textSecondary),
               onTap: () => _openRelaySettings(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.cloud_upload_outlined, color: KeychatColors.textSecondary),
+              title: Text(l10n.settingsAttachmentServer),
+              trailing: const Icon(Icons.chevron_right, color: KeychatColors.textSecondary),
+              onTap: () => _openAttachmentServerSettings(context),
             ),
             ListTile(
               leading: const Icon(Icons.translate, color: KeychatColors.textSecondary),

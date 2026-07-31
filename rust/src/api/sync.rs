@@ -52,7 +52,6 @@ const ACCOUNT_READSTATE_D_TAG: &str = "keychat-account-readstate";
 /// place this data is ever sent, and only self-encrypted.
 const ACCOUNT_CONFIG_D_TAG: &str = "keychat-account-config";
 const ACCOUNT_CHATSTARTED_D_TAG: &str = "keychat-account-chatstarted";
-const ACCOUNT_CHATCLEARED_D_TAG: &str = "keychat-account-chatcleared";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Serialize, Deserialize)]
@@ -138,12 +137,6 @@ struct ConfigBackupPayload {
 #[derive(Serialize, Deserialize)]
 struct ChatStartedBackupPayload {
     started: Vec<String>,
-    updated_at: i64,
-}
-
-#[derive(Serialize, Deserialize)]
-struct ChatClearedBackupPayload {
-    cleared: std::collections::HashMap<String, i64>,
     updated_at: i64,
 }
 
@@ -447,24 +440,6 @@ pub fn publish_account_chatstarted_backup(
     let payload = ChatStartedBackupPayload { started, updated_at };
     let plaintext = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
     publish_backup_event(&keys, &relay_urls, ACCOUNT_CHATSTARTED_D_TAG, plaintext, updated_at)
-}
-
-/// Publishes the per-friend "chat cleared at" map as its own backup slot —
-/// call after [chat::clear_chat_history], so a cleared thread stays
-/// cleared on every device instead of the friend's (and now our own
-/// self-addressed) Gift Wraps still sitting on relays quietly repopulating
-/// it there.
-pub fn publish_account_chatcleared_backup(
-    mnemonic: String,
-    storage_dir: String,
-    relay_urls: Vec<String>,
-    updated_at: i64,
-) -> Result<(), String> {
-    let keys = derive_keys(&mnemonic)?;
-    let cleared = chat::cleared_snapshot(&storage_dir);
-    let payload = ChatClearedBackupPayload { cleared, updated_at };
-    let plaintext = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
-    publish_backup_event(&keys, &relay_urls, ACCOUNT_CHATCLEARED_D_TAG, plaintext, updated_at)
 }
 
 /// Requests relays to erase every one of this account's backup slots
@@ -1044,8 +1019,6 @@ pub struct SyncState {
     pub config_updated_at: i64,
     #[serde(default)]
     pub chatstarted_updated_at: i64,
-    #[serde(default)]
-    pub chatcleared_updated_at: i64,
 }
 
 fn sync_state_path(storage_dir: &str) -> std::path::PathBuf {
@@ -1297,21 +1270,6 @@ async fn listen_for_account_sync(
                     true
                 }
             }
-            ACCOUNT_CHATCLEARED_D_TAG => {
-                let Ok(payload) = serde_json::from_str::<ChatClearedBackupPayload>(&decrypted)
-                else {
-                    continue;
-                };
-                let mut state = load_sync_state(storage_dir);
-                if payload.updated_at <= state.chatcleared_updated_at {
-                    false
-                } else {
-                    let _ = chat::set_cleared_snapshot(storage_dir, payload.cleared);
-                    state.chatcleared_updated_at = payload.updated_at;
-                    save_sync_state(storage_dir, &state);
-                    true
-                }
-            }
             _ => false,
         };
 
@@ -1390,10 +1348,23 @@ async fn listen_for_friend_events(
             let Ok(friend_pk) = PublicKey::from_hex(friend_pubkey) else {
                 continue;
             };
-            let Some(message) =
+            let Some(received) =
                 chat::receive_gift_wrap(storage_dir, &my_keys, &friend_pk, &event).await
             else {
                 continue;
+            };
+            // A real message carries its decrypted text in `content`; an
+            // edit/delete instruction has none — the Dart side treats both
+            // the same either way (just a signal to reload the thread from
+            // local storage, where [chat::load_chat_history] has already
+            // applied the edit/delete), so `content` being empty for those
+            // is harmless.
+            let (seal_id, content) = match &received {
+                chat::Received::Message(m) => (m.id.clone(), Some(m.content.clone())),
+                chat::Received::Edit(id)
+                | chat::Received::Delete(id)
+                | chat::Received::Hide(id)
+                | chat::Received::Clear(id) => (id.clone(), None),
             };
             // Still blocked: the message is now saved to local history (so
             // it's there once unblocked) but held — [chat::load_chat_history]
@@ -1401,7 +1372,7 @@ async fn listen_for_friend_events(
             // the friend is blocked, so the Talk tab, previews, and unread
             // counts all stay silent too, not just this live notification.
             if friends::load_blocked(storage_dir).contains(friend_pubkey) {
-                chat::hold_message(storage_dir, &message.id);
+                chat::hold_message(storage_dir, &seal_id);
                 continue;
             }
             if sink
@@ -1412,7 +1383,7 @@ async fn listen_for_friend_events(
                     status_message: String::new(),
                     invite_account_index: None,
                     relays: Vec::new(),
-                    content: Some(message.content),
+                    content,
                 })
                 .is_err()
             {

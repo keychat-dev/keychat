@@ -1,4 +1,5 @@
 pub mod account;
+pub mod attachment;
 pub mod chat;
 pub mod config;
 pub mod friends;

@@ -44,6 +44,8 @@ dependencies:
   flutter_secure_storage: ^9.2.4
   qr_flutter: ^4.1.0
   mobile_scanner: ^6.0.7
+  file_picker: ^10.0.0
+  mime: ^2.0.0
 
 dev_dependencies:
   flutter_test:

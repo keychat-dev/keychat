@@ -7,6 +7,7 @@
 // ignore_for_file: argument_type_not_assignable
 
 import 'api/account.dart';
+import 'api/attachment.dart';
 import 'api/chat.dart';
 import 'api/config.dart';
 import 'api/friends.dart';
@@ -32,6 +33,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnyhowException dco_decode_AnyhowException(dynamic raw);
 
   @protected
+  RustStreamSink<AttachmentUploadEvent>
+  dco_decode_StreamSink_attachment_upload_event_Sse(dynamic raw);
+
+  @protected
   RustStreamSink<FriendEvent> dco_decode_StreamSink_friend_event_Sse(
     dynamic raw,
   );
@@ -46,6 +51,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AppConfig dco_decode_app_config(dynamic raw);
 
   @protected
+  AttachmentUploadEvent dco_decode_attachment_upload_event(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
@@ -53,6 +61,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AppConfig dco_decode_box_autoadd_app_config(dynamic raw);
+
+  @protected
+  ChatAttachment dco_decode_box_autoadd_chat_attachment(dynamic raw);
 
   @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
@@ -76,7 +87,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
+  ChatAttachment dco_decode_chat_attachment(dynamic raw);
+
+  @protected
   ChatMessage dco_decode_chat_message(dynamic raw);
+
+  @protected
+  double dco_decode_f_64(dynamic raw);
 
   @protected
   Friend dco_decode_friend(dynamic raw);
@@ -135,6 +152,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Account? dco_decode_opt_box_autoadd_account(dynamic raw);
 
   @protected
+  ChatAttachment? dco_decode_opt_box_autoadd_chat_attachment(dynamic raw);
+
+  @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
@@ -189,7 +209,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UnreadCount dco_decode_unread_count(dynamic raw);
 
   @protected
+  UploadServerList dco_decode_upload_server_list(dynamic raw);
+
+  @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
+
+  @protected
+  RustStreamSink<AttachmentUploadEvent>
+  sse_decode_StreamSink_attachment_upload_event_Sse(
+    SseDeserializer deserializer,
+  );
 
   @protected
   RustStreamSink<FriendEvent> sse_decode_StreamSink_friend_event_Sse(
@@ -206,6 +235,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AppConfig sse_decode_app_config(SseDeserializer deserializer);
 
   @protected
+  AttachmentUploadEvent sse_decode_attachment_upload_event(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
@@ -213,6 +247,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AppConfig sse_decode_box_autoadd_app_config(SseDeserializer deserializer);
+
+  @protected
+  ChatAttachment sse_decode_box_autoadd_chat_attachment(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
@@ -244,7 +283,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
+  ChatAttachment sse_decode_chat_attachment(SseDeserializer deserializer);
+
+  @protected
   ChatMessage sse_decode_chat_message(SseDeserializer deserializer);
+
+  @protected
+  double sse_decode_f_64(SseDeserializer deserializer);
 
   @protected
   Friend sse_decode_friend(SseDeserializer deserializer);
@@ -307,6 +352,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Account? sse_decode_opt_box_autoadd_account(SseDeserializer deserializer);
+
+  @protected
+  ChatAttachment? sse_decode_opt_box_autoadd_chat_attachment(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
@@ -373,11 +423,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   UnreadCount sse_decode_unread_count(SseDeserializer deserializer);
 
   @protected
+  UploadServerList sse_decode_upload_server_list(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_attachment_upload_event_Sse(
+    RustStreamSink<AttachmentUploadEvent> self,
     SseSerializer serializer,
   );
 
@@ -397,6 +456,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_app_config(AppConfig self, SseSerializer serializer);
 
   @protected
+  void sse_encode_attachment_upload_event(
+    AttachmentUploadEvent self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
@@ -405,6 +470,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_app_config(
     AppConfig self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_chat_attachment(
+    ChatAttachment self,
     SseSerializer serializer,
   );
 
@@ -445,7 +516,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_chat_attachment(
+    ChatAttachment self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_chat_message(ChatMessage self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_f_64(double self, SseSerializer serializer);
 
   @protected
   void sse_encode_friend(Friend self, SseSerializer serializer);
@@ -529,6 +609,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_chat_attachment(
+    ChatAttachment? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
     SseSerializer serializer,
@@ -599,6 +685,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unread_count(UnreadCount self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_upload_server_list(
+    UploadServerList self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);

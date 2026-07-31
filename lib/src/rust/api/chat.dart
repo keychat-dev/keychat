@@ -6,7 +6,9 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `cleared_path`, `cleared_snapshot`, `db_cell`, `db`, `decrypt_seal`, `has_chat_history`, `held_path`, `hold_message`, `load_cleared`, `load_held`, `load_read_state`, `load_started`, `read_state_path`, `read_state_snapshot`, `receive_gift_wrap`, `save_cleared`, `save_read_state`, `set_cleared_snapshot`, `set_read_state_snapshot`, `set_started_snapshot`, `started_path`, `started_snapshot`
+// These functions are ignored because they are not marked as `pub`: `db_cell`, `db`, `decode_seal`, `has_chat_history`, `held_path`, `history_complete_path`, `hold_message`, `load_held`, `load_history_complete`, `load_read_state`, `load_started`, `mark_history_complete`, `purge_seals_before_cutoff`, `read_state_path`, `read_state_snapshot`, `receive_gift_wrap`, `save_read_state`, `send_control_rumor_async`, `send_control_rumor`, `set_read_state_snapshot`, `set_started_snapshot`, `started_path`, `started_snapshot`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ChatAttachmentPayload`, `ChatDeletePayload`, `ChatEditPayload`, `ChatHidePayload`, `DecodedSeal`, `Received`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`
 
 /// Drops the cached chat database handle so the next access reopens it from
 /// disk. Every account shares the same on-device storage directory, so
@@ -39,11 +41,117 @@ Future<void> sendChatMessage({
   required String storageDir,
   required String friendPubkey,
   required String message,
+  String? replyTo,
 }) => RustLib.instance.api.crateApiChatSendChatMessage(
   mnemonic: mnemonic,
   storageDir: storageDir,
   friendPubkey: friendPubkey,
   message: message,
+  replyTo: replyTo,
+);
+
+/// Publishes an edit instruction for a message this account previously
+/// sent to `friend_pubkey`, identified by `message_id` (the original
+/// `ChatMessage.id`, i.e. the shared Seal id). Wrapped and published the
+/// same way as [send_chat_message] (to the friend, plus a self-addressed
+/// copy). [load_chat_history] only applies the edit if `message_id`'s
+/// original Seal was signed by the same key as this edit instruction — so
+/// only the original sender can edit their own message, even though the
+/// edit instruction itself carries no other proof of ownership.
+Future<void> editChatMessage({
+  required String mnemonic,
+  required String storageDir,
+  required String friendPubkey,
+  required String messageId,
+  required String content,
+}) => RustLib.instance.api.crateApiChatEditChatMessage(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+  friendPubkey: friendPubkey,
+  messageId: messageId,
+  content: content,
+);
+
+/// Publishes a delete instruction for a message this account previously
+/// sent to `friend_pubkey` — see [edit_chat_message] for the delivery and
+/// authorization details, which are identical.
+Future<void> deleteChatMessage({
+  required String mnemonic,
+  required String storageDir,
+  required String friendPubkey,
+  required String messageId,
+}) => RustLib.instance.api.crateApiChatDeleteChatMessage(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+  friendPubkey: friendPubkey,
+  messageId: messageId,
+);
+
+/// Hides `message_id` (either side's) for this account only — never sent
+/// to the friend, only self-addressed and published to our own relays, so
+/// it propagates to this account's *other devices* the same way a sent
+/// message does, without a separate locally-growing state file (compare
+/// the old `hidden_messages.json` approach: every hide had to rewrite and
+/// re-sync the *entire* list, which would eventually hit relay event-size
+/// limits). [load_chat_history] applies it — dropping the message
+/// entirely, unlike edit/delete which leave a visible trace — whenever the
+/// hide instruction's signer matches our own key for this relationship;
+/// nothing else needs to check who hid what, since a hide is never
+/// visible to anyone but the account that made it.
+Future<void> hideMessage({
+  required String mnemonic,
+  required String storageDir,
+  required String friendPubkey,
+  required String messageId,
+}) => RustLib.instance.api.crateApiChatHideMessage(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+  friendPubkey: friendPubkey,
+  messageId: messageId,
+);
+
+/// Fetches up to `limit` of the newest Seals (older than `before`, a Unix
+/// timestamp, if given) with `friend_pubkey` directly from relays — via
+/// [relay_pool::request], a one-shot query that waits for each relay's
+/// `EOSE` (or `HISTORY_FETCH_TIMEOUT`) before returning, unlike the
+/// long-running live subscription which streams historical backlog
+/// interleaved with real-time events with no such boundary. Saves
+/// everything fetched into `chat.lmdb`, then returns via
+/// [load_chat_history] — so by the time a caller (e.g. opening a thread
+/// for the first time, or scrolling up for an older page) sees anything,
+/// any edit/delete that was published in the same batch as its target has
+/// already been applied, instead of the original content flashing on
+/// screen first.
+///
+/// Queries the union of the friend's relays and our own — a message and
+/// any later edit/delete for it are always published to that same set (see
+/// [send_chat_message]/`send_control_rumor`), so this doesn't need to
+/// track relay lists per-identity.
+Future<List<ChatMessage>> fetchChatHistoryPage({
+  required String mnemonic,
+  required String storageDir,
+  required String friendPubkey,
+  PlatformInt64? before,
+  required int limit,
+}) => RustLib.instance.api.crateApiChatFetchChatHistoryPage(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+  friendPubkey: friendPubkey,
+  before: before,
+  limit: limit,
+);
+
+/// Whether [_loadOlderMessages]-style pagination should even bother asking
+/// relays for more — false once [fetch_chat_history_page] has already
+/// established (via an empty `before`-bounded page) that nothing older
+/// exists, so the Dart side can skip straight to "no more" without a relay
+/// round-trip every time the thread is reopened and scrolled to the top.
+Future<bool> hasMoreChatHistory({
+  required String storageDir,
+  required String friendPubkey,
+}) => RustLib.instance.api.crateApiChatHasMoreChatHistory(
+  storageDir: storageDir,
+  friendPubkey: friendPubkey,
 );
 
 /// Loads the full decrypted message history with `friend_pubkey` from
@@ -125,6 +233,52 @@ Future<List<UnreadCount>> loadUnreadCounts({
   friendPubkeys: friendPubkeys,
 );
 
+/// An image/file attachment resolved from a [ChatAttachmentPayload] —
+/// exposed on [ChatMessage] so the UI can render a thumbnail/file chip
+/// instead of (or alongside) the placeholder text in `content`.
+class ChatAttachment {
+  final String url;
+  final String sha256;
+  final int size;
+  final String mimeType;
+  final String filename;
+  final String encKey;
+  final String? caption;
+
+  const ChatAttachment({
+    required this.url,
+    required this.sha256,
+    required this.size,
+    required this.mimeType,
+    required this.filename,
+    required this.encKey,
+    this.caption,
+  });
+
+  @override
+  int get hashCode =>
+      url.hashCode ^
+      sha256.hashCode ^
+      size.hashCode ^
+      mimeType.hashCode ^
+      filename.hashCode ^
+      encKey.hashCode ^
+      caption.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatAttachment &&
+          runtimeType == other.runtimeType &&
+          url == other.url &&
+          sha256 == other.sha256 &&
+          size == other.size &&
+          mimeType == other.mimeType &&
+          filename == other.filename &&
+          encKey == other.encKey &&
+          caption == other.caption;
+}
+
 /// A single decrypted message, ready to show in the UI.
 class ChatMessage {
   final String id;
@@ -133,12 +287,39 @@ class ChatMessage {
   final PlatformInt64 createdAt;
   final bool isMine;
 
+  /// Whether [edit_chat_message] has been applied to this message —
+  /// `content` already reflects the latest edit; this just controls
+  /// whether the UI shows an "(edited)" hint.
+  final bool isEdited;
+
+  /// Whether [delete_chat_message] has been applied — `content` is
+  /// cleared to empty; the UI should show a "message deleted" placeholder
+  /// instead of the (now-empty) content.
+  final bool isDeleted;
+
+  /// The `id` of the message this one is replying to, if any — carried as
+  /// a standard NIP-10 `e` tag on the rumor, so it survives independent
+  /// of our own overlay mechanisms (unlike edit/delete/hide/clear, a
+  /// reply reference is just ordinary message metadata, not an
+  /// instruction). The UI resolves it against its own already-loaded
+  /// history to render a quoted preview.
+  final String? replyTo;
+
+  /// Set instead of meaningful `content` (which holds just the original
+  /// filename as a fallback label) when this message is an image/file
+  /// share — see `attachment.rs`.
+  final ChatAttachment? attachment;
+
   const ChatMessage({
     required this.id,
     required this.senderPubkey,
     required this.content,
     required this.createdAt,
     required this.isMine,
+    required this.isEdited,
+    required this.isDeleted,
+    this.replyTo,
+    this.attachment,
   });
 
   @override
@@ -147,7 +328,11 @@ class ChatMessage {
       senderPubkey.hashCode ^
       content.hashCode ^
       createdAt.hashCode ^
-      isMine.hashCode;
+      isMine.hashCode ^
+      isEdited.hashCode ^
+      isDeleted.hashCode ^
+      replyTo.hashCode ^
+      attachment.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -158,7 +343,11 @@ class ChatMessage {
           senderPubkey == other.senderPubkey &&
           content == other.content &&
           createdAt == other.createdAt &&
-          isMine == other.isMine;
+          isMine == other.isMine &&
+          isEdited == other.isEdited &&
+          isDeleted == other.isDeleted &&
+          replyTo == other.replyTo &&
+          attachment == other.attachment;
 }
 
 class UnreadCount {

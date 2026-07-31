@@ -4,6 +4,7 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/account.dart';
+import 'api/attachment.dart';
 import 'api/chat.dart';
 import 'api/config.dart';
 import 'api/friends.dart';
@@ -74,7 +75,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0-beta.4';
 
   @override
-  int get rustContentHash => 1821114956;
+  int get rustContentHash => 101297989;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -126,6 +127,8 @@ abstract class RustLibApi extends BaseApi {
     required List<String> urls,
   });
 
+  Future<bool> crateApiAttachmentCheckUploadServerStatus({required String url});
+
   Future<void> crateApiChatClearChatHistory({
     required String mnemonic,
     required String storageDir,
@@ -140,9 +143,35 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<String>> crateApiRelayDefaultRelays();
 
+  Future<List<String>> crateApiAttachmentDefaultUploadServers();
+
   Future<void> crateApiSyncDeleteAccountBackup({
     required String mnemonic,
     required List<String> relayUrls,
+  });
+
+  Future<void> crateApiChatDeleteChatMessage({
+    required String mnemonic,
+    required String storageDir,
+    required String friendPubkey,
+    required String messageId,
+  });
+
+  Future<String> crateApiAttachmentDownloadChatAttachment({
+    required String mnemonic,
+    required String storageDir,
+    required String friendPubkey,
+    required String messageId,
+    required String url,
+    required String encKey,
+  });
+
+  Future<void> crateApiChatEditChatMessage({
+    required String mnemonic,
+    required String storageDir,
+    required String friendPubkey,
+    required String messageId,
+    required String content,
   });
 
   Future<RemoteAvatar?> crateApiSyncFetchAccountAvatarBackup({
@@ -165,11 +194,31 @@ abstract class RustLibApi extends BaseApi {
     required List<String> relayUrls,
   });
 
+  Future<List<ChatMessage>> crateApiChatFetchChatHistoryPage({
+    required String mnemonic,
+    required String storageDir,
+    required String friendPubkey,
+    PlatformInt64? before,
+    required int limit,
+  });
+
   Future<String> crateApiKeysGenerateMnemonic();
 
   Future<String> crateApiKeysGetAccountUid({required String mnemonic});
 
   String crateApiSimpleGreet({required String name});
+
+  Future<bool> crateApiChatHasMoreChatHistory({
+    required String storageDir,
+    required String friendPubkey,
+  });
+
+  Future<void> crateApiChatHideMessage({
+    required String mnemonic,
+    required String storageDir,
+    required String friendPubkey,
+    required String messageId,
+  });
 
   Future<void> crateApiSimpleInitApp();
 
@@ -218,6 +267,10 @@ abstract class RustLibApi extends BaseApi {
     required List<String> friendPubkeys,
   });
 
+  Future<UploadServerList> crateApiAttachmentLoadUploadServers({
+    required String storageDir,
+  });
+
   Future<void> crateApiChatMarkChatStarted({
     required String storageDir,
     required String friendPubkey,
@@ -250,13 +303,6 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<void> crateApiSyncPublishAccountBlockedBackup({
-    required String mnemonic,
-    required String storageDir,
-    required List<String> relayUrls,
-    required PlatformInt64 updatedAt,
-  });
-
-  Future<void> crateApiSyncPublishAccountChatclearedBackup({
     required String mnemonic,
     required String storageDir,
     required List<String> relayUrls,
@@ -362,11 +408,29 @@ abstract class RustLibApi extends BaseApi {
     required List<String> urls,
   });
 
+  Future<void> crateApiAttachmentSaveUploadServers({
+    required String storageDir,
+    required List<String> urls,
+    required String defaultUrl,
+  });
+
+  Stream<AttachmentUploadEvent> crateApiAttachmentSendChatAttachment({
+    required String mnemonic,
+    required String storageDir,
+    required String friendPubkey,
+    required String filePath,
+    required String mimeType,
+    String? caption,
+    String? replyTo,
+    String? serverOverride,
+  });
+
   Future<void> crateApiChatSendChatMessage({
     required String mnemonic,
     required String storageDir,
     required String friendPubkey,
     required String message,
+    String? replyTo,
   });
 
   Future<void> crateApiSyncSendFriendRequest({
@@ -670,6 +734,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<bool> crateApiAttachmentCheckUploadServerStatus({
+    required String url,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(url, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiAttachmentCheckUploadServerStatusConstMeta,
+        argValues: [url],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiAttachmentCheckUploadServerStatusConstMeta =>
+      const TaskConstMeta(
+        debugName: "check_upload_server_status",
+        argNames: ["url"],
+      );
+
+  @override
   Future<void> crateApiChatClearChatHistory({
     required String mnemonic,
     required String storageDir,
@@ -685,7 +782,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 8,
             port: port_,
           );
         },
@@ -722,7 +819,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 9,
             port: port_,
           );
         },
@@ -752,7 +849,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 10,
             port: port_,
           );
         },
@@ -771,6 +868,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "default_relays", argNames: []);
 
   @override
+  Future<List<String>> crateApiAttachmentDefaultUploadServers() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 11,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiAttachmentDefaultUploadServersConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiAttachmentDefaultUploadServersConstMeta =>
+      const TaskConstMeta(debugName: "default_upload_servers", argNames: []);
+
+  @override
   Future<void> crateApiSyncDeleteAccountBackup({
     required String mnemonic,
     required List<String> relayUrls,
@@ -784,7 +908,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 12,
             port: port_,
           );
         },
@@ -806,6 +930,142 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiChatDeleteChatMessage({
+    required String mnemonic,
+    required String storageDir,
+    required String friendPubkey,
+    required String messageId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mnemonic, serializer);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_String(friendPubkey, serializer);
+          sse_encode_String(messageId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 13,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiChatDeleteChatMessageConstMeta,
+        argValues: [mnemonic, storageDir, friendPubkey, messageId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatDeleteChatMessageConstMeta =>
+      const TaskConstMeta(
+        debugName: "delete_chat_message",
+        argNames: ["mnemonic", "storageDir", "friendPubkey", "messageId"],
+      );
+
+  @override
+  Future<String> crateApiAttachmentDownloadChatAttachment({
+    required String mnemonic,
+    required String storageDir,
+    required String friendPubkey,
+    required String messageId,
+    required String url,
+    required String encKey,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mnemonic, serializer);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_String(friendPubkey, serializer);
+          sse_encode_String(messageId, serializer);
+          sse_encode_String(url, serializer);
+          sse_encode_String(encKey, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 14,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiAttachmentDownloadChatAttachmentConstMeta,
+        argValues: [mnemonic, storageDir, friendPubkey, messageId, url, encKey],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiAttachmentDownloadChatAttachmentConstMeta =>
+      const TaskConstMeta(
+        debugName: "download_chat_attachment",
+        argNames: [
+          "mnemonic",
+          "storageDir",
+          "friendPubkey",
+          "messageId",
+          "url",
+          "encKey",
+        ],
+      );
+
+  @override
+  Future<void> crateApiChatEditChatMessage({
+    required String mnemonic,
+    required String storageDir,
+    required String friendPubkey,
+    required String messageId,
+    required String content,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mnemonic, serializer);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_String(friendPubkey, serializer);
+          sse_encode_String(messageId, serializer);
+          sse_encode_String(content, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 15,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiChatEditChatMessageConstMeta,
+        argValues: [mnemonic, storageDir, friendPubkey, messageId, content],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatEditChatMessageConstMeta =>
+      const TaskConstMeta(
+        debugName: "edit_chat_message",
+        argNames: [
+          "mnemonic",
+          "storageDir",
+          "friendPubkey",
+          "messageId",
+          "content",
+        ],
+      );
+
+  @override
   Future<RemoteAvatar?> crateApiSyncFetchAccountAvatarBackup({
     required String mnemonic,
     required List<String> relayUrls,
@@ -819,7 +1079,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 16,
             port: port_,
           );
         },
@@ -854,7 +1114,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 17,
             port: port_,
           );
         },
@@ -889,7 +1149,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 18,
             port: port_,
           );
         },
@@ -924,7 +1184,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 19,
             port: port_,
           );
         },
@@ -946,6 +1206,47 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<ChatMessage>> crateApiChatFetchChatHistoryPage({
+    required String mnemonic,
+    required String storageDir,
+    required String friendPubkey,
+    PlatformInt64? before,
+    required int limit,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mnemonic, serializer);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_String(friendPubkey, serializer);
+          sse_encode_opt_box_autoadd_i_64(before, serializer);
+          sse_encode_u_32(limit, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 20,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_chat_message,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiChatFetchChatHistoryPageConstMeta,
+        argValues: [mnemonic, storageDir, friendPubkey, before, limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatFetchChatHistoryPageConstMeta =>
+      const TaskConstMeta(
+        debugName: "fetch_chat_history_page",
+        argNames: ["mnemonic", "storageDir", "friendPubkey", "before", "limit"],
+      );
+
+  @override
   Future<String> crateApiKeysGenerateMnemonic() {
     return handler.executeNormal(
       NormalTask(
@@ -954,7 +1255,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 21,
             port: port_,
           );
         },
@@ -982,7 +1283,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 22,
             port: port_,
           );
         },
@@ -1007,7 +1308,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(name, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 17)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -1024,6 +1325,79 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "greet", argNames: ["name"]);
 
   @override
+  Future<bool> crateApiChatHasMoreChatHistory({
+    required String storageDir,
+    required String friendPubkey,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_String(friendPubkey, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 24,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiChatHasMoreChatHistoryConstMeta,
+        argValues: [storageDir, friendPubkey],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatHasMoreChatHistoryConstMeta =>
+      const TaskConstMeta(
+        debugName: "has_more_chat_history",
+        argNames: ["storageDir", "friendPubkey"],
+      );
+
+  @override
+  Future<void> crateApiChatHideMessage({
+    required String mnemonic,
+    required String storageDir,
+    required String friendPubkey,
+    required String messageId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mnemonic, serializer);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_String(friendPubkey, serializer);
+          sse_encode_String(messageId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 25,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiChatHideMessageConstMeta,
+        argValues: [mnemonic, storageDir, friendPubkey, messageId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiChatHideMessageConstMeta => const TaskConstMeta(
+    debugName: "hide_message",
+    argNames: ["mnemonic", "storageDir", "friendPubkey", "messageId"],
+  );
+
+  @override
   Future<void> crateApiSimpleInitApp() {
     return handler.executeNormal(
       NormalTask(
@@ -1032,7 +1406,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 26,
             port: port_,
           );
         },
@@ -1064,7 +1438,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 27,
             port: port_,
           );
         },
@@ -1099,7 +1473,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 28,
             port: port_,
           );
         },
@@ -1133,7 +1507,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 29,
             port: port_,
           );
         },
@@ -1166,7 +1540,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 30,
             port: port_,
           );
         },
@@ -1199,7 +1573,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 31,
             port: port_,
           );
         },
@@ -1227,7 +1601,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 32,
             port: port_,
           );
         },
@@ -1261,7 +1635,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 33,
             port: port_,
           );
         },
@@ -1292,7 +1666,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 34,
             port: port_,
           );
         },
@@ -1322,7 +1696,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 35,
             port: port_,
           );
         },
@@ -1352,7 +1726,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 28,
+            funcId: 36,
             port: port_,
           );
         },
@@ -1383,7 +1757,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 37,
             port: port_,
           );
         },
@@ -1419,7 +1793,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 38,
             port: port_,
           );
         },
@@ -1441,6 +1815,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<UploadServerList> crateApiAttachmentLoadUploadServers({
+    required String storageDir,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(storageDir, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 39,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_upload_server_list,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiAttachmentLoadUploadServersConstMeta,
+        argValues: [storageDir],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiAttachmentLoadUploadServersConstMeta =>
+      const TaskConstMeta(
+        debugName: "load_upload_servers",
+        argNames: ["storageDir"],
+      );
+
+  @override
   Future<void> crateApiChatMarkChatStarted({
     required String storageDir,
     required String friendPubkey,
@@ -1454,7 +1861,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 31,
+            funcId: 40,
             port: port_,
           );
         },
@@ -1489,7 +1896,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 32,
+            funcId: 41,
             port: port_,
           );
         },
@@ -1518,7 +1925,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 42,
             port: port_,
           );
         },
@@ -1548,7 +1955,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 34,
+            funcId: 43,
             port: port_,
           );
         },
@@ -1587,7 +1994,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 35,
+            funcId: 44,
             port: port_,
           );
         },
@@ -1628,7 +2035,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 36,
+            funcId: 45,
             port: port_,
           );
         },
@@ -1673,7 +2080,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 37,
+            funcId: 46,
             port: port_,
           );
         },
@@ -1695,45 +2102,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiSyncPublishAccountChatclearedBackup({
-    required String mnemonic,
-    required String storageDir,
-    required List<String> relayUrls,
-    required PlatformInt64 updatedAt,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(mnemonic, serializer);
-          sse_encode_String(storageDir, serializer);
-          sse_encode_list_String(relayUrls, serializer);
-          sse_encode_i_64(updatedAt, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 38,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiSyncPublishAccountChatclearedBackupConstMeta,
-        argValues: [mnemonic, storageDir, relayUrls, updatedAt],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSyncPublishAccountChatclearedBackupConstMeta =>
-      const TaskConstMeta(
-        debugName: "publish_account_chatcleared_backup",
-        argNames: ["mnemonic", "storageDir", "relayUrls", "updatedAt"],
-      );
-
-  @override
   Future<void> crateApiSyncPublishAccountChatstartedBackup({
     required String mnemonic,
     required String storageDir,
@@ -1751,7 +2119,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 39,
+            funcId: 47,
             port: port_,
           );
         },
@@ -1790,7 +2158,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 40,
+            funcId: 48,
             port: port_,
           );
         },
@@ -1829,7 +2197,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 41,
+            funcId: 49,
             port: port_,
           );
         },
@@ -1868,7 +2236,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 42,
+            funcId: 50,
             port: port_,
           );
         },
@@ -1907,7 +2275,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 43,
+            funcId: 51,
             port: port_,
           );
         },
@@ -1946,7 +2314,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 44,
+            funcId: 52,
             port: port_,
           );
         },
@@ -1987,7 +2355,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 45,
+            funcId: 53,
             port: port_,
           );
         },
@@ -2034,7 +2402,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 46,
+            funcId: 54,
             port: port_,
           );
         },
@@ -2073,7 +2441,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 47,
+            funcId: 55,
             port: port_,
           );
         },
@@ -2108,7 +2476,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 48,
+            funcId: 56,
             port: port_,
           );
         },
@@ -2138,7 +2506,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 49,
+            funcId: 57,
             port: port_,
           );
         },
@@ -2170,7 +2538,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 50,
+            funcId: 58,
             port: port_,
           );
         },
@@ -2209,7 +2577,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 51,
+            funcId: 59,
             port: port_,
           );
         },
@@ -2249,7 +2617,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 52,
+            funcId: 60,
             port: port_,
           );
         },
@@ -2296,7 +2664,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 53,
+            funcId: 61,
             port: port_,
           );
         },
@@ -2330,7 +2698,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 54,
+            funcId: 62,
             port: port_,
           );
         },
@@ -2351,11 +2719,121 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<void> crateApiAttachmentSaveUploadServers({
+    required String storageDir,
+    required List<String> urls,
+    required String defaultUrl,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(storageDir, serializer);
+          sse_encode_list_String(urls, serializer);
+          sse_encode_String(defaultUrl, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 63,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiAttachmentSaveUploadServersConstMeta,
+        argValues: [storageDir, urls, defaultUrl],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiAttachmentSaveUploadServersConstMeta =>
+      const TaskConstMeta(
+        debugName: "save_upload_servers",
+        argNames: ["storageDir", "urls", "defaultUrl"],
+      );
+
+  @override
+  Stream<AttachmentUploadEvent> crateApiAttachmentSendChatAttachment({
+    required String mnemonic,
+    required String storageDir,
+    required String friendPubkey,
+    required String filePath,
+    required String mimeType,
+    String? caption,
+    String? replyTo,
+    String? serverOverride,
+  }) {
+    final sink = RustStreamSink<AttachmentUploadEvent>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_String(mnemonic, serializer);
+            sse_encode_String(storageDir, serializer);
+            sse_encode_String(friendPubkey, serializer);
+            sse_encode_String(filePath, serializer);
+            sse_encode_String(mimeType, serializer);
+            sse_encode_opt_String(caption, serializer);
+            sse_encode_opt_String(replyTo, serializer);
+            sse_encode_opt_String(serverOverride, serializer);
+            sse_encode_StreamSink_attachment_upload_event_Sse(sink, serializer);
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 64,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: null,
+          ),
+          constMeta: kCrateApiAttachmentSendChatAttachmentConstMeta,
+          argValues: [
+            mnemonic,
+            storageDir,
+            friendPubkey,
+            filePath,
+            mimeType,
+            caption,
+            replyTo,
+            serverOverride,
+            sink,
+          ],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiAttachmentSendChatAttachmentConstMeta =>
+      const TaskConstMeta(
+        debugName: "send_chat_attachment",
+        argNames: [
+          "mnemonic",
+          "storageDir",
+          "friendPubkey",
+          "filePath",
+          "mimeType",
+          "caption",
+          "replyTo",
+          "serverOverride",
+          "sink",
+        ],
+      );
+
+  @override
   Future<void> crateApiChatSendChatMessage({
     required String mnemonic,
     required String storageDir,
     required String friendPubkey,
     required String message,
+    String? replyTo,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -2365,10 +2843,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_String(storageDir, serializer);
           sse_encode_String(friendPubkey, serializer);
           sse_encode_String(message, serializer);
+          sse_encode_opt_String(replyTo, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 55,
+            funcId: 65,
             port: port_,
           );
         },
@@ -2377,7 +2856,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiChatSendChatMessageConstMeta,
-        argValues: [mnemonic, storageDir, friendPubkey, message],
+        argValues: [mnemonic, storageDir, friendPubkey, message, replyTo],
         apiImpl: this,
       ),
     );
@@ -2386,7 +2865,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiChatSendChatMessageConstMeta =>
       const TaskConstMeta(
         debugName: "send_chat_message",
-        argNames: ["mnemonic", "storageDir", "friendPubkey", "message"],
+        argNames: [
+          "mnemonic",
+          "storageDir",
+          "friendPubkey",
+          "message",
+          "replyTo",
+        ],
       );
 
   @override
@@ -2407,7 +2892,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 56,
+            funcId: 66,
             port: port_,
           );
         },
@@ -2444,7 +2929,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 57,
+            funcId: 67,
             port: port_,
           );
         },
@@ -2482,7 +2967,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 58,
+              funcId: 68,
               port: port_,
             );
           },
@@ -2514,7 +2999,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 59,
+            funcId: 69,
             port: port_,
           );
         },
@@ -2546,7 +3031,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 60,
+            funcId: 70,
             port: port_,
           );
         },
@@ -2577,7 +3062,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 61,
+            funcId: 71,
             port: port_,
           );
         },
@@ -2602,6 +3087,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return AnyhowException(raw as String);
+  }
+
+  @protected
+  RustStreamSink<AttachmentUploadEvent>
+  dco_decode_StreamSink_attachment_upload_event_Sse(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
   }
 
   @protected
@@ -2642,6 +3134,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AttachmentUploadEvent dco_decode_attachment_upload_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return AttachmentUploadEvent(
+      fraction: dco_decode_f_64(arr[0]),
+      done: dco_decode_bool(arr[1]),
+      error: dco_decode_opt_String(arr[2]),
+    );
+  }
+
+  @protected
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
@@ -2657,6 +3162,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppConfig dco_decode_box_autoadd_app_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_app_config(raw);
+  }
+
+  @protected
+  ChatAttachment dco_decode_box_autoadd_chat_attachment(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_chat_attachment(raw);
   }
 
   @protected
@@ -2702,18 +3213,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ChatAttachment dco_decode_chat_attachment(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return ChatAttachment(
+      url: dco_decode_String(arr[0]),
+      sha256: dco_decode_String(arr[1]),
+      size: dco_decode_u_32(arr[2]),
+      mimeType: dco_decode_String(arr[3]),
+      filename: dco_decode_String(arr[4]),
+      encKey: dco_decode_String(arr[5]),
+      caption: dco_decode_opt_String(arr[6]),
+    );
+  }
+
+  @protected
   ChatMessage dco_decode_chat_message(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return ChatMessage(
       id: dco_decode_String(arr[0]),
       senderPubkey: dco_decode_String(arr[1]),
       content: dco_decode_String(arr[2]),
       createdAt: dco_decode_i_64(arr[3]),
       isMine: dco_decode_bool(arr[4]),
+      isEdited: dco_decode_bool(arr[5]),
+      isDeleted: dco_decode_bool(arr[6]),
+      replyTo: dco_decode_opt_String(arr[7]),
+      attachment: dco_decode_opt_box_autoadd_chat_attachment(arr[8]),
     );
+  }
+
+  @protected
+  double dco_decode_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as double;
   }
 
   @protected
@@ -2886,6 +3424,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ChatAttachment? dco_decode_opt_box_autoadd_chat_attachment(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_chat_attachment(raw);
+  }
+
+  @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_i_64(raw);
@@ -3012,8 +3556,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SyncState dco_decode_sync_state(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 11)
-      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return SyncState(
       avatarUpdatedAt: dco_decode_i_64(arr[0]),
       relaysUpdatedAt: dco_decode_i_64(arr[1]),
@@ -3025,7 +3569,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       readstateUpdatedAt: dco_decode_i_64(arr[7]),
       configUpdatedAt: dco_decode_i_64(arr[8]),
       chatstartedUpdatedAt: dco_decode_i_64(arr[9]),
-      chatclearedUpdatedAt: dco_decode_i_64(arr[10]),
     );
   }
 
@@ -3060,10 +3603,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  UploadServerList dco_decode_upload_server_list(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return UploadServerList(
+      urls: dco_decode_list_String(arr[0]),
+      defaultUrl: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_String(deserializer);
     return AnyhowException(inner);
+  }
+
+  @protected
+  RustStreamSink<AttachmentUploadEvent>
+  sse_decode_StreamSink_attachment_upload_event_Sse(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
   }
 
   @protected
@@ -3104,6 +3668,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AttachmentUploadEvent sse_decode_attachment_upload_event(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_fraction = sse_decode_f_64(deserializer);
+    var var_done = sse_decode_bool(deserializer);
+    var var_error = sse_decode_opt_String(deserializer);
+    return AttachmentUploadEvent(
+      fraction: var_fraction,
+      done: var_done,
+      error: var_error,
+    );
+  }
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
@@ -3119,6 +3698,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppConfig sse_decode_box_autoadd_app_config(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_app_config(deserializer));
+  }
+
+  @protected
+  ChatAttachment sse_decode_box_autoadd_chat_attachment(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_chat_attachment(deserializer));
   }
 
   @protected
@@ -3172,6 +3759,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ChatAttachment sse_decode_chat_attachment(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_url = sse_decode_String(deserializer);
+    var var_sha256 = sse_decode_String(deserializer);
+    var var_size = sse_decode_u_32(deserializer);
+    var var_mimeType = sse_decode_String(deserializer);
+    var var_filename = sse_decode_String(deserializer);
+    var var_encKey = sse_decode_String(deserializer);
+    var var_caption = sse_decode_opt_String(deserializer);
+    return ChatAttachment(
+      url: var_url,
+      sha256: var_sha256,
+      size: var_size,
+      mimeType: var_mimeType,
+      filename: var_filename,
+      encKey: var_encKey,
+      caption: var_caption,
+    );
+  }
+
+  @protected
   ChatMessage sse_decode_chat_message(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_String(deserializer);
@@ -3179,13 +3787,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_content = sse_decode_String(deserializer);
     var var_createdAt = sse_decode_i_64(deserializer);
     var var_isMine = sse_decode_bool(deserializer);
+    var var_isEdited = sse_decode_bool(deserializer);
+    var var_isDeleted = sse_decode_bool(deserializer);
+    var var_replyTo = sse_decode_opt_String(deserializer);
+    var var_attachment = sse_decode_opt_box_autoadd_chat_attachment(
+      deserializer,
+    );
     return ChatMessage(
       id: var_id,
       senderPubkey: var_senderPubkey,
       content: var_content,
       createdAt: var_createdAt,
       isMine: var_isMine,
+      isEdited: var_isEdited,
+      isDeleted: var_isDeleted,
+      replyTo: var_replyTo,
+      attachment: var_attachment,
     );
+  }
+
+  @protected
+  double sse_decode_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getFloat64();
   }
 
   @protected
@@ -3449,6 +4073,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ChatAttachment? sse_decode_opt_box_autoadd_chat_attachment(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_chat_attachment(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -3616,7 +4253,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_readstateUpdatedAt = sse_decode_i_64(deserializer);
     var var_configUpdatedAt = sse_decode_i_64(deserializer);
     var var_chatstartedUpdatedAt = sse_decode_i_64(deserializer);
-    var var_chatclearedUpdatedAt = sse_decode_i_64(deserializer);
     return SyncState(
       avatarUpdatedAt: var_avatarUpdatedAt,
       relaysUpdatedAt: var_relaysUpdatedAt,
@@ -3628,7 +4264,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       readstateUpdatedAt: var_readstateUpdatedAt,
       configUpdatedAt: var_configUpdatedAt,
       chatstartedUpdatedAt: var_chatstartedUpdatedAt,
-      chatclearedUpdatedAt: var_chatclearedUpdatedAt,
     );
   }
 
@@ -3658,6 +4293,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  UploadServerList sse_decode_upload_server_list(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_urls = sse_decode_list_String(deserializer);
+    var var_defaultUrl = sse_decode_String(deserializer);
+    return UploadServerList(urls: var_urls, defaultUrl: var_defaultUrl);
+  }
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
@@ -3670,6 +4313,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.message, serializer);
+  }
+
+  @protected
+  void sse_encode_StreamSink_attachment_upload_event_Sse(
+    RustStreamSink<AttachmentUploadEvent> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_attachment_upload_event,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
   }
 
   @protected
@@ -3711,6 +4371,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_attachment_upload_event(
+    AttachmentUploadEvent self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_64(self.fraction, serializer);
+    sse_encode_bool(self.done, serializer);
+    sse_encode_opt_String(self.error, serializer);
+  }
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
@@ -3729,6 +4400,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_app_config(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_chat_attachment(
+    ChatAttachment self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_chat_attachment(self, serializer);
   }
 
   @protected
@@ -3789,6 +4469,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_chat_attachment(
+    ChatAttachment self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.url, serializer);
+    sse_encode_String(self.sha256, serializer);
+    sse_encode_u_32(self.size, serializer);
+    sse_encode_String(self.mimeType, serializer);
+    sse_encode_String(self.filename, serializer);
+    sse_encode_String(self.encKey, serializer);
+    sse_encode_opt_String(self.caption, serializer);
+  }
+
+  @protected
   void sse_encode_chat_message(ChatMessage self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.id, serializer);
@@ -3796,6 +4491,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.content, serializer);
     sse_encode_i_64(self.createdAt, serializer);
     sse_encode_bool(self.isMine, serializer);
+    sse_encode_bool(self.isEdited, serializer);
+    sse_encode_bool(self.isDeleted, serializer);
+    sse_encode_opt_String(self.replyTo, serializer);
+    sse_encode_opt_box_autoadd_chat_attachment(self.attachment, serializer);
+  }
+
+  @protected
+  void sse_encode_f_64(double self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putFloat64(self);
   }
 
   @protected
@@ -4002,6 +4707,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_chat_attachment(
+    ChatAttachment? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_chat_attachment(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
     SseSerializer serializer,
@@ -4146,7 +4864,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.readstateUpdatedAt, serializer);
     sse_encode_i_64(self.configUpdatedAt, serializer);
     sse_encode_i_64(self.chatstartedUpdatedAt, serializer);
-    sse_encode_i_64(self.chatclearedUpdatedAt, serializer);
   }
 
   @protected
@@ -4171,6 +4888,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.friendPubkey, serializer);
     sse_encode_u_32(self.count, serializer);
+  }
+
+  @protected
+  void sse_encode_upload_server_list(
+    UploadServerList self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_String(self.urls, serializer);
+    sse_encode_String(self.defaultUrl, serializer);
   }
 
   @protected

@@ -310,26 +310,3 @@ Future<void> publishAccountChatStartedBackup() async {
   }
 }
 
-/// Publishes the per-friend "chat cleared at" map to its own backup slot —
-/// call after [chat_api.clearChatHistory], so a cleared thread stays
-/// cleared on every device instead of the friend's (and our own
-/// self-addressed) Gift Wraps still on relays quietly repopulating it
-/// there after a restart or reinstall.
-Future<void> publishAccountChatClearedBackup() async {
-  const secureStorage = FlutterSecureStorage();
-  final mnemonic = await secureStorage.read(key: seedStorageKey);
-  if (mnemonic == null) return;
-
-  final storageDir = await getApplicationDocumentsDirectory();
-  final relayList = await relay_api.loadRelayList(storageDir: storageDir.path);
-  try {
-    await sync_api.publishAccountChatclearedBackup(
-      mnemonic: mnemonic,
-      storageDir: storageDir.path,
-      relayUrls: relayList.urls,
-      updatedAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-    );
-  } catch (_) {
-    // Offline or every relay unreachable — retried on the next clear.
-  }
-}

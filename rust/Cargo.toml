@@ -20,6 +20,10 @@ futures-util = "0.3"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 base64 = "0.22"
 sha2 = "0.10"
+reqwest = { version = "0.13.4", default-features = false, features = ["rustls", "json", "http2"] }
+hex = "0.4.3"
+webpki-roots = "0.26"
+chacha20poly1305 = "0.10"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

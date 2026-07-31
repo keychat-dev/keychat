@@ -125,6 +125,38 @@
   "settingsRelay": "Relay",
   "settingsLanguage": "Language",
   "settingsAccount": "Account",
+  "settingsAttachmentServer": "File upload server",
+  "attachmentServerDialogTitle": "File upload server",
+  "attachmentServerHint": "https://your-blossom-server.example",
+  "attachmentServerNotConfigured": "Not set — set a server to send images/files",
+  "attachmentUploadFailedLabel": "Attachment failed",
+  "attachmentServerSettingsTitle": "File upload servers",
+  "attachmentServerDefaultBadge": "Default",
+  "setAsDefaultServer": "Set as default",
+  "addAttachmentServer": "Add",
+  "attachmentServerUrlLabel": "Server URL",
+  "invalidAttachmentServerUrl": "Server URL must start with https:// or http://",
+  "noAttachmentServersYet": "No servers configured",
+  "removeAttachmentServerConfirmTitle": "Remove server?",
+  "removeAttachmentServerConfirmBody": "Remove {url} from your server list?",
+  "@removeAttachmentServerConfirmBody": {
+    "placeholders": {
+      "url": { "type": "String" }
+    }
+  },
+  "cannotRemoveOnlyServer": "You can't remove your only server",
+  "resetAttachmentServers": "Reset to defaults",
+  "resetAttachmentServersConfirmTitle": "Reset servers?",
+  "resetAttachmentServersConfirmBody": "This replaces your server list with the default servers.",
+  "attachmentServerSwitchTitle": "Switch upload server?",
+  "attachmentServerSwitchBody": "Sending failed. Try {url} instead?",
+  "@attachmentServerSwitchBody": {
+    "placeholders": {
+      "url": { "type": "String" }
+    }
+  },
+  "attachmentServerSetDefaultCheckbox": "Make this the default server",
+  "attachmentServerSwitchButton": "Switch",
   "accountSettingsTitle": "Account",
   "myUid": "My UID",
   "uidLabel": "UID",
@@ -175,5 +207,34 @@
   "createTalkRoom": "Create talk room",
   "createGroup": "Create group",
   "searchByNameHint": "Search by name",
-  "noSearchResults": "No matches found"
+  "noSearchResults": "No matches found",
+  "editMessage": "Edit",
+  "unsendMessage": "Unsend",
+  "editMessageTitle": "Edit message",
+  "unsendMessageConfirmTitle": "Unsend this message?",
+  "unsendMessageConfirmBody": "This message will be removed for both you and {name}.",
+  "@unsendMessageConfirmBody": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "messageEditedLabel": "(edited)",
+  "messageUnsentLabel": "This message was unsent",
+  "hideMessage": "Hide for me",
+  "hideMessageConfirmTitle": "Hide this message?",
+  "hideMessageConfirmBody": "This hides it for you only (across all your devices) — it stays visible to {name}.",
+  "@hideMessageConfirmBody": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "replyToMessage": "Reply",
+  "replyingToLabel": "Replying to {name}",
+  "@replyingToLabel": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "originalMessageUnavailable": "Original message unavailable",
+  "youLabel": "You"
 }
