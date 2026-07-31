@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:workspace/l10n/app_localizations.dart';
 import 'package:workspace/screens/login.dart';
 import 'package:workspace/screens/logout.dart' show seedStorageKey;
+import 'package:workspace/services/ratchet_key.dart';
 import 'package:workspace/src/rust/api/relay.dart' as relay_api;
 import 'package:workspace/src/rust/api/sync.dart' as sync_api;
 
@@ -60,6 +63,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
           context,
         ).showSnackBar(SnackBar(content: Text(l10n.friendAlreadyAddedMessage)));
       }
+      unawaited(announceRatchetDeviceTo(request.pubkey));
     }
     if (!mounted) return;
     setState(() {

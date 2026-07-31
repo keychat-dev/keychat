@@ -12,9 +12,11 @@ import 'package:workspace/screens/friend_profile.dart';
 import 'package:workspace/screens/login.dart';
 import 'package:workspace/screens/logout.dart' show seedStorageKey;
 import 'package:workspace/services/account_sync.dart';
+import 'package:workspace/services/ratchet_key.dart';
 import 'package:workspace/src/rust/api/attachment.dart' as attachment_api;
 import 'package:workspace/src/rust/api/chat.dart' as chat_api;
 import 'package:workspace/src/rust/api/friends.dart' as friends_api;
+import 'package:workspace/src/rust/api/ratchet.dart' as ratchet_api;
 import 'package:workspace/src/rust/api/sync.dart' as sync_api;
 
 /// WhatsApp-style chat wallpaper and bubble colors, layered on top of the
@@ -94,15 +96,60 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   int _maxMessageChars = 4000;
   StreamSubscription<sync_api.FriendEvent>? _sub;
 
+  /// Ids of messages in [_messages] that came from [ratchet_api] (forward
+  /// secret) rather than the regular NIP-44 history — drives a lock badge
+  /// on those bubbles.
+  Set<String> _forwardSecretIds = {};
+
+  /// Whether [widget.friend] has announced a forward-secrecy device we can
+  /// send ratchet-encrypted messages to — see `ratchet.rs`'s module doc.
+  bool _friendHasRatchetDevice = false;
+
   @override
   void initState() {
     super.initState();
     _loadInitialHistory();
     _subscribe();
+    _initForwardSecrecy();
     _scrollController.addListener(_onScroll);
     chat_api.maxMessageChars().then((max) {
       if (mounted) setState(() => _maxMessageChars = max);
     });
+  }
+
+  /// Ensures this device has a forward-secrecy identity, announces it to
+  /// this friend (idempotent — cheap control message, harmless to repeat
+  /// on every thread open), and checks whether they've announced one back
+  /// to us yet.
+  Future<void> _initForwardSecrecy() async {
+    const secureStorage = FlutterSecureStorage();
+    final mnemonic = await secureStorage.read(key: seedStorageKey);
+    if (mnemonic == null || !mounted) return;
+    final storageDir = await getApplicationDocumentsDirectory();
+    final ratchetKey = await getOrCreateRatchetKey();
+    if (!mounted) return;
+    try {
+      await ratchet_api.announceDevice(
+        mnemonic: mnemonic,
+        storageDir: storageDir.path,
+        friendPubkey: widget.friend.pubkey,
+        localKey: ratchetKey,
+      );
+    } catch (_) {
+      // Offline — the friend just won't learn about this device until the
+      // next time this thread is opened with connectivity.
+    }
+    await _refreshFriendRatchetDevice();
+  }
+
+  Future<void> _refreshFriendRatchetDevice() async {
+    final storageDir = await getApplicationDocumentsDirectory();
+    final devicePubkey = await ratchet_api.friendDevicePubkey(
+      storageDir: storageDir.path,
+      friendPubkey: widget.friend.pubkey,
+    );
+    if (!mounted) return;
+    setState(() => _friendHasRatchetDevice = devicePubkey != null);
   }
 
   /// With the list reversed, scrolling "up" toward older messages moves
@@ -139,8 +186,11 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
 
   void _subscribe() {
     _sub = widget.messageEvents?.listen((event) {
-      if (event.kind == 'message' && event.pubkey == widget.friend.pubkey) {
+      if (event.pubkey != widget.friend.pubkey) return;
+      if (event.kind == 'message' || event.kind == 'ratchet_message') {
         _loadHistory();
+      } else if (event.kind == 'ratchet_device_announced') {
+        _refreshFriendRatchetDevice();
       }
     });
   }
@@ -195,8 +245,10 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       friendPubkey: widget.friend.pubkey,
     );
     if (!mounted) return;
+    final mergedLocal = await _mergeWithRatchetHistory(local);
+    if (!mounted) return;
     setState(() {
-      _messages = local;
+      _messages = mergedLocal;
       _hasMoreOlder = hasMore;
     });
     _scrollToBottom();
@@ -209,7 +261,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       limit: _initialHistoryLimit,
     );
     if (!mounted) return;
-    setState(() => _messages = synced);
+    final mergedSynced = await _mergeWithRatchetHistory(synced);
+    if (!mounted) return;
+    setState(() => _messages = mergedSynced);
     _scrollToBottom();
     await chat_api.markThreadRead(
       storageDir: storageDir.path,
@@ -268,13 +322,55 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       friendPubkey: widget.friend.pubkey,
     );
     if (!mounted) return;
-    setState(() => _messages = history);
+    final merged = await _mergeWithRatchetHistory(history);
+    if (!mounted) return;
+    setState(() => _messages = merged);
     _scrollToBottom();
     await chat_api.markThreadRead(
       storageDir: storageDir.path,
       friendPubkey: widget.friend.pubkey,
     );
     unawaited(publishAccountReadStateBackup());
+  }
+
+  /// Merges this device's forward-secret history (see `ratchet.rs`'s
+  /// module doc — it can't be re-derived from `chat.lmdb`/mnemonic like
+  /// everything else, so it's stored and loaded separately) into `base`,
+  /// oldest first, and records which ids are forward-secret for the lock
+  /// badge.
+  Future<List<chat_api.ChatMessage>> _mergeWithRatchetHistory(
+    List<chat_api.ChatMessage> base,
+  ) async {
+    final ratchetKey = await getOrCreateRatchetKey();
+    final storageDir = await getApplicationDocumentsDirectory();
+    if (!mounted) return base;
+    final ratchetMessages = await ratchet_api.loadRatchetHistory(
+      storageDir: storageDir.path,
+      localKey: ratchetKey,
+      friendPubkey: widget.friend.pubkey,
+    );
+    if (ratchetMessages.isEmpty) return base;
+    final converted = ratchetMessages
+        .map(
+          (m) => chat_api.ChatMessage(
+            id: m.id,
+            senderPubkey: m.isMine ? '' : widget.friend.pubkey,
+            content: m.content,
+            createdAt: m.createdAt,
+            isMine: m.isMine,
+            isEdited: false,
+            isDeleted: false,
+            replyTo: null,
+            attachment: null,
+          ),
+        )
+        .toList();
+    if (mounted) {
+      setState(() => _forwardSecretIds = {..._forwardSecretIds, ...converted.map((m) => m.id)});
+    }
+    final merged = [...base, ...converted];
+    merged.sort((a, b) => a.createdAt.toInt().compareTo(b.createdAt.toInt()));
+    return merged;
   }
 
   Future<void> _openProfile(BuildContext context) async {
@@ -384,6 +480,27 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     final storageDir = await getApplicationDocumentsDirectory();
     if (hasAttachment) {
       await _sendPendingAttachment(mnemonic, storageDir.path, text);
+    } else if (_friendHasRatchetDevice) {
+      // Forward secrecy is used automatically whenever the friend has an
+      // announced device — no reply-to support (v1 scope) and no
+      // self-echo, so this device is the only one that will ever see it
+      // (see `ratchet.rs`'s module doc).
+      try {
+        final ratchetKey = await getOrCreateRatchetKey();
+        await ratchet_api.sendRatchetMessage(
+          mnemonic: mnemonic,
+          storageDir: storageDir.path,
+          friendPubkey: widget.friend.pubkey,
+          localKey: ratchetKey,
+          content: text,
+        );
+        _messageController.clear();
+        setState(() => _replyingTo = null);
+        await _loadHistory();
+      } catch (_) {
+        // Offline or every relay unreachable — leave the draft in the
+        // field so the user can retry.
+      }
     } else {
       try {
         await chat_api.sendChatMessage(
@@ -578,7 +695,10 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   /// sender); "hide for me" is local-only, so it's offered for either
   /// side's messages.
   Future<void> _showMessageMenu(chat_api.ChatMessage message) async {
-    if (message.isDeleted) return;
+    // Forward-secret messages aren't stored as Seals in chat.lmdb (see
+    // ratchet.rs's module doc), so edit/unsend/hide/reply — which all
+    // operate on a Seal id — don't apply to them; no menu at all for v1.
+    if (message.isDeleted || _forwardSecretIds.contains(message.id)) return;
     final l10n = AppLocalizations.of(context)!;
     final action = await showDialog<String>(
       context: context,

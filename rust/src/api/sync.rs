@@ -2,8 +2,11 @@ use crate::api::account;
 use crate::api::chat;
 use crate::api::config;
 use crate::api::friends;
+use crate::api::group_ratchet;
+use crate::api::groups;
 use crate::api::invites;
 use crate::api::keys::{derive_contact_keys, derive_keys, derive_uid};
+use crate::api::ratchet;
 use crate::api::relay;
 use crate::api::requests;
 use crate::frb_generated::StreamSink;
@@ -17,13 +20,74 @@ use nostr::types::Timestamp;
 use nostr::{Filter, PublicKey};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 use tokio::runtime::Runtime;
 
 pub(crate) fn runtime() -> &'static Runtime {
     static RT: OnceLock<Runtime> = OnceLock::new();
     RT.get_or_init(|| Runtime::new().expect("failed to create tokio runtime"))
+}
+
+/// Bumped every time [subscribe_friend_events] is called (each Dart-side
+/// resubscribe, e.g. on every app-lifecycle resume — including trivial
+/// pause/resume cycles like a permission dialog or the photo picker, not
+/// just real backgrounding). The Dart side cancels its old `StreamSubscription`
+/// immediately, but that only stops *new* items from being delivered to
+/// Dart — it does nothing to stop the old Rust task, which keeps its relay
+/// websocket open and keeps watching the same pubkeys until it happens to
+/// receive another matching event and finds out (via `sink.add(..).is_err()`)
+/// that nobody's listening anymore.
+///
+/// Without this guard, that stale task would still fully process any event
+/// it receives in the meantime — mutating `friends.json` etc. — before
+/// discovering it should stop, so the Dart side never learns the state
+/// changed (a friend-accept event could be silently applied to disk with no
+/// live UI update, only surfacing after the next cold start or resume).
+/// Each spawned task captures the generation it started with and checks it
+/// on every event; once superseded, it drops the event and breaks instead of
+/// mutating anything, so the newer subscription (which the relay will
+/// happily replay the same event to — the filters carry no `since`) is the
+/// only one that can ever win.
+fn subscription_generation() -> &'static std::sync::atomic::AtomicU64 {
+    static GEN: OnceLock<std::sync::atomic::AtomicU64> = OnceLock::new();
+    GEN.get_or_init(|| std::sync::atomic::AtomicU64::new(0))
+}
+
+/// Records that a friend-event `EventId` has been processed, returning
+/// `true` the first time (caller should process it) and `false` on every
+/// later call for the same id (caller should skip it). The same event
+/// reaches [listen_for_friend_events] once per relay it matched on — every
+/// relay in the account's list races to deliver it — plus again on every
+/// periodic resubscribe, since these filters carry no `since`. Without this,
+/// each redundant delivery independently re-ran the full
+/// mutate-local-storage-then-publish-a-backup-of-it flow, and those
+/// concurrent publishes (and their self-echoes) could race and clobber one
+/// another's write. A capped ring keeps this from growing unbounded over a
+/// long-lived session — old entries fall off, but by the time that matters
+/// the relay's own dedup (or a periodic resubscribe replay) would have long
+/// since made the point moot anyway.
+fn mark_event_seen(id: nostr::EventId) -> bool {
+    const CAP: usize = 4096;
+    struct Seen {
+        set: std::collections::HashSet<nostr::EventId>,
+        order: std::collections::VecDeque<nostr::EventId>,
+    }
+    static SEEN: OnceLock<Mutex<Seen>> = OnceLock::new();
+    let mutex = SEEN.get_or_init(|| {
+        Mutex::new(Seen { set: std::collections::HashSet::new(), order: std::collections::VecDeque::new() })
+    });
+    let mut seen = mutex.lock().unwrap();
+    if !seen.set.insert(id) {
+        return false;
+    }
+    seen.order.push_back(id);
+    if seen.order.len() > CAP {
+        if let Some(oldest) = seen.order.pop_front() {
+            seen.set.remove(&oldest);
+        }
+    }
+    true
 }
 
 /// Identifier tags for the account backup's parameterized-replaceable
@@ -174,13 +238,33 @@ fn publish_backup_event(
     plaintext: String,
     updated_at: i64,
 ) -> Result<(), String> {
+    // Only safe to call from a plain (non-async, not-already-on-`runtime()`)
+    // context — e.g. the `pub fn`s Dart calls directly. `block_on` here
+    // starts a *nested* entry into the same shared runtime; Tokio panics
+    // immediately ("Cannot start a runtime from within a runtime") if this
+    // is ever called from a task already running on it, such as
+    // `listen_for_friend_events`. That panic is silent (no crash, nothing
+    // in logcat — it just ends the task), which is exactly what made the
+    // friend-request/chat listener for a relay quietly stop processing any
+    // further events the moment it replayed a backlog request. Async
+    // call sites must use [publish_backup_event_async] instead.
+    runtime().block_on(publish_backup_event_async(keys, relay_urls, d_tag, plaintext, updated_at))
+}
+
+async fn publish_backup_event_async(
+    keys: &nostr::Keys,
+    relay_urls: &[String],
+    d_tag: &str,
+    plaintext: String,
+    updated_at: i64,
+) -> Result<(), String> {
     let encrypted = encrypt_self(keys, plaintext)?;
     let event = EventBuilder::new(ACCOUNT_BACKUP_KIND, encrypted)
         .tag(Tag::identifier(d_tag))
         .custom_created_at(Timestamp::from(updated_at.max(0) as u64))
         .sign_with_keys(keys)
         .map_err(|e| e.to_string())?;
-    runtime().block_on(publish_to_relays(relay_urls, &event))
+    publish_to_relays(relay_urls, &event).await
 }
 
 /// Encrypts the given account text (NIP-44, to self) and publishes it as a
@@ -348,7 +432,10 @@ pub fn publish_account_blocked_backup(
     let blocked = friends::load_blocked(&storage_dir);
     let payload = BlockedBackupPayload { blocked, updated_at };
     let plaintext = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
-    publish_backup_event(&keys, &relay_urls, ACCOUNT_BLOCKED_D_TAG, plaintext, updated_at)
+    let result = publish_backup_event(&keys, &relay_urls, ACCOUNT_BLOCKED_D_TAG, plaintext, updated_at);
+    // See the comment on `bump_local_watermark`.
+    bump_local_watermark(&storage_dir, updated_at, |s| &mut s.blocked_updated_at);
+    result
 }
 
 /// Publishes the invite list (and the shared `account` index counter) as
@@ -363,10 +450,16 @@ pub fn publish_account_invites_backup(
 ) -> Result<(), String> {
     let keys = derive_keys(&mnemonic)?;
     let next_account_index = invites::next_account_index(&storage_dir);
-    let invites = invites::list_invites(storage_dir);
+    let invites = invites::list_invites(storage_dir.clone());
     let payload = InvitesBackupPayload { next_account_index, invites, updated_at };
     let plaintext = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
-    publish_backup_event(&keys, &relay_urls, ACCOUNT_INVITES_D_TAG, plaintext, updated_at)
+    let result = publish_backup_event(&keys, &relay_urls, ACCOUNT_INVITES_D_TAG, plaintext, updated_at);
+    // See the comment on `bump_local_watermark` — without this, a
+    // just-created invite can vanish locally moments after being created
+    // (a same-second self-echo of a stale variant silently overwriting
+    // invites.json), dropping it from the live subscription's watch list.
+    bump_local_watermark(&storage_dir, updated_at, |s| &mut s.invites_updated_at);
+    result
 }
 
 /// Internal counterpart of the two functions above for the outgoing/
@@ -374,20 +467,63 @@ pub fn publish_account_invites_backup(
 /// after each mutation (it already has `mnemonic`/`storage_dir`/relays in
 /// scope there, unlike blocked/invites which are mutated from Dart).
 fn publish_account_outgoing_backup(mnemonic: &str, storage_dir: &str, relay_urls: &[String]) {
+    runtime().block_on(publish_account_outgoing_backup_async(mnemonic, storage_dir, relay_urls));
+}
+
+/// Async counterpart of [publish_account_outgoing_backup] — call this one
+/// (with `.await`) from code already running on `runtime()`, such as
+/// `listen_for_friend_events`. See the comment on `publish_backup_event`
+/// for why the sync/`block_on` version must never be called from there.
+async fn publish_account_outgoing_backup_async(mnemonic: &str, storage_dir: &str, relay_urls: &[String]) {
     let Ok(keys) = derive_keys(mnemonic) else { return };
     let requests = requests::load(storage_dir);
-    let payload = OutgoingBackupPayload { requests, updated_at: now() };
+    let updated_at = now();
+    let payload = OutgoingBackupPayload { requests, updated_at };
     if let Ok(plaintext) = serde_json::to_string(&payload) {
-        let _ = publish_backup_event(&keys, relay_urls, ACCOUNT_OUTGOING_D_TAG, plaintext, now());
+        let _ =
+            publish_backup_event_async(&keys, relay_urls, ACCOUNT_OUTGOING_D_TAG, plaintext, updated_at)
+                .await;
     }
+    // See the matching comment in `publish_account_invites_backup`: bump
+    // the local watermark immediately so a same-second self-echo (e.g. from
+    // this same event being received redundantly on multiple relays, each
+    // independently republishing this backup) can't overwrite a write this
+    // call — or a concurrent one — just made.
+    bump_local_watermark(storage_dir, updated_at, |s| &mut s.outgoing_updated_at);
 }
 
 fn publish_account_incoming_backup(mnemonic: &str, storage_dir: &str, relay_urls: &[String]) {
+    runtime().block_on(publish_account_incoming_backup_async(mnemonic, storage_dir, relay_urls));
+}
+
+/// Async counterpart of [publish_account_incoming_backup] — see
+/// [publish_account_outgoing_backup_async]'s doc comment.
+async fn publish_account_incoming_backup_async(mnemonic: &str, storage_dir: &str, relay_urls: &[String]) {
     let Ok(keys) = derive_keys(mnemonic) else { return };
     let requests = requests::load_incoming(storage_dir);
-    let payload = IncomingBackupPayload { requests, updated_at: now() };
+    let updated_at = now();
+    let payload = IncomingBackupPayload { requests, updated_at };
     if let Ok(plaintext) = serde_json::to_string(&payload) {
-        let _ = publish_backup_event(&keys, relay_urls, ACCOUNT_INCOMING_D_TAG, plaintext, now());
+        let _ =
+            publish_backup_event_async(&keys, relay_urls, ACCOUNT_INCOMING_D_TAG, plaintext, updated_at)
+                .await;
+    }
+    bump_local_watermark(storage_dir, updated_at, |s| &mut s.incoming_updated_at);
+}
+
+/// Bumps a `SyncState` timestamp field to `updated_at` if it isn't already
+/// at least that new, and saves. See the comment in
+/// `publish_account_invites_backup` for why every local
+/// publish-a-backup-of-my-own-mutation call needs this: `created_at` has
+/// whole-second resolution, so a same-second self-echo of *any* content
+/// variant for that backup slot would otherwise be free to silently
+/// overwrite the local write this call just made.
+fn bump_local_watermark(storage_dir: &str, updated_at: i64, field: impl FnOnce(&mut SyncState) -> &mut i64) {
+    let mut state = load_sync_state(storage_dir);
+    let slot = field(&mut state);
+    if updated_at > *slot {
+        *slot = updated_at;
+        save_sync_state(storage_dir, &state);
     }
 }
 
@@ -818,6 +954,13 @@ pub struct FriendEvent {
     pub content: Option<String>,
 }
 
+/// Passed through to [ratchet::receive_ratchet_gift_wrap] instead of
+/// making [FriendEvent]/[Watch] carry it — an `Option` because forward
+/// secrecy is opt-in-by-existence (a caller with no ratchet local key yet
+/// just never decrypts ratchet traffic, same as a fresh install before
+/// `ratchet::generate_local_storage_key` has ever run).
+type RatchetKey = Option<String>;
+
 #[derive(Clone)]
 enum Watch {
     Invite(u32),
@@ -825,6 +968,11 @@ enum Watch {
     /// An existing friend, watched for profile updates. Carries their
     /// pubkey (to know which `friends.json` entry to update).
     Friend(u32, String),
+    /// One of this device's own per-group Nostr routing identities (see
+    /// `group_ratchet.rs`'s module doc) — carries the group id, so an
+    /// event matched via this entry's pubkey is known to be group-routed
+    /// without needing to decrypt anything first.
+    Group(String),
 }
 
 /// Opens a connection to this account's relays (plus any outstanding
@@ -836,15 +984,26 @@ enum Watch {
 pub fn subscribe_friend_events(
     mnemonic: String,
     storage_dir: String,
+    ratchet_key: Option<String>,
     sink: StreamSink<FriendEvent>,
 ) {
-    runtime().spawn(run_friend_event_subscription(mnemonic, storage_dir, sink));
+    let generation =
+        subscription_generation().fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+    runtime().spawn(run_friend_event_subscription(
+        mnemonic,
+        storage_dir,
+        ratchet_key,
+        sink,
+        generation,
+    ));
 }
 
 async fn run_friend_event_subscription(
     mnemonic: String,
     storage_dir: String,
+    ratchet_key: RatchetKey,
     sink: StreamSink<FriendEvent>,
+    generation: u64,
 ) {
     let invite_list = invites::list_active_invites(storage_dir.clone());
     let outgoing_list = requests::load(&storage_dir);
@@ -868,6 +1027,9 @@ async fn run_friend_event_subscription(
                 Watch::Friend(friend.my_account_index, friend.pubkey.clone()),
             ));
         }
+    }
+    for (pubkey, group_id) in group_ratchet::own_group_identities(&mnemonic, &storage_dir) {
+        watch.push((pubkey, Watch::Group(group_id)));
     }
 
     // Also watch for our own account-backup slots changing on another
@@ -912,6 +1074,7 @@ async fn run_friend_event_subscription(
         let sink = sink.clone();
         let watch_snapshot = watch_snapshot.clone();
         let account_filter = account_filter.clone();
+        let ratchet_key = ratchet_key.clone();
         async move {
             if filter.is_none() && account_filter.is_none() {
                 return;
@@ -935,7 +1098,9 @@ async fn run_friend_event_subscription(
                             &watch_snapshot,
                             &mnemonic,
                             &storage_dir,
+                            &ratchet_key,
                             &sink,
+                            generation,
                         );
                         let account_sync = listen_for_account_sync(
                             &url,
@@ -943,6 +1108,7 @@ async fn run_friend_event_subscription(
                             &mnemonic,
                             &storage_dir,
                             &sink,
+                            generation,
                         );
                         tokio::join!(friend_events, account_sync);
                     }
@@ -953,15 +1119,30 @@ async fn run_friend_event_subscription(
                             &watch_snapshot,
                             &mnemonic,
                             &storage_dir,
+                            &ratchet_key,
                             &sink,
+                            generation,
                         )
                         .await;
                     }
                     (None, Some(account_filter)) => {
-                        listen_for_account_sync(&url, account_filter, &mnemonic, &storage_dir, &sink)
-                            .await;
+                        listen_for_account_sync(
+                            &url,
+                            account_filter,
+                            &mnemonic,
+                            &storage_dir,
+                            &sink,
+                            generation,
+                        )
+                        .await;
                     }
                     (None, None) => unreachable!(),
+                }
+                if subscription_generation().load(std::sync::atomic::Ordering::SeqCst) != generation
+                {
+                    // Superseded by a newer subscription while we were
+                    // connected — stop retrying this stale one.
+                    return;
                 }
                 if sink.add(FriendEvent {
                     kind: "reconnecting".to_string(),
@@ -1048,18 +1229,48 @@ async fn listen_for_account_sync(
     mnemonic: &str,
     storage_dir: &str,
     sink: &StreamSink<FriendEvent>,
+    generation: u64,
 ) {
     let Ok(keys) = derive_keys(mnemonic) else {
         return;
     };
-    let Some((sub_id, mut events)) = relay_pool::subscribe(url, filter).await else {
+    const RESUBSCRIBE_INTERVAL: Duration = Duration::from_secs(90);
+    let Some((mut sub_id, mut events)) = relay_pool::subscribe(url, filter).await else {
         return;
     };
 
-    while let Some(pool_event) = events.recv().await {
+    loop {
+        let pool_event = tokio::select! {
+            event = events.recv() => event,
+            _ = tokio::time::sleep(RESUBSCRIBE_INTERVAL) => {
+                // See the matching comment in `listen_for_friend_events` —
+                // relays can silently stop delivering on a long-lived REQ
+                // without ever closing the connection.
+                relay_pool::unsubscribe(url, sub_id.clone());
+                let Some((new_sub_id, new_events)) = relay_pool::subscribe(url, filter).await else {
+                    return;
+                };
+                sub_id = new_sub_id;
+                events = new_events;
+                continue;
+            }
+        };
+        let Some(pool_event) = pool_event else {
+            break;
+        };
+        if subscription_generation().load(std::sync::atomic::Ordering::SeqCst) != generation {
+            // A newer subscription has superseded this one — drop the event
+            // without applying it, rather than silently mutating local
+            // storage from a task nothing is listening to anymore.
+            break;
+        }
         let relay_pool::PoolEvent::Event(event) = pool_event else {
             continue;
         };
+        if !mark_event_seen(event.id) {
+            // See the matching comment in `listen_for_friend_events`.
+            continue;
+        }
         let Some(d_tag) = event.tags.identifier() else {
             continue;
         };
@@ -1306,25 +1517,111 @@ async fn listen_for_friend_events(
     watch: &[(PublicKey, Watch)],
     mnemonic: &str,
     storage_dir: &str,
+    ratchet_key: &RatchetKey,
     sink: &StreamSink<FriendEvent>,
+    generation: u64,
 ) {
-    let Some((sub_id, mut events)) = relay_pool::subscribe(url, filter).await else {
+    // Some relays silently stop delivering events on a long-lived `REQ`
+    // while the underlying WebSocket stays alive and keeps answering
+    // ping/pong — confirmed live: a friend request got an `OK:true` from
+    // every relay it was published to, yet a recipient subscribed since
+    // before the publish never received it. Periodically closing and
+    // reopening the subscription (same filter, fresh sub_id) works around
+    // this — relays treat it as a brand-new `REQ` and redeliver anything
+    // matching, since this filter carries no `since` bound.
+    const RESUBSCRIBE_INTERVAL: Duration = Duration::from_secs(90);
+
+    let Some((mut sub_id, mut events)) = relay_pool::subscribe(url, filter).await else {
         return;
     };
     let my_relays = relay::load_relay_list(storage_dir.to_string()).urls;
 
-    while let Some(pool_event) = events.recv().await {
+    loop {
+        let pool_event = tokio::select! {
+            event = events.recv() => event,
+            _ = tokio::time::sleep(RESUBSCRIBE_INTERVAL) => {
+                relay_pool::unsubscribe(url, sub_id.clone());
+                let Some((new_sub_id, new_events)) = relay_pool::subscribe(url, filter).await else {
+                    return;
+                };
+                sub_id = new_sub_id;
+                events = new_events;
+                continue;
+            }
+        };
+        let Some(pool_event) = pool_event else {
+            break;
+        };
+        if subscription_generation().load(std::sync::atomic::Ordering::SeqCst) != generation {
+            // A newer subscription (from a fresh Dart-side resubscribe) has
+            // superseded this one — stop before mutating friends.json /
+            // requests / etc. from an event nothing will be notified about.
+            // The relay carries no `since` on this filter, so the current
+            // subscription will simply be handed the same event again.
+            break;
+        }
         let relay_pool::PoolEvent::Event(event) = pool_event else {
             continue;
         };
+        if !mark_event_seen(event.id) {
+            // The same event arrives once per relay it matched on (3 relay
+            // tasks all racing to process it) plus again on every periodic
+            // resubscribe — each redundant delivery used to independently
+            // re-run `add_incoming`/`publish_account_incoming_backup` (etc),
+            // and those concurrent publishes' self-echoes could race each
+            // other and clobber one another's local write. Processing each
+            // event id once closes that whole class of race at the source.
+            continue;
+        }
         let Some((_, matched)) = watch
             .iter()
             .find(|(pk, _)| event.tags.public_keys().any(|tagged| tagged == pk))
         else {
             continue;
         };
+        if let Watch::Group(group_id) = matched {
+            let group_id = group_id.clone();
+            if event.kind != Kind::GiftWrap {
+                continue;
+            }
+            let Some(key) = ratchet_key else { continue };
+            let Ok(my_group_keys) = group_ratchet::own_group_keys(mnemonic, storage_dir, &group_id) else {
+                continue;
+            };
+            let Some(received) =
+                group_ratchet::receive_gift_wrap(storage_dir, key, &group_id, &my_group_keys, &event).await
+            else {
+                continue;
+            };
+            let applied = groups::apply_group_ratchet_received(
+                mnemonic,
+                storage_dir,
+                Some(key.as_str()),
+                &group_id,
+                &received,
+            )
+            .await;
+            if let Some(kind) = applied {
+                if sink
+                    .add(FriendEvent {
+                        kind,
+                        pubkey: group_id,
+                        display_name: String::new(),
+                        status_message: String::new(),
+                        invite_account_index: None,
+                        relays: Vec::new(),
+                        content: None,
+                    })
+                    .is_err()
+                {
+                    break;
+                }
+            }
+            continue;
+        }
         let account_index = match matched {
             Watch::Invite(idx) | Watch::Outgoing(idx) | Watch::Friend(idx, _) => *idx,
+            Watch::Group(_) => unreachable!("handled above"),
         };
         // A blocked friend stays in `friends.json` (so the UI can still
         // show/unblock them) and their friend-protocol events (profile
@@ -1351,6 +1648,71 @@ async fn listen_for_friend_events(
             let Some(received) =
                 chat::receive_gift_wrap(storage_dir, &my_keys, &friend_pk, &event).await
             else {
+                // Not a `chat.rs`-recognized kind (edit/delete/hide/clear/
+                // attachment/message) — try the forward-secrecy device
+                // announce / ratchet message decoder instead. Two
+                // independent decode attempts on the same event is
+                // harmless: each ignores whatever it doesn't recognize.
+                if let Some(key) = ratchet_key {
+                    if let Some(received) =
+                        ratchet::receive_ratchet_gift_wrap(storage_dir, key, &my_keys, &friend_pk, &event)
+                            .await
+                    {
+                        let kind = match received {
+                            ratchet::RatchetReceived::DeviceAnnounced => "ratchet_device_announced",
+                            ratchet::RatchetReceived::Message => "ratchet_message",
+                        };
+                        if sink
+                            .add(FriendEvent {
+                                kind: kind.to_string(),
+                                pubkey: friend_pubkey.clone(),
+                                display_name: String::new(),
+                                status_message: String::new(),
+                                invite_account_index: None,
+                                relays: Vec::new(),
+                                content: None,
+                            })
+                            .is_err()
+                        {
+                            break;
+                        }
+                        continue;
+                    }
+                }
+                // Not a 1:1 or ratchet kind either — try the group-chat
+                // 1:1-fallback decoder (see `groups.rs`'s module doc; the
+                // direct per-group channel is handled separately above, via
+                // `Watch::Group`, since it isn't addressed to a friend
+                // pubkey at all).
+                if let Some(received) = groups::receive_group_gift_wrap(
+                    mnemonic,
+                    storage_dir,
+                    ratchet_key.as_deref(),
+                    &my_keys,
+                    &friend_pk,
+                    &event,
+                )
+                .await
+                {
+                    let (kind, group_id) = match received {
+                        groups::GroupReceived::Invite(id) => ("group_invite", id),
+                        groups::GroupReceived::Message(id) => ("group_message", id),
+                    };
+                    if sink
+                        .add(FriendEvent {
+                            kind: kind.to_string(),
+                            pubkey: group_id,
+                            display_name: String::new(),
+                            status_message: String::new(),
+                            invite_account_index: None,
+                            relays: Vec::new(),
+                            content: None,
+                        })
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
                 continue;
             };
             // A real message carries its decrypted text in `content`; an
@@ -1422,7 +1784,7 @@ async fn listen_for_friend_events(
                     payload.relays.clone(),
                     payload.avatar_base64.clone(),
                 );
-                publish_account_incoming_backup(mnemonic, storage_dir, &my_relays);
+                publish_account_incoming_backup_async(mnemonic, storage_dir, &my_relays).await;
                 FriendEvent {
                     kind: "request".to_string(),
                     pubkey,
@@ -1448,7 +1810,7 @@ async fn listen_for_friend_events(
                 )
                 .unwrap_or(false);
                 let _ = requests::remove(storage_dir, *idx);
-                publish_account_outgoing_backup(mnemonic, storage_dir, &my_relays);
+                publish_account_outgoing_backup_async(mnemonic, storage_dir, &my_relays).await;
                 FriendEvent {
                     kind: if merged { "already_friend" } else { "accepted" }.to_string(),
                     pubkey,

@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:path_provider/path_provider.dart';
@@ -128,6 +130,54 @@ class _MyQrTabState extends State<_MyQrTab> {
     super.dispose();
   }
 
+  /// Saves the current QR code as a PNG to the device's photo gallery —
+  /// mainly for getting the invite onto another device (e.g. an emulator)
+  /// without a working camera, by transferring the saved image instead of
+  /// scanning it live.
+  Future<void> _saveQrToDevice() async {
+    final payload = _qrPayload;
+    if (payload == null) return;
+    final l10n = AppLocalizations.of(context)!;
+    final qrValidationResult = QrValidator.validate(
+      data: payload,
+      version: QrVersions.auto,
+      errorCorrectionLevel: QrErrorCorrectLevel.L,
+    );
+    if (qrValidationResult.status != QrValidationStatus.valid) return;
+    final painter = QrPainter.withQr(qr: qrValidationResult.qrCode!, gapless: true);
+    const double size = 1024;
+    // Scanners (ZXing/MLKit, used by mobile_scanner) need a quiet zone
+    // around the QR to detect the finder patterns — painting it flush to
+    // the canvas edges (as the raw painter does) makes saved codes
+    // undetectable even though the encoded data is intact.
+    const double quietZone = size * 0.08;
+    const double qrSize = size - quietZone * 2;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.drawRect(
+      const Rect.fromLTWH(0, 0, size, size),
+      Paint()..color = const Color(0xFFFFFFFF),
+    );
+    canvas.translate(quietZone, quietZone);
+    painter.paint(canvas, const Size(qrSize, qrSize));
+    final image = await recorder.endRecording().toImage(size.toInt(), size.toInt());
+    final imageData = await image.toByteData(format: ui.ImageByteFormat.png);
+    if (imageData == null) return;
+    final bytes = imageData.buffer.asUint8List();
+    try {
+      await Gal.putImageBytes(bytes, name: 'keychat_invite_qr');
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.qrSavedToDeviceMessage)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.qrSaveFailedMessage)));
+    }
+  }
+
   Future<void> _generate() async {
     setState(() => _generating = true);
     final storageDir = await getApplicationDocumentsDirectory();
@@ -156,6 +206,10 @@ class _MyQrTabState extends State<_MyQrTab> {
       maxUses: maxUses,
     );
     unawaited(publishAccountInvitesBackup());
+    // A request against this invite could arrive while the user is still
+    // sitting on this "My QR" screen (the whole point of showing it) —
+    // don't wait for a return-to-Home resubscribe to start watching it.
+    friendEventsRefreshSignal.value++;
     final payload = await sync_api.buildInviteQrPayload(
       mnemonic: mnemonic,
       storageDir: storageDir.path,
@@ -201,6 +255,21 @@ class _MyQrTabState extends State<_MyQrTab> {
                   ),
                 ),
                 child: Text(l10n.regenerateQrButton),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 44,
+              child: OutlinedButton(
+                onPressed: _saveQrToDevice,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: KeychatColors.primaryDark,
+                  side: const BorderSide(color: KeychatColors.primary),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(l10n.saveQrToDeviceButton),
               ),
             ),
             const SizedBox(height: 24),

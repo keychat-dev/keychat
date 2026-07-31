@@ -1,9 +1,20 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:workspace/screens/logout.dart' show seedStorageKey;
 import 'package:workspace/src/rust/api/account.dart' as account_api;
 import 'package:workspace/src/rust/api/relay.dart' as relay_api;
 import 'package:workspace/src/rust/api/sync.dart' as sync_api;
+
+/// Bumped whenever the set of invites/outgoing requests a device should be
+/// watching for may have changed (e.g. a fresh "My QR" invite created) —
+/// `HomeScreen` listens and resubscribes its live friend-events connection.
+/// Without this, a freshly generated invite is invisible to the live
+/// subscription (which only reflects the watch list as of its last
+/// (re)subscribe) until some unrelated event happens to trigger one, so a
+/// friend request against it can arrive on the relay but never surface in
+/// the UI until the next resubscribe.
+final ValueNotifier<int> friendEventsRefreshSignal = ValueNotifier<int>(0);
 
 /// Publishes the given account to the relay-hosted encrypted backup, if a
 /// seed phrase has been generated yet. Silently does nothing (no seed) or

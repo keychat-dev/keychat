@@ -11,8 +11,10 @@ import 'api/attachment.dart';
 import 'api/chat.dart';
 import 'api/config.dart';
 import 'api/friends.dart';
+import 'api/groups.dart';
 import 'api/invites.dart';
 import 'api/keys.dart';
+import 'api/ratchet.dart';
 import 'api/relay.dart';
 import 'api/simple.dart';
 import 'api/sync.dart';
@@ -66,6 +68,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChatAttachment dco_decode_box_autoadd_chat_attachment(dynamic raw);
 
   @protected
+  GroupChatAttachment dco_decode_box_autoadd_group_chat_attachment(dynamic raw);
+
+  @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
@@ -105,6 +110,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FriendEvent dco_decode_friend_event(dynamic raw);
 
   @protected
+  Group dco_decode_group(dynamic raw);
+
+  @protected
+  GroupChatAttachment dco_decode_group_chat_attachment(dynamic raw);
+
+  @protected
+  GroupChatMessage dco_decode_group_chat_message(dynamic raw);
+
+  @protected
+  GroupMember dco_decode_group_member(dynamic raw);
+
+  @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
@@ -129,6 +146,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<FriendBackupEntry> dco_decode_list_friend_backup_entry(dynamic raw);
 
   @protected
+  List<Group> dco_decode_list_group(dynamic raw);
+
+  @protected
+  List<GroupChatMessage> dco_decode_list_group_chat_message(dynamic raw);
+
+  @protected
+  List<GroupMember> dco_decode_list_group_member(dynamic raw);
+
+  @protected
   List<Invite> dco_decode_list_invite(dynamic raw);
 
   @protected
@@ -143,6 +169,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<PriorIdentity> dco_decode_list_prior_identity(dynamic raw);
 
   @protected
+  List<RatchetChatMessage> dco_decode_list_ratchet_chat_message(dynamic raw);
+
+  @protected
   List<UnreadCount> dco_decode_list_unread_count(dynamic raw);
 
   @protected
@@ -153,6 +182,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ChatAttachment? dco_decode_opt_box_autoadd_chat_attachment(dynamic raw);
+
+  @protected
+  GroupChatAttachment? dco_decode_opt_box_autoadd_group_chat_attachment(
+    dynamic raw,
+  );
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
@@ -177,6 +211,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PriorIdentity dco_decode_prior_identity(dynamic raw);
+
+  @protected
+  RatchetChatMessage dco_decode_ratchet_chat_message(dynamic raw);
 
   @protected
   RelayList dco_decode_relay_list(dynamic raw);
@@ -254,6 +291,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  GroupChatAttachment sse_decode_box_autoadd_group_chat_attachment(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
@@ -303,6 +345,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FriendEvent sse_decode_friend_event(SseDeserializer deserializer);
 
   @protected
+  Group sse_decode_group(SseDeserializer deserializer);
+
+  @protected
+  GroupChatAttachment sse_decode_group_chat_attachment(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  GroupChatMessage sse_decode_group_chat_message(SseDeserializer deserializer);
+
+  @protected
+  GroupMember sse_decode_group_member(SseDeserializer deserializer);
+
+  @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
@@ -329,6 +385,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<Group> sse_decode_list_group(SseDeserializer deserializer);
+
+  @protected
+  List<GroupChatMessage> sse_decode_list_group_chat_message(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<GroupMember> sse_decode_list_group_member(SseDeserializer deserializer);
+
+  @protected
   List<Invite> sse_decode_list_invite(SseDeserializer deserializer);
 
   @protected
@@ -345,6 +412,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<RatchetChatMessage> sse_decode_list_ratchet_chat_message(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<UnreadCount> sse_decode_list_unread_count(SseDeserializer deserializer);
 
   @protected
@@ -355,6 +427,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ChatAttachment? sse_decode_opt_box_autoadd_chat_attachment(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  GroupChatAttachment? sse_decode_opt_box_autoadd_group_chat_attachment(
     SseDeserializer deserializer,
   );
 
@@ -391,6 +468,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PriorIdentity sse_decode_prior_identity(SseDeserializer deserializer);
+
+  @protected
+  RatchetChatMessage sse_decode_ratchet_chat_message(
+    SseDeserializer deserializer,
+  );
 
   @protected
   RelayList sse_decode_relay_list(SseDeserializer deserializer);
@@ -480,6 +562,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_group_chat_attachment(
+    GroupChatAttachment self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
     SseSerializer serializer,
@@ -540,6 +628,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_friend_event(FriendEvent self, SseSerializer serializer);
 
   @protected
+  void sse_encode_group(Group self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_group_chat_attachment(
+    GroupChatAttachment self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_group_chat_message(
+    GroupChatMessage self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_group_member(GroupMember self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
@@ -573,6 +679,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_group(List<Group> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_group_chat_message(
+    List<GroupChatMessage> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_group_member(
+    List<GroupMember> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_invite(List<Invite> self, SseSerializer serializer);
 
   @protected
@@ -594,6 +715,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_ratchet_chat_message(
+    List<RatchetChatMessage> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_unread_count(
     List<UnreadCount> self,
     SseSerializer serializer,
@@ -611,6 +738,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_chat_attachment(
     ChatAttachment? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_group_chat_attachment(
+    GroupChatAttachment? self,
     SseSerializer serializer,
   );
 
@@ -655,6 +788,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_prior_identity(PriorIdentity self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_ratchet_chat_message(
+    RatchetChatMessage self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_relay_list(RelayList self, SseSerializer serializer);

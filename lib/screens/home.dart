@@ -8,18 +8,22 @@ import 'package:workspace/nav_bar.dart';
 import 'package:workspace/screens/add_friend.dart';
 import 'package:workspace/screens/chat_list.dart';
 import 'package:workspace/screens/chat_thread.dart';
+import 'package:workspace/screens/create_group.dart';
 import 'package:workspace/screens/create_talk_room.dart';
 import 'package:workspace/screens/edit_profile.dart';
+import 'package:workspace/screens/group_thread.dart';
 import 'package:workspace/screens/login.dart';
 import 'package:workspace/screens/logout.dart' show seedStorageKey;
 import 'package:workspace/screens/account_friends.dart';
 import 'package:workspace/screens/public_chat_list.dart';
 import 'package:workspace/screens/settings.dart';
 import 'package:workspace/services/account_sync.dart';
+import 'package:workspace/services/ratchet_key.dart';
 import 'package:workspace/src/rust/api/account.dart' as account_api;
 import 'package:workspace/src/rust/api/chat.dart' as chat_api;
 import 'package:workspace/src/rust/api/config.dart' as config_api;
 import 'package:workspace/src/rust/api/friends.dart' as friends_api;
+import 'package:workspace/src/rust/api/groups.dart' as groups_api;
 import 'package:workspace/src/rust/api/sync.dart' as sync_api;
 
 /// Home screen shown after profile setup. Hosts the three main sections of
@@ -53,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late account_api.Account _profile = widget.profile;
 
   List<friends_api.Friend> _friends = [];
+  List<groups_api.Group> _groups = [];
   Set<String> _activeChatPubkeys = {};
   int _pendingRequestCount = 0;
   StreamSubscription<sync_api.FriendEvent>? _friendEventsSub;
@@ -63,14 +68,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadFriends();
+    _loadGroups();
     _loadActiveChatPubkeys();
     _refreshPendingRequestCount();
     _subscribeFriendEvents();
+    friendEventsRefreshSignal.addListener(_subscribeFriendEvents);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    friendEventsRefreshSignal.removeListener(_subscribeFriendEvents);
     _friendEventsSub?.cancel();
     super.dispose();
   }
@@ -97,14 +105,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final mnemonic = await secureStorage.read(key: seedStorageKey);
     if (mnemonic == null || !mounted) return;
     final storageDir = await getApplicationDocumentsDirectory();
+    final ratchetKey = await getOrCreateRatchetKey();
+    if (!mounted) return;
     final stream = sync_api
-        .subscribeFriendEvents(mnemonic: mnemonic, storageDir: storageDir.path)
+        .subscribeFriendEvents(
+          mnemonic: mnemonic,
+          storageDir: storageDir.path,
+          ratchetKey: ratchetKey,
+        )
         .asBroadcastStream();
     setState(() => _friendEventsStream = stream);
     _friendEventsSub = stream.listen((event) {
       if (event.kind == 'accepted' || event.kind == 'already_friend') {
         _loadFriends();
         unawaited(publishAccountFriendsBackup());
+        unawaited(announceRatchetDeviceTo(event.pubkey));
         // The live subscription's watch list was built from the friends
         // list as it stood when this subscription started — a friend
         // gained just now via acceptance isn't in it yet, so their gift
@@ -120,10 +135,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _loadFriends();
       } else if (event.kind == 'request') {
         _refreshPendingRequestCount();
-      } else if (event.kind == 'message') {
+      } else if (event.kind == 'message' || event.kind == 'ratchet_message') {
         // A friend messaging us first means their thread should show up
         // in the Talk tab even though nobody tapped "Talk" yet.
         _loadActiveChatPubkeys();
+      } else if (event.kind == 'group_invite') {
+        // A new group, or an updated member list for one we already know —
+        // either way, reload so it shows up (or its member count updates).
+        _loadGroups();
+        // Receiving/merging a roster is exactly when this device's own
+        // per-group routing identity (`group_ratchet.rs`) can get minted
+        // for the first time, or when a self-announce round-trip
+        // completes — either way the live subscription's watch list
+        // (built once, at `_subscribeFriendEvents` call time) is now
+        // stale: it doesn't include that pubkey yet, so this device would
+        // never actually receive anything addressed to it until the next
+        // resubscribe. Rebuild now so that pubkey starts being watched
+        // immediately instead of only after the app happens to restart.
+        _subscribeFriendEvents();
       } else if (event.kind == 'account_synced') {
         // Another device published a newer text/avatar/relays/friends/
         // config/chat-started backup and this device applied it locally —
@@ -174,7 +203,68 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final storageDir = await getApplicationDocumentsDirectory();
     final friends = await friends_api.loadFriends(storageDir: storageDir.path);
     if (!mounted) return;
+    // Catches friends that appeared without a live 'accepted' FriendEvent
+    // ever reaching this listener (e.g. the requester side's subscription
+    // missing the accept event, or friends.json being populated via the
+    // account-backup self-sync echo instead) — every call site of
+    // `_loadFriends` (initState, resume, any FriendEvent) ends up here, so
+    // the ratchet announce self-heals on the next successful load instead
+    // of depending on that one transient stream event.
+    final oldPubkeys = _friends.map((f) => f.pubkey).toSet();
+    final newFriends = friends.where((f) => !oldPubkeys.contains(f.pubkey));
+    for (final friend in newFriends) {
+      unawaited(announceRatchetDeviceTo(friend.pubkey));
+    }
     setState(() => _friends = friends);
+  }
+
+  Future<void> _loadGroups() async {
+    final storageDir = await getApplicationDocumentsDirectory();
+    final groups = await groups_api.loadGroups(storageDir: storageDir.path);
+    if (!mounted) return;
+    setState(() => _groups = groups);
+  }
+
+  /// "Create group" from the Talk tab's "+" menu: pick a name and members
+  /// (from friends), then open the newly-created group's thread.
+  Future<void> _createGroup(BuildContext context) async {
+    final result = await Navigator.of(context).push<(String, List<String>)>(
+      MaterialPageRoute(builder: (_) => CreateGroupScreen(friends: _friends)),
+    );
+    if (result == null || !context.mounted) return;
+    final (name, memberPubkeys) = result;
+
+    const secureStorage = FlutterSecureStorage();
+    final mnemonic = await secureStorage.read(key: seedStorageKey);
+    if (mnemonic == null) return;
+    final storageDir = await getApplicationDocumentsDirectory();
+    final ratchetKey = await getOrCreateRatchetKey();
+    final group = await groups_api.createGroup(
+      mnemonic: mnemonic,
+      storageDir: storageDir.path,
+      name: name,
+      memberPubkeys: memberPubkeys,
+      ratchetKey: ratchetKey,
+    );
+    await _loadGroups();
+    // This device just minted its own per-group routing identity for this
+    // brand-new group (see `groups.rs::own_member_entry`) — the running
+    // subscription's watch list doesn't include it yet (built before this
+    // group existed), so rebuild it now, same reasoning as the
+    // `group_invite` handler below.
+    _subscribeFriendEvents();
+    if (!context.mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => GroupThreadScreen(group: group, messageEvents: _friendEventsStream),
+      ),
+    );
+    // Sending a message inside the thread just opened doesn't emit a live
+    // sink event for the sender's own device (see `groups.rs`'s module
+    // doc — a self-sent message is appended locally, not received over
+    // the subscription), so nothing else would otherwise tell the Talk
+    // tab to refresh this group's preview after returning here.
+    await _loadGroups();
   }
 
   /// Pull-to-refresh: just re-reads the local friends list. The live
@@ -329,12 +419,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // up here — tapping "Talk" on a friend's profile is what starts
         // one, rather than every friend appearing by default.
         friends: _friends.where((f) => _activeChatPubkeys.contains(f.pubkey)).toList(),
+        groups: _groups,
         messageEvents: _friendEventsStream,
         onToggleFavorite: _toggleFavorite,
         onBlockFriend: _blockFriend,
         onUnblockFriend: _unblockFriend,
         onDeleteFriend: _deleteFriend,
         onClearChat: _clearChat,
+        onGroupsChanged: () async {
+          await _loadGroups();
+          // A group leave/removal doesn't change *this* device's own group
+          // routing identity, but the roster-change convention already
+          // established in this codebase (see `_createGroup`) rebuilds the
+          // subscription watch list defensively after any roster mutation.
+          _subscribeFriendEvents();
+        },
       ),
       const PublicChatListTab(),
     ];
@@ -348,6 +447,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               onSettingsTap: _openSettings,
               onAddFriendTap: _openAddFriend,
               onCreateTalkRoom: _createTalkRoom,
+              onCreateGroup: _createGroup,
               pendingRequestCount: _pendingRequestCount,
               isTalkTab: _selectedIndex == 1,
             ),
@@ -371,6 +471,7 @@ class _HomeTopBar extends StatelessWidget {
     required this.onSettingsTap,
     required this.onAddFriendTap,
     required this.onCreateTalkRoom,
+    required this.onCreateGroup,
     required this.pendingRequestCount,
     required this.isTalkTab,
   });
@@ -378,13 +479,12 @@ class _HomeTopBar extends StatelessWidget {
   final VoidCallback onSettingsTap;
   final VoidCallback onAddFriendTap;
   final Future<void> Function(BuildContext context) onCreateTalkRoom;
+  final Future<void> Function(BuildContext context) onCreateGroup;
   final int pendingRequestCount;
 
   /// On the Talk tab, the usual "add friend" icon becomes a plain "+" that
   /// opens a menu with talk room / group / friend creation instead of
-  /// jumping straight to add-friend — the other two aren't implemented
-  /// yet (see [_showTalkAddMenu]'s "coming soon" entries), but the menu
-  /// shape is there so friend-adding stays reachable from the Talk tab too.
+  /// jumping straight to add-friend.
   final bool isTalkTab;
 
   Future<void> _showTalkAddMenu(BuildContext context) async {
@@ -420,9 +520,7 @@ class _HomeTopBar extends StatelessWidget {
     } else if (choice == 'room' && context.mounted) {
       onCreateTalkRoom(context);
     } else if (choice == 'group' && context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.comingSoon)));
+      onCreateGroup(context);
     }
   }
 

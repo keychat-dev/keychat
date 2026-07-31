@@ -105,6 +105,31 @@ const CHAT_CLEAR_KIND: Kind = Kind::Custom(30118);
 /// a normal message (unlike Edit/Delete/Hide/Clear), but decoded into a
 /// [ChatMessage] with `attachment` populated instead of `content`.
 pub(crate) const CHAT_ATTACHMENT_KIND: Kind = Kind::Custom(30119);
+/// Announces this device's forward-secrecy ratchet identity public key to a
+/// friend — see `ratchet.rs`'s module doc. Carried over this same
+/// Seal/Gift-Wrap channel (so it benefits from the same sender
+/// authentication) but ignored by [decode_seal]/[load_chat_history]; only
+/// `ratchet.rs`'s own decoder acts on it.
+pub(crate) const DEVICE_ANNOUNCE_KIND: Kind = Kind::Custom(30140);
+/// A message encrypted with `ratchet.rs`'s Double Ratchet session, nested
+/// inside this same outer Seal/Gift-Wrap transport. Also ignored by
+/// [decode_seal] — `ratchet.rs` decodes and decrypts it separately, since
+/// (unlike every other message kind here) it can only be decrypted once,
+/// at receive time, not re-derived from the mnemonic on a later
+/// [load_chat_history] call.
+pub(crate) const RATCHET_MESSAGE_KIND: Kind = Kind::Custom(30141);
+/// A group-chat membership/message rumor — see `groups.rs`'s module doc.
+/// Also ignored by [decode_seal] for the same reason as the ratchet kinds
+/// above: `groups.rs` has its own decoder, and without this exclusion an
+/// unrecognized kind falls through to the plain-message case below and
+/// gets shown as a garbled text message instead of being handled as a
+/// group event.
+pub(crate) const GROUP_INVITE_KIND: Kind = Kind::Custom(30150);
+pub(crate) const GROUP_MESSAGE_KIND: Kind = Kind::Custom(30151);
+/// A group-chat image/file attachment pointer — see `groups.rs`'s
+/// `GroupAttachmentPayload`. Also ignored by [decode_seal] for the same
+/// reason as the other group kinds above.
+pub(crate) const GROUP_ATTACHMENT_KIND: Kind = Kind::Custom(30152);
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct ChatEditPayload {
@@ -680,6 +705,17 @@ fn decode_seal(
         DecodedSeal::Hide { target: payload.message_id }
     } else if rumor.kind == CHAT_CLEAR_KIND {
         DecodedSeal::Clear { at: rumor.created_at.as_secs() as i64 }
+    } else if rumor.kind == DEVICE_ANNOUNCE_KIND
+        || rumor.kind == RATCHET_MESSAGE_KIND
+        || rumor.kind == GROUP_INVITE_KIND
+        || rumor.kind == GROUP_MESSAGE_KIND
+        || rumor.kind == GROUP_ATTACHMENT_KIND
+    {
+        // Handled by `ratchet.rs`/`groups.rs`'s own decoders instead — see
+        // those constants' doc comments for why this module deliberately
+        // ignores them rather than falling through to the plain-message
+        // case below.
+        return None;
     } else if rumor.kind == CHAT_ATTACHMENT_KIND {
         let payload: ChatAttachmentPayload = serde_json::from_str(&rumor.content).ok()?;
         DecodedSeal::Message(ChatMessage {

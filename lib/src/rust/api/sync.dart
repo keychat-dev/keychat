@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `encrypt_self`, `fetch_latest_backup_event`, `listen_for_account_sync`, `listen_for_friend_events`, `load_sync_state`, `now`, `publish_account_incoming_backup`, `publish_account_outgoing_backup`, `publish_backup_event`, `publish_to_relays`, `read_avatar_base64`, `run_friend_event_subscription`, `runtime`, `save_friend_avatar`, `save_sync_state`, `sync_state_path`
+// These functions are ignored because they are not marked as `pub`: `bump_local_watermark`, `encrypt_self`, `fetch_latest_backup_event`, `listen_for_account_sync`, `listen_for_friend_events`, `load_sync_state`, `mark_event_seen`, `now`, `publish_account_incoming_backup_async`, `publish_account_incoming_backup`, `publish_account_outgoing_backup_async`, `publish_account_outgoing_backup`, `publish_backup_event_async`, `publish_backup_event`, `publish_to_relays`, `read_avatar_base64`, `run_friend_event_subscription`, `runtime`, `save_friend_avatar`, `save_sync_state`, `subscription_generation`, `sync_state_path`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `AvatarBackupPayload`, `BlockedBackupPayload`, `ChatStartedBackupPayload`, `ConfigBackupPayload`, `FriendPayload`, `FriendsBackupPayload`, `IncomingBackupPayload`, `InvitesBackupPayload`, `OutgoingBackupPayload`, `ReadStateBackupPayload`, `RelaysBackupPayload`, `TextBackupPayload`, `Watch`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`
 
@@ -320,9 +320,11 @@ Future<void> publishProfileUpdateToFriends({
 Stream<FriendEvent> subscribeFriendEvents({
   required String mnemonic,
   required String storageDir,
+  String? ratchetKey,
 }) => RustLib.instance.api.crateApiSyncSubscribeFriendEvents(
   mnemonic: mnemonic,
   storageDir: storageDir,
+  ratchetKey: ratchetKey,
 );
 
 /// One friend as carried in the friends-list backup — enough for another
