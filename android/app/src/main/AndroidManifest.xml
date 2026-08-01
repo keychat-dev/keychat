@@ -32,6 +32,14 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Tells Play Services to install the ML Kit barcode-scanning module
+             (used by mobile_scanner for QR codes) at app-install time instead
+             of lazily fetching it on first scan — the lazy fetch can fail
+             silently (surfaced by mobile_scanner as "An unexpected error
+             occurred") if it can't complete before the camera view starts. -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="barcode" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

@@ -42,7 +42,7 @@ android {
     signingConfigs {
         if (hasReleaseKeystore) {
             create("release") {
-                storeFile = file(keystoreProperties["storeFile"] as String)
+                storeFile = rootProject.file(keystoreProperties["storeFile"] as String)
                 storePassword = keystoreProperties["storePassword"] as String
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
@@ -72,4 +72,14 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Bundles the ML Kit barcode-scanning model directly into the APK
+    // (mobile_scanner otherwise relies on Play Services fetching this as a
+    // dynamic module on first scan, which can fail — see the
+    // `com.google.mlkit.vision.DEPENDENCIES` meta-data in AndroidManifest.xml
+    // for the other half of this fix) so QR scanning works even when that
+    // module delivery is unavailable or slow.
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
 }
