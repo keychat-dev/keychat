@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
@@ -178,6 +179,17 @@ class _MyQrTabState extends State<_MyQrTab> {
     }
   }
 
+  Future<void> _copyCode() async {
+    final payload = _qrPayload;
+    if (payload == null) return;
+    await Clipboard.setData(ClipboardData(text: payload));
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.codeCopiedMessage)));
+  }
+
   Future<void> _generate() async {
     setState(() => _generating = true);
     final storageDir = await getApplicationDocumentsDirectory();
@@ -255,6 +267,21 @@ class _MyQrTabState extends State<_MyQrTab> {
                   ),
                 ),
                 child: Text(l10n.regenerateQrButton),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 44,
+              child: OutlinedButton(
+                onPressed: _copyCode,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: KeychatColors.primaryDark,
+                  side: const BorderSide(color: KeychatColors.primary),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(l10n.copyCodeButton),
               ),
             ),
             const SizedBox(height: 12),
@@ -424,12 +451,21 @@ class _ScanTab extends StatefulWidget {
 
 class _ScanTabState extends State<_ScanTab> {
   final _scannerController = MobileScannerController();
+  final _pasteController = TextEditingController();
   bool _handling = false;
 
   @override
   void dispose() {
     _scannerController.dispose();
+    _pasteController.dispose();
     super.dispose();
+  }
+
+  Future<void> _submitPastedCode() async {
+    final text = _pasteController.text.trim();
+    if (text.isEmpty) return;
+    await _handleDetected(text);
+    _pasteController.clear();
   }
 
   Future<void> _pickFromGallery() async {
@@ -565,6 +601,45 @@ class _ScanTabState extends State<_ScanTab> {
                 ),
                 icon: const Icon(Icons.photo_library_outlined, size: 18),
                 label: Text(l10n.pickFromGallery),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _pasteController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: l10n.pasteCodeHint,
+                          hintStyle: const TextStyle(color: Colors.white70),
+                          filled: true,
+                          fillColor: Colors.black.withValues(alpha: 0.4),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onSubmitted: (_) => _submitPastedCode(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton(
+                      onPressed: _submitPastedCode,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white),
+                        backgroundColor: Colors.black.withValues(alpha: 0.3),
+                      ),
+                      child: Text(l10n.pasteCodeButton),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

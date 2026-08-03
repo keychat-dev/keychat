@@ -116,6 +116,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get qrSaveFailedMessage => 'Couldn\'t save the QR code';
 
   @override
+  String get copyCodeButton => 'Copy code';
+
+  @override
+  String get codeCopiedMessage => 'Code copied to clipboard';
+
+  @override
+  String get pasteCodeLabel => 'Or paste a code';
+
+  @override
+  String get pasteCodeHint => 'Paste invite code here';
+
+  @override
+  String get pasteCodeButton => 'Add';
+
+  @override
   String get activeInvitesTitle => 'Active invite codes';
 
   @override

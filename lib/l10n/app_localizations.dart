@@ -296,6 +296,36 @@ abstract class AppLocalizations {
   /// **'Couldn\'t save the QR code'**
   String get qrSaveFailedMessage;
 
+  /// No description provided for @copyCodeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy code'**
+  String get copyCodeButton;
+
+  /// No description provided for @codeCopiedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Code copied to clipboard'**
+  String get codeCopiedMessage;
+
+  /// No description provided for @pasteCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Or paste a code'**
+  String get pasteCodeLabel;
+
+  /// No description provided for @pasteCodeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste invite code here'**
+  String get pasteCodeHint;
+
+  /// No description provided for @pasteCodeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get pasteCodeButton;
+
   /// No description provided for @activeInvitesTitle.
   ///
   /// In en, this message translates to:

@@ -113,6 +113,21 @@ class AppLocalizationsJa extends AppLocalizations {
   String get qrSaveFailedMessage => 'QRコードを保存できませんでした';
 
   @override
+  String get copyCodeButton => 'コードをコピー';
+
+  @override
+  String get codeCopiedMessage => 'コードをコピーしました';
+
+  @override
+  String get pasteCodeLabel => 'またはコードを貼り付け';
+
+  @override
+  String get pasteCodeHint => '招待コードをここに貼り付け';
+
+  @override
+  String get pasteCodeButton => '追加';
+
+  @override
   String get activeInvitesTitle => '有効な招待コード';
 
   @override
