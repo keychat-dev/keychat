@@ -1597,15 +1597,29 @@ async fn listen_for_friend_events(
             // generation.
             continue;
         };
-        if !mark_event_seen(event.id) {
-            // The same event arrives once per relay it matched on (3 relay
-            // tasks all racing to process it) plus again on every periodic
-            // resubscribe — each redundant delivery used to independently
-            // re-run `add_incoming`/`publish_account_incoming_backup` (etc),
-            // and those concurrent publishes' self-echoes could race each
-            // other and clobber one another's local write. Processing each
-            // event id once closes that whole class of race at the source.
-            continue;
+        // GiftWrap decoding can genuinely fail transiently (e.g. a friend
+        // whose relationship key material raced with this event, or a
+        // wrong-guess decode attempt against a kind that turns out to
+        // belong to a different friend) — unlike the other kinds here,
+        // which reliably decrypt with a single nip44 call once matched.
+        // Marking a GiftWrap "seen" before knowing it actually decoded
+        // would permanently blacklist it (this filter carries no `since`
+        // specifically so a resubscribe can retry), so for GiftWrap the
+        // dedup mark is applied per-success-path below instead, right
+        // before each `sink.add`, not here.
+        if event.kind != Kind::GiftWrap {
+            if !mark_event_seen(event.id) {
+                // The same event arrives once per relay it matched on (3
+                // relay tasks all racing to process it) plus again on every
+                // periodic resubscribe — each redundant delivery used to
+                // independently re-run `add_incoming`/
+                // `publish_account_incoming_backup` (etc), and those
+                // concurrent publishes' self-echoes could race each other
+                // and clobber one another's local write. Processing each
+                // event id once closes that whole class of race at the
+                // source.
+                continue;
+            }
         }
         if let Watch::Group(group_id) = matched {
             let group_id = group_id.clone();
@@ -1630,6 +1644,9 @@ async fn listen_for_friend_events(
             )
             .await;
             if let Some(kind) = applied {
+                if !mark_event_seen(event.id) {
+                    continue;
+                }
                 if sink
                     .add(FriendEvent {
                         kind,
@@ -1673,8 +1690,7 @@ async fn listen_for_friend_events(
             let Ok(friend_pk) = PublicKey::from_hex(friend_pubkey) else {
                 continue;
             };
-            let Some(received) =
-                chat::receive_gift_wrap(storage_dir, &my_keys, &friend_pk, &event).await
+            let Some(received) = chat::receive_gift_wrap(storage_dir, &my_keys, &friend_pk, &event).await
             else {
                 // Not a `chat.rs`-recognized kind (edit/delete/hide/clear/
                 // attachment/message) — try the forward-secrecy device
@@ -1690,6 +1706,9 @@ async fn listen_for_friend_events(
                             ratchet::RatchetReceived::DeviceAnnounced => "ratchet_device_announced",
                             ratchet::RatchetReceived::Message => "ratchet_message",
                         };
+                        if !mark_event_seen(event.id) {
+                            continue;
+                        }
                         if sink
                             .add(FriendEvent {
                                 kind: kind.to_string(),
@@ -1726,6 +1745,9 @@ async fn listen_for_friend_events(
                         groups::GroupReceived::Invite(id) => ("group_invite", id),
                         groups::GroupReceived::Message(id) => ("group_message", id),
                     };
+                    if !mark_event_seen(event.id) {
+                        continue;
+                    }
                     if sink
                         .add(FriendEvent {
                             kind: kind.to_string(),
@@ -1756,6 +1778,9 @@ async fn listen_for_friend_events(
                 | chat::Received::Hide(id)
                 | chat::Received::Clear(id) => (id.clone(), None),
             };
+            if !mark_event_seen(event.id) {
+                continue;
+            }
             // Still blocked: the message is now saved to local history (so
             // it's there once unblocked) but held — [chat::load_chat_history]
             // and [chat::has_chat_history] filter out held messages while
