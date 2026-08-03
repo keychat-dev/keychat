@@ -1563,6 +1563,20 @@ async fn listen_for_friend_events(
         let relay_pool::PoolEvent::Event(event) = pool_event else {
             continue;
         };
+        let Some((_, matched)) = watch
+            .iter()
+            .find(|(pk, _)| event.tags.public_keys().any(|tagged| tagged == pk))
+        else {
+            // Not (yet) in this task's watch list — do NOT mark it seen: a
+            // friend added moments ago may not be in `watch` until the next
+            // resubscribe picks up the fresh list, and this filter carries
+            // no `since` specifically so that resubscribe can catch this
+            // same event again. Marking it seen here would permanently
+            // blacklist it, since `mark_event_seen`'s dedup set lives for
+            // the whole process lifetime, not just this subscription
+            // generation.
+            continue;
+        };
         if !mark_event_seen(event.id) {
             // The same event arrives once per relay it matched on (3 relay
             // tasks all racing to process it) plus again on every periodic
@@ -1573,12 +1587,6 @@ async fn listen_for_friend_events(
             // event id once closes that whole class of race at the source.
             continue;
         }
-        let Some((_, matched)) = watch
-            .iter()
-            .find(|(pk, _)| event.tags.public_keys().any(|tagged| tagged == pk))
-        else {
-            continue;
-        };
         if let Watch::Group(group_id) = matched {
             let group_id = group_id.clone();
             if event.kind != Kind::GiftWrap {
