@@ -18,6 +18,7 @@ use nostr::nips::nip09::EventDeletionRequest;
 use nostr::nips::nip44;
 use nostr::types::Timestamp;
 use nostr::{Filter, PublicKey};
+use sha2::{Digest, Sha256};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
@@ -651,15 +652,34 @@ fn read_avatar_base64(avatar_path: &Option<String>) -> Option<String> {
 }
 
 /// Decodes a base64 avatar payload and caches it to disk under
-/// `storage_dir/friend_avatars/<pubkey>`, returning the local path.
-/// Silently returns `None` on any failure — avatar sync is best-effort.
+/// `storage_dir/friend_avatars/<pubkey>_<content-hash>`, returning the local
+/// path. The hash suffix (rather than a fixed `<pubkey>` path) matters: the
+/// Flutter side displays this via `FileImage(File(path))`, which Flutter's
+/// `ImageCache` keys purely by path string — reusing the same path on every
+/// update meant a changed avatar never actually got redrawn, since Flutter
+/// kept serving the previously-decoded bitmap for that path. Stale
+/// differently-hashed files for the same friend are cleaned up so this
+/// doesn't grow unbounded. Silently returns `None` on any failure — avatar
+/// sync is best-effort.
 fn save_friend_avatar(storage_dir: &str, pubkey: &str, avatar_base64: &Option<String>) -> Option<String> {
     let encoded = avatar_base64.as_ref()?;
     let bytes = base64::engine::general_purpose::STANDARD.decode(encoded).ok()?;
     let dir = Path::new(storage_dir).join("friend_avatars");
     std::fs::create_dir_all(&dir).ok()?;
-    let path = dir.join(pubkey);
+    let hash = hex::encode(Sha256::digest(&bytes));
+    let file_name = format!("{pubkey}_{hash}");
+    let path = dir.join(&file_name);
     std::fs::write(&path, bytes).ok()?;
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        let prefix = format!("{pubkey}_");
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if name.starts_with(&prefix) && name != file_name {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+    }
     Some(path.to_string_lossy().to_string())
 }
 
