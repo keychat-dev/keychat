@@ -6,9 +6,10 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `already_processed`, `append_message`, `base64_decode`, `base64_encode`, `decrypt_at_rest`, `decrypt_with_key`, `encrypt_at_rest`, `friend_devices_path`, `hex32`, `identity_path`, `kdf_ck`, `kdf_rk`, `load_all_messages`, `load_friend_devices`, `load_or_create_identity`, `load_sessions`, `mark_processed`, `messages_path`, `new`, `now`, `processed_ids_path`, `random_hex`, `ratchet_decrypt`, `ratchet_encrypt`, `ratchet_lock`, `read_encrypted`, `receive_ratchet_gift_wrap`, `save_friend_device`, `save_sessions`, `send_ratchet_envelope`, `sessions_path`, `skip_receiving_keys`, `write_encrypted`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DeviceAnnouncePayload`, `RatchetContent`, `RatchetHeader`, `RatchetMessagePayload`, `RatchetReceived`, `RatchetSession`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`
+// These functions are ignored because they are not marked as `pub`: `account_path`, `already_processed`, `append_message`, `base64_decode`, `base64_encode`, `decode`, `decrypt_at_rest`, `encode`, `encrypt_at_rest`, `friend_devices_path`, `hex32`, `load_all_messages`, `load_friend_devices`, `load_or_create_account`, `load_sessions`, `mark_processed`, `messages_path`, `new`, `new`, `now`, `of`, `processed_ids_path`, `random_hex`, `ratchet_decrypt`, `ratchet_encrypt`, `ratchet_lock`, `read_encrypted`, `receive_ratchet_gift_wrap`, `save_account`, `save_friend_device`, `save_sessions`, `send_ratchet_envelope`, `session_config`, `session`, `sessions_path`, `store_session`, `to_olm_message`, `write_encrypted`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DeviceAnnouncePayload`, `DeviceBundle`, `RatchetContent`, `RatchetMessagePayload`, `RatchetReceived`, `SessionStore`, `StoredSession`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`
+// These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
 
 /// A fresh random key for encrypting this module's local state at rest —
 /// call once and persist the result via `flutter_secure_storage` (see this
@@ -19,8 +20,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<String> generateLocalStorageKey() =>
     RustLib.instance.api.crateApiRatchetGenerateLocalStorageKey();
 
-/// This device's forward-secrecy identity public key (hex), generating one
-/// if this device doesn't have one yet — call before [announce_device].
+/// This device's announceable public key material (see [DeviceBundle]),
+/// creating its Olm account if this device doesn't have one yet — call
+/// before [announce_device].
 Future<String> deviceIdentityPubkey({
   required String storageDir,
   required String localKey,
@@ -29,9 +31,16 @@ Future<String> deviceIdentityPubkey({
   localKey: localKey,
 );
 
-/// The forward-secrecy device public key `friend_pubkey` last announced to
-/// us, if any — the UI uses this to decide whether to offer/attempt a
-/// forward-secret send at all.
+/// The forward-secrecy device key bundle (see [DeviceBundle]) that
+/// `friend_pubkey` last announced to us, if any — the UI uses this to
+/// decide whether to offer/attempt a forward-secret send at all, and
+/// otherwise treats it as opaque.
+///
+/// Anything unparseable is reported as "no device announced" rather than
+/// handed back for a send to choke on: a stored announce predating the
+/// [DeviceBundle] format is exactly that, and the friendly failure is to
+/// fall back to ordinary (non-forward-secret) chat until that friend's app
+/// re-announces, which it does on the next thread open.
 Future<String?> friendDevicePubkey({
   required String storageDir,
   required String friendPubkey,
@@ -40,7 +49,7 @@ Future<String?> friendDevicePubkey({
   friendPubkey: friendPubkey,
 );
 
-/// Publishes this device's identity public key to `friend_pubkey`, over the
+/// Publishes this device's public key bundle to `friend_pubkey`, over the
 /// existing mnemonic-derived channel (so it's authenticated/encrypted the
 /// same way any other control rumor is) — call once per friend (idempotent
 /// to call again; the friend's app just re-applies the same value, or

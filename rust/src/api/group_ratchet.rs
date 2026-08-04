@@ -16,16 +16,16 @@
 //! same way `chat.rs` Gift-Wraps to any known pubkey.
 //!
 //! On top of that direct transport, every *pair* of group members gets its
-//! own persistent Double Ratchet session (reusing `ratchet.rs`'s session
-//! type/KDF/DH-step logic verbatim, just keyed by `"{group_id}:{their
+//! own persistent Olm session (reusing `ratchet.rs`'s session store and
+//! encrypt/decrypt helpers verbatim, just keyed by `"{group_id}:{their
 //! group_pubkey}"` instead of `friend_pubkey`, and sharing this device's
-//! *same* X25519 device identity `ratchet.rs` already maintains — no
-//! second device keypair needed). Every roster update and every chat
-//! message to a given member goes through that member's session, giving
-//! the exact same forward secrecy (chain key discarded after use) and
-//! post-compromise security (fresh DH ephemeral generated whenever the
-//! peer's DH public key changes) 1:1 chat already has — see `ratchet.rs`'s
-//! module doc for why that combination works.
+//! *same* Olm account `ratchet.rs` already maintains — no second device
+//! identity needed). Every roster update and every chat message to a given
+//! member goes through that member's session, giving the exact same
+//! forward secrecy (chain key discarded after use) and post-compromise
+//! security (fresh DH ephemeral generated whenever the peer's DH public
+//! key changes) 1:1 chat already has — see `ratchet.rs`'s module doc for
+//! why that combination works.
 //!
 //! A member who *is* also a 1:1 friend still gets a completely separate
 //! session here rather than reusing their 1:1 ratchet session — mixing a
@@ -45,8 +45,8 @@
 use crate::api::invites;
 use crate::api::keys::derive_contact_keys;
 use crate::api::ratchet::{
-    hex32, load_or_create_identity, read_encrypted, write_encrypted, ratchet_decrypt,
-    ratchet_encrypt, RatchetMessagePayload, RatchetSession,
+    hex32, load_or_create_account, read_encrypted, save_account, write_encrypted, ratchet_decrypt,
+    ratchet_encrypt, DeviceBundle, RatchetMessagePayload, SessionStore, MAX_PROCESSED_IDS,
 };
 use crate::api::sync::publish_to_relays;
 use nostr::event::{Event, EventBuilder, UnsignedEvent};
@@ -65,8 +65,6 @@ fn group_ratchet_lock() -> &'static Mutex<()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
 }
-
-const MAX_SKIPPED_KEYS: usize = 1000;
 
 // ---------------------------------------------------------------------
 // Per-group Nostr routing identity.
@@ -126,22 +124,22 @@ pub(crate) fn own_group_identities(mnemonic: &str, storage_dir: &str) -> Vec<(Pu
 }
 
 // ---------------------------------------------------------------------
-// Pairwise Double Ratchet session per (group_id, peer_group_pubkey) —
-// reuses `ratchet.rs`'s session type/KDF/DH-step logic verbatim.
+// Pairwise Olm session per (group_id, peer_group_pubkey) — reuses
+// `ratchet.rs`'s session store and encrypt/decrypt helpers verbatim.
 // ---------------------------------------------------------------------
 
 fn sessions_path(storage_dir: &str) -> PathBuf {
     Path::new(storage_dir).join("group_ratchet_sessions.enc")
 }
 
-fn load_sessions(storage_dir: &str, local_key: &[u8; 32]) -> HashMap<String, RatchetSession> {
+fn load_sessions(storage_dir: &str, local_key: &[u8; 32]) -> HashMap<String, SessionStore> {
     read_encrypted(&sessions_path(storage_dir), local_key)
 }
 
 fn save_sessions(
     storage_dir: &str,
     local_key: &[u8; 32],
-    sessions: &HashMap<String, RatchetSession>,
+    sessions: &HashMap<String, SessionStore>,
 ) -> Result<(), String> {
     write_encrypted(&sessions_path(storage_dir), local_key, sessions)
 }
@@ -168,8 +166,8 @@ fn mark_processed(storage_dir: &str, seal_id: &str) {
         .and_then(|s| serde_json::from_str(&s).ok())
         .unwrap_or_default();
     ids.push(seal_id.to_string());
-    if ids.len() > MAX_SKIPPED_KEYS * 4 {
-        let excess = ids.len() - MAX_SKIPPED_KEYS * 4;
+    if ids.len() > MAX_PROCESSED_IDS {
+        let excess = ids.len() - MAX_PROCESSED_IDS;
         ids.drain(0..excess);
     }
     let _ = std::fs::write(processed_ids_path(storage_dir), serde_json::to_string(&ids).unwrap_or_default());
@@ -199,17 +197,11 @@ pub(crate) async fn send_to_member(
 
     let payload = {
         let _guard = group_ratchet_lock().lock().unwrap_or_else(|e| e.into_inner());
-        let key = session_key(group_id, peer_group_pubkey);
+        let peer = DeviceBundle::decode(peer_device_pubkey)?;
+        let account = load_or_create_account(storage_dir, &local_key_bytes)?;
         let mut sessions = load_sessions(storage_dir, &local_key_bytes);
-        let mut session = match sessions.get(&key) {
-            Some(s) => s.clone(),
-            None => {
-                let identity = load_or_create_identity(storage_dir, &local_key_bytes)?;
-                RatchetSession::new(identity.to_bytes(), hex32(peer_device_pubkey)?)
-            }
-        };
-        let payload = ratchet_encrypt(&mut session, plaintext.as_bytes())?;
-        sessions.insert(key, session);
+        let store = sessions.entry(session_key(group_id, peer_group_pubkey)).or_default();
+        let payload = ratchet_encrypt(&account, store, &peer, plaintext.as_bytes())?;
         save_sessions(storage_dir, &local_key_bytes, &sessions)?;
         payload
     };
@@ -279,16 +271,13 @@ pub(crate) async fn receive_gift_wrap(
     let sender_group_pubkey = seal.pubkey.to_hex();
     let key = session_key(group_id, &sender_group_pubkey);
 
+    let mut account = load_or_create_account(storage_dir, &local_key_bytes).ok()?;
     let mut sessions = load_sessions(storage_dir, &local_key_bytes);
-    let mut session = match sessions.get(&key) {
-        Some(s) => s.clone(),
-        None => {
-            let identity = load_or_create_identity(storage_dir, &local_key_bytes).ok()?;
-            RatchetSession::new(identity.to_bytes(), hex32(&payload.header.dh_pub).ok()?)
-        }
-    };
-    let plaintext_bytes = ratchet_decrypt(&mut session, &payload).ok()?;
-    sessions.insert(key, session);
+    let store = sessions.entry(key).or_default();
+    let plaintext_bytes = ratchet_decrypt(&mut account, store, &payload).ok()?;
+    // Establishing an inbound session consumes key material from the
+    // account, so it has to be persisted alongside the session itself.
+    save_account(storage_dir, &local_key_bytes, &account).ok()?;
     save_sessions(storage_dir, &local_key_bytes, &sessions).ok()?;
     mark_processed(storage_dir, &seal_id);
 

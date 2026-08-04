@@ -13,18 +13,48 @@
 //! keystream (a two-time-pad break, leaking both messages' content to
 //! anyone who sees both ciphertexts).
 //!
-//! The fix used here: each device mints its own random X25519 "device
-//! identity" keypair (never derived from the mnemonic, so it can't collide
-//! across devices), and announces its public half to a friend over the
-//! *existing* mnemonic-derived channel (a [DEVICE_ANNOUNCE_KIND] control
-//! rumor, sent/verified exactly like `chat.rs`'s edit/delete rumors). Once
-//! both sides know each other's device identity, they derive a Double
-//! Ratchet session between *these two devices specifically* — so two of a
-//! user's devices never share ratchet state, and the two-time-pad failure
-//! mode can't occur. The outer Seal/Gift-Wrap transport (routing, sender
-//! authentication, relay publishing) is completely unchanged; only the
-//! rumor's `content` is, for [RATCHET_MESSAGE_KIND], itself the output of
-//! this module's own encryption rather than plain text.
+//! The fix used here: each device mints its own random Olm account (never
+//! derived from the mnemonic, so it can't collide across devices), and
+//! announces its public key material to a friend over the *existing*
+//! mnemonic-derived channel (a [DEVICE_ANNOUNCE_KIND] control rumor,
+//! sent/verified exactly like `chat.rs`'s edit/delete rumors). Once both
+//! sides know each other's, they establish an Olm session between *these
+//! two devices specifically* — so two of a user's devices never share
+//! ratchet state, and the two-time-pad failure mode can't occur. The outer
+//! Seal/Gift-Wrap transport (routing, sender authentication, relay
+//! publishing) is completely unchanged; only the rumor's `content` is, for
+//! [RATCHET_MESSAGE_KIND], itself the output of this module's own
+//! encryption rather than plain text.
+//!
+//! The ratchet itself is [vodozemac]'s Olm implementation — the audited
+//! library Matrix uses in production — rather than a hand-rolled Double
+//! Ratchet. Implementation mistakes in ratchet code are the kind that leave
+//! messages flowing normally while silently voiding forward secrecy, so
+//! this deliberately delegates every cryptographic step (key agreement,
+//! chain advancement, skipped-key caching, AEAD) and keeps only the parts
+//! that are genuinely KeyChat-specific: how key material is announced, and
+//! how sessions and decrypted plaintext are stored.
+//!
+//! Sessions use [SessionConfig::version_1], the Olm version deployed
+//! across Matrix, in preference to the crate's `version_2` (an untruncated
+//! MAC, but gated behind an `experimental-session-config` feature) —
+//! staying on the best-exercised code path is the whole reason for using
+//! this library, and v1's 8-byte MAC truncation isn't a practical forgery
+//! risk over this transport. Worth revisiting if v2 stops being
+//! experimental.
+//!
+//! Olm needs a "one-time key" from the recipient to start a session, which
+//! normally means a key server handing out a fresh one per conversation.
+//! There isn't one here, so the announce carries a *fallback* key instead
+//! — the mechanism Olm itself defines for when one-time keys run out. It's
+//! deliberately reusable, so it costs forward secrecy only for a session's
+//! very first message (exactly the property the hand-rolled version had,
+//! since it started from static identity keys), and every message from the
+//! first reply onward is fully forward-secret. Announcing a genuinely
+//! one-time key per friend would close that last gap: the announce is
+//! already per-friend and end-to-end encrypted, so only that friend could
+//! spend it — left for later since Olm accounts evict unused one-time keys
+//! once full, which needs care to not strand a friend mid-handshake.
 //!
 //! Two consequences worth knowing:
 //! - Only the device that receives a ratchet message can ever decrypt it —
@@ -45,33 +75,35 @@
 //!
 //! v1 scope: a friend can only have one *active* announced device at a
 //! time (the most recently announced one) — if they use multiple devices
-//! simultaneously, only the latest one participates in new ratchet
-//! sessions. The session's very first message is derived purely from both
-//! sides' static device-identity keys (no forward secrecy yet relative to
-//! a compromise of those specific keys); every message from the second
-//! ratchet step onward (i.e. as soon as either side has replied) is fully
-//! forward-secret. Skipped/out-of-order message keys are cached (bounded —
-//! see [MAX_SKIPPED_KEYS]) so Nostr's unordered, unreliable relay delivery
-//! doesn't break the chain; a permanently-lost message just stays
-//! undecryptable on its own; it never blocks later messages.
+//! simultaneously, only the latest one participates in new sessions.
+//! Skipped/out-of-order and duplicated deliveries are handled inside the
+//! Olm session, which matters because Nostr relay delivery is unordered
+//! and duplicates freely; a permanently-lost message just stays
+//! undecryptable on its own and never blocks later ones.
 
 use crate::api::chat::{self, DEVICE_ANNOUNCE_KIND, RATCHET_MESSAGE_KIND};
 use crate::api::friends;
 use chacha20poly1305::aead::rand_core::{OsRng, RngCore};
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{KeyInit, XChaCha20Poly1305};
-use hkdf::Hkdf;
-use hmac::{Hmac, Mac};
 use nostr::event::{Event, UnsignedEvent};
 use nostr::nips::nip44;
 use nostr::{JsonUtil, Keys, PublicKey};
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
-use x25519_dalek::{PublicKey as XPublicKey, StaticSecret};
+use vodozemac::olm::{
+    Account, AccountPickle, OlmMessage, Session, SessionConfig, SessionPickle,
+};
+use vodozemac::Curve25519PublicKey;
+
+/// The Olm version every session uses — see this module's doc comment on
+/// why not `version_2`.
+fn session_config() -> SessionConfig {
+    SessionConfig::version_1()
+}
 
 /// Serializes every ratchet session read-modify-write (sending *or*
 /// receiving) across this process. Needed because `sync.rs` runs one
@@ -88,11 +120,14 @@ fn ratchet_lock() -> &'static Mutex<()> {
     LOCK.get_or_init(|| Mutex::new(()))
 }
 
-/// Cap on how many skipped-message keys a single session retains — bounds
-/// memory/storage if a large batch of messages never arrives, at the cost
-/// of those particular messages becoming permanently undecryptable once
-/// exceeded (later messages are unaffected either way).
-const MAX_SKIPPED_KEYS: usize = 1000;
+/// Cap on how many processed seal ids are remembered for duplicate
+/// suppression — only needs to be "big enough to outlast realistic relay
+/// replay", not unbounded.
+pub(crate) const MAX_PROCESSED_IDS: usize = 4000;
+
+/// Cap on how many sessions are retained per peer. More than one is normal
+/// (see [store_session]), but the list must not grow without bound.
+const MAX_SESSIONS_PER_PEER: usize = 5;
 
 fn now() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
@@ -159,33 +194,96 @@ pub(crate) fn read_encrypted<T: for<'de> Deserialize<'de> + Default>(path: &Path
 }
 
 // ---------------------------------------------------------------------
-// Device identity: this device's own X25519 keypair.
+// Device identity: this device's own Olm account.
 // ---------------------------------------------------------------------
 
-fn identity_path(storage_dir: &str) -> PathBuf {
-    Path::new(storage_dir).join("ratchet_identity.enc")
+fn account_path(storage_dir: &str) -> PathBuf {
+    Path::new(storage_dir).join("ratchet_account.enc")
 }
 
-pub(crate) fn load_or_create_identity(storage_dir: &str, local_key: &[u8; 32]) -> Result<StaticSecret, String> {
-    let path = identity_path(storage_dir);
+/// This device's Olm account, minting one (with its fallback key) on first
+/// use. Always carries an unpublished fallback key: [Account::fallback_key]
+/// only reports one while it's unpublished, and [announce_device] must keep
+/// reporting the same value on every call, so nothing here ever calls
+/// `mark_keys_as_published`.
+pub(crate) fn load_or_create_account(
+    storage_dir: &str,
+    local_key: &[u8; 32],
+) -> Result<Account, String> {
+    let path = account_path(storage_dir);
     if let Ok(data) = std::fs::read(&path) {
         if let Ok(plaintext) = decrypt_at_rest(local_key, &data) {
-            if let Ok(secret_bytes) = <[u8; 32]>::try_from(plaintext.as_slice()) {
-                return Ok(StaticSecret::from(secret_bytes));
+            if let Ok(pickle) = serde_json::from_slice::<AccountPickle>(&plaintext) {
+                let mut account = Account::from_pickle(pickle);
+                if account.fallback_key().is_empty() {
+                    account.generate_fallback_key();
+                    save_account(storage_dir, local_key, &account)?;
+                }
+                return Ok(account);
             }
         }
     }
-    let secret = StaticSecret::random_from_rng(OsRng);
-    std::fs::write(&path, encrypt_at_rest(local_key, &secret.to_bytes())).map_err(|e| e.to_string())?;
-    Ok(secret)
+    let mut account = Account::new();
+    account.generate_fallback_key();
+    save_account(storage_dir, local_key, &account)?;
+    Ok(account)
 }
 
-/// This device's forward-secrecy identity public key (hex), generating one
-/// if this device doesn't have one yet — call before [announce_device].
+pub(crate) fn save_account(
+    storage_dir: &str,
+    local_key: &[u8; 32],
+    account: &Account,
+) -> Result<(), String> {
+    let json = serde_json::to_vec(&account.pickle()).map_err(|e| e.to_string())?;
+    std::fs::write(account_path(storage_dir), encrypt_at_rest(local_key, &json))
+        .map_err(|e| e.to_string())
+}
+
+/// The public key material a peer needs to start a session with this
+/// device: an Olm identity key plus the reusable fallback key standing in
+/// for a one-time key (see this module's doc comment).
+///
+/// Travels as one opaque `"<identity>.<fallback>"` string so that
+/// everything carrying it — the announce payload, `friend_devices.json`,
+/// a group roster's `device_pubkey`, and the Dart side's "does this friend
+/// have a device yet?" check — stays a single string it never parses.
+#[flutter_rust_bridge::frb(ignore)]
+pub(crate) struct DeviceBundle {
+    pub(crate) identity: Curve25519PublicKey,
+    pub(crate) fallback: Curve25519PublicKey,
+}
+
+impl DeviceBundle {
+    fn encode(&self) -> String {
+        format!("{}.{}", self.identity.to_base64(), self.fallback.to_base64())
+    }
+
+    pub(crate) fn decode(encoded: &str) -> Result<Self, String> {
+        let (identity, fallback) =
+            encoded.split_once('.').ok_or("malformed device key bundle")?;
+        Ok(DeviceBundle {
+            identity: Curve25519PublicKey::from_base64(identity).map_err(|e| e.to_string())?,
+            fallback: Curve25519PublicKey::from_base64(fallback).map_err(|e| e.to_string())?,
+        })
+    }
+
+    fn of(account: &Account) -> Result<Self, String> {
+        let fallback = *account
+            .fallback_key()
+            .values()
+            .next()
+            .ok_or("this device's Olm account has no fallback key")?;
+        Ok(DeviceBundle { identity: account.curve25519_key(), fallback })
+    }
+}
+
+/// This device's announceable public key material (see [DeviceBundle]),
+/// creating its Olm account if this device doesn't have one yet — call
+/// before [announce_device].
 pub fn device_identity_pubkey(storage_dir: String, local_key: String) -> Result<String, String> {
     let local_key = hex32(&local_key)?;
-    let secret = load_or_create_identity(&storage_dir, &local_key)?;
-    Ok(hex::encode(XPublicKey::from(&secret).to_bytes()))
+    let account = load_or_create_account(&storage_dir, &local_key)?;
+    Ok(DeviceBundle::of(&account)?.encode())
 }
 
 // ---------------------------------------------------------------------
@@ -204,20 +302,56 @@ fn load_friend_devices(storage_dir: &str) -> HashMap<String, String> {
         .unwrap_or_default()
 }
 
-fn save_friend_device(storage_dir: &str, friend_pubkey: &str, device_pubkey_hex: &str) {
+fn save_friend_device(storage_dir: &str, friend_pubkey: &str, bundle: &str) {
     let mut devices = load_friend_devices(storage_dir);
-    devices.insert(friend_pubkey.to_string(), device_pubkey_hex.to_string());
+    devices.insert(friend_pubkey.to_string(), bundle.to_string());
     let _ = std::fs::write(
         friend_devices_path(storage_dir),
         serde_json::to_string(&devices).unwrap_or_default(),
     );
 }
 
-/// The forward-secrecy device public key `friend_pubkey` last announced to
-/// us, if any — the UI uses this to decide whether to offer/attempt a
-/// forward-secret send at all.
+/// Drops every session with `friend_pubkey` when `announced` carries a
+/// different *identity* key than what they'd announced before — that means
+/// a new Olm account (a reinstall, or a switch to another device), whose
+/// holder has none of the old sessions and so can't decrypt anything sent
+/// on them. Without this, a friend reinstalling would leave this side
+/// encrypting into a session that's gone forever.
+///
+/// A changed *fallback* key alone is left alone deliberately: that's key
+/// rotation on the same account, and the established sessions stay valid.
+fn forget_sessions_if_reinstalled(
+    storage_dir: &str,
+    local_key: &[u8; 32],
+    friend_pubkey: &str,
+    announced: &str,
+) {
+    let Ok(new_bundle) = DeviceBundle::decode(announced) else { return };
+    let previous = load_friend_devices(storage_dir).get(friend_pubkey).cloned();
+    let Some(previous) = previous else { return };
+    let Ok(old_bundle) = DeviceBundle::decode(&previous) else { return };
+    if old_bundle.identity == new_bundle.identity {
+        return;
+    }
+    let mut sessions = load_sessions(storage_dir, local_key);
+    if sessions.remove(friend_pubkey).is_some() {
+        let _ = save_sessions(storage_dir, local_key, &sessions);
+    }
+}
+
+/// The forward-secrecy device key bundle (see [DeviceBundle]) that
+/// `friend_pubkey` last announced to us, if any — the UI uses this to
+/// decide whether to offer/attempt a forward-secret send at all, and
+/// otherwise treats it as opaque.
+///
+/// Anything unparseable is reported as "no device announced" rather than
+/// handed back for a send to choke on: a stored announce predating the
+/// [DeviceBundle] format is exactly that, and the friendly failure is to
+/// fall back to ordinary (non-forward-secret) chat until that friend's app
+/// re-announces, which it does on the next thread open.
 pub fn friend_device_pubkey(storage_dir: String, friend_pubkey: String) -> Option<String> {
-    load_friend_devices(&storage_dir).get(&friend_pubkey).cloned()
+    let announced = load_friend_devices(&storage_dir).get(&friend_pubkey).cloned()?;
+    DeviceBundle::decode(&announced).ok().map(|_| announced)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -225,7 +359,7 @@ struct DeviceAnnouncePayload {
     device_pubkey: String,
 }
 
-/// Publishes this device's identity public key to `friend_pubkey`, over the
+/// Publishes this device's public key bundle to `friend_pubkey`, over the
 /// existing mnemonic-derived channel (so it's authenticated/encrypted the
 /// same way any other control rumor is) — call once per friend (idempotent
 /// to call again; the friend's app just re-applies the same value, or
@@ -236,222 +370,206 @@ pub fn announce_device(
     friend_pubkey: String,
     local_key: String,
 ) -> Result<(), String> {
-    let pubkey_hex = device_identity_pubkey(storage_dir.clone(), local_key)?;
-    let content = serde_json::to_string(&DeviceAnnouncePayload { device_pubkey: pubkey_hex })
+    let bundle = device_identity_pubkey(storage_dir.clone(), local_key)?;
+    let content = serde_json::to_string(&DeviceAnnouncePayload { device_pubkey: bundle })
         .map_err(|e| e.to_string())?;
     chat::send_control_rumor(&mnemonic, &storage_dir, &friend_pubkey, DEVICE_ANNOUNCE_KIND, content, true, None)
 }
 
 // ---------------------------------------------------------------------
-// Double Ratchet session state, per friend (v1: one active remote device
-// per friend — see module doc comment).
+// Olm session state, per peer.
 // ---------------------------------------------------------------------
 
+/// One Olm session with a peer, plus what's needed to choose between
+/// several of them.
 #[derive(Clone, Serialize, Deserialize)]
-pub(crate) struct RatchetSession {
-    root_key: String,
-    /// This side's current DH keypair (hex secret) — starts as this
-    /// device's long-term identity secret and is replaced with a fresh
-    /// ephemeral every time the other side ratchets forward.
-    dhs_secret: String,
-    /// The other side's last-known DH public key.
-    dhr_pub: String,
-    sending_chain: Option<String>,
-    receiving_chain: Option<String>,
-    sending_n: u32,
-    receiving_n: u32,
-    /// Length of the previous sending chain — lets the receiver know how
-    /// many trailing keys to skip-cache from it before switching chains.
-    prev_sending_n: u32,
-    /// `"{dhr_pub_hex}:{n}"` -> message key (hex), for messages that
-    /// arrived out of order relative to the sender's counter.
-    skipped: HashMap<String, String>,
+#[flutter_rust_bridge::frb(ignore)]
+pub(crate) struct StoredSession {
+    /// Olm's own session id, kept alongside the pickle so sessions can be
+    /// matched against an incoming pre-key message without unpickling each.
+    session_id: String,
+    /// The pickled session. Held as generic JSON rather than a
+    /// [SessionPickle] because a pickle can only be turned back into a
+    /// [Session] by consuming it, and these have to stay in place to be
+    /// tried repeatedly.
+    pickle: serde_json::Value,
+    created_at: i64,
+    /// Whether anything has ever been decrypted on this session, i.e.
+    /// whether the peer is known to actually be using it.
+    received: bool,
 }
 
-impl RatchetSession {
-    pub(crate) fn new(my_identity_secret: [u8; 32], remote_identity_pub: [u8; 32]) -> Self {
-        RatchetSession {
-            root_key: hex::encode([0u8; 32]),
-            dhs_secret: hex::encode(my_identity_secret),
-            dhr_pub: hex::encode(remote_identity_pub),
-            sending_chain: None,
-            receiving_chain: None,
-            sending_n: 0,
-            receiving_n: 0,
-            prev_sending_n: 0,
-            skipped: HashMap::new(),
-        }
+impl StoredSession {
+    fn new(session: &Session, received: bool) -> Result<Self, String> {
+        Ok(StoredSession {
+            session_id: session.session_id(),
+            pickle: serde_json::to_value(session.pickle()).map_err(|e| e.to_string())?,
+            created_at: now(),
+            received,
+        })
     }
+
+    fn session(&self) -> Result<Session, String> {
+        let pickle: SessionPickle =
+            serde_json::from_value(self.pickle.clone()).map_err(|e| e.to_string())?;
+        Ok(Session::from_pickle(pickle))
+    }
+}
+
+/// Every session with one peer, newest last.
+///
+/// More than one is normal and must be tolerated rather than overwritten:
+/// if both sides send their first message before either has received one,
+/// each independently starts an outbound session against the other's
+/// (reusable) fallback key, and the two are genuinely different sessions.
+/// Keeping them all means decryption can just try each, so neither side's
+/// messages are lost to the race.
+#[derive(Clone, Default, Serialize, Deserialize)]
+#[flutter_rust_bridge::frb(ignore)]
+pub(crate) struct SessionStore {
+    sessions: Vec<StoredSession>,
 }
 
 fn sessions_path(storage_dir: &str) -> PathBuf {
     Path::new(storage_dir).join("ratchet_sessions.enc")
 }
 
-fn load_sessions(storage_dir: &str, local_key: &[u8; 32]) -> HashMap<String, RatchetSession> {
+fn load_sessions(storage_dir: &str, local_key: &[u8; 32]) -> HashMap<String, SessionStore> {
     read_encrypted(&sessions_path(storage_dir), local_key)
 }
 
 fn save_sessions(
     storage_dir: &str,
     local_key: &[u8; 32],
-    sessions: &HashMap<String, RatchetSession>,
+    sessions: &HashMap<String, SessionStore>,
 ) -> Result<(), String> {
     write_encrypted(&sessions_path(storage_dir), local_key, sessions)
 }
 
-fn kdf_rk(root_key: &[u8; 32], dh_out: &[u8; 32]) -> ([u8; 32], [u8; 32]) {
-    let hk = Hkdf::<Sha256>::new(Some(root_key), dh_out);
-    let mut okm = [0u8; 64];
-    hk.expand(b"keychat-ratchet-root", &mut okm).expect("64 bytes is a valid HKDF-SHA256 output length");
-    let mut new_root = [0u8; 32];
-    let mut chain = [0u8; 32];
-    new_root.copy_from_slice(&okm[..32]);
-    chain.copy_from_slice(&okm[32..]);
-    (new_root, chain)
-}
-
-pub(crate) fn kdf_ck(chain_key: &[u8; 32]) -> ([u8; 32], [u8; 32]) {
-    type HmacSha256 = Hmac<Sha256>;
-    let mut mac: HmacSha256 = Mac::new_from_slice(chain_key).expect("HMAC accepts any key length");
-    mac.update(&[0x01]);
-    let next_chain: [u8; 32] = mac.finalize().into_bytes().into();
-
-    let mut mac: HmacSha256 = Mac::new_from_slice(chain_key).expect("HMAC accepts any key length");
-    mac.update(&[0x02]);
-    let message_key: [u8; 32] = mac.finalize().into_bytes().into();
-    (next_chain, message_key)
-}
-
+/// The transport form of an encrypted message: an Olm message plus the two
+/// pieces of metadata the callers need alongside it.
 #[derive(Serialize, Deserialize)]
-pub(crate) struct RatchetHeader {
-    pub(crate) dh_pub: String,
-    pn: u32,
-    n: u32,
-}
-
-#[derive(Serialize, Deserialize)]
+#[flutter_rust_bridge::frb(ignore)]
 pub(crate) struct RatchetMessagePayload {
     /// Locally-generated id, echoed back by the receiver so both sides
     /// store the decrypted plaintext under the same id — there's no seal
     /// id available yet at encryption time (the seal is only signed
     /// afterwards, by `chat::send_control_rumor`).
     pub(crate) id: String,
-    pub(crate) header: RatchetHeader,
-    nonce: String,
-    ciphertext: String,
     pub(crate) created_at: i64,
+    /// [OlmMessage::to_parts]' discriminant: whether `ciphertext` is a
+    /// pre-key message (one that can establish a session) or a normal one.
+    message_type: usize,
+    ciphertext: String,
 }
 
-pub(crate) fn ratchet_encrypt(session: &mut RatchetSession, plaintext: &[u8]) -> Result<RatchetMessagePayload, String> {
-    if session.sending_chain.is_none() {
-        let dhs = StaticSecret::from(hex32(&session.dhs_secret)?);
-        let dhr = XPublicKey::from(hex32(&session.dhr_pub)?);
-        let dh_out = dhs.diffie_hellman(&dhr);
-        let (root, chain) = kdf_rk(&hex32(&session.root_key)?, dh_out.as_bytes());
-        session.root_key = hex::encode(root);
-        session.sending_chain = Some(hex::encode(chain));
-        session.sending_n = 0;
-    }
-    let (next_chain, message_key) = kdf_ck(&hex32(session.sending_chain.as_ref().unwrap())?);
-    session.sending_chain = Some(hex::encode(next_chain));
-
-    let dh_pub_hex = {
-        let dhs = StaticSecret::from(hex32(&session.dhs_secret)?);
-        hex::encode(XPublicKey::from(&dhs).to_bytes())
-    };
-    let header = RatchetHeader { dh_pub: dh_pub_hex, pn: session.prev_sending_n, n: session.sending_n };
-    session.sending_n += 1;
-
-    let mut nonce = [0u8; 24];
-    OsRng.fill_bytes(&mut nonce);
-    let cipher = XChaCha20Poly1305::new((&message_key).into());
-    let ciphertext = cipher.encrypt((&nonce).into(), plaintext).map_err(|e| e.to_string())?;
-
-    Ok(RatchetMessagePayload {
-        id: random_hex(16),
-        header,
-        nonce: hex::encode(nonce),
-        ciphertext: base64_encode(&ciphertext),
-        created_at: now(),
-    })
-}
-
-/// Advances `session`'s receiving side to decrypt `payload`, ratcheting
-/// forward (and caching any skipped keys) if `payload.header` carries a DH
-/// public key we haven't seen before. Returns the plaintext.
-pub(crate) fn ratchet_decrypt(session: &mut RatchetSession, payload: &RatchetMessagePayload) -> Result<Vec<u8>, String> {
-    let skip_key = format!("{}:{}", payload.header.dh_pub, payload.header.n);
-    if let Some(mk_hex) = session.skipped.remove(&skip_key) {
-        return decrypt_with_key(&hex32(&mk_hex)?, &payload.nonce, &payload.ciphertext);
-    }
-
-    if session.receiving_chain.is_none() || payload.header.dh_pub != session.dhr_pub {
-        // Cache any trailing keys from the *old* receiving chain before
-        // switching, so messages still in flight on that chain (arriving
-        // late) remain decryptable.
-        if let Some(chain) = &session.receiving_chain {
-            skip_receiving_keys(session, &chain.clone(), &session.dhr_pub.clone(), payload.header.pn)?;
+impl RatchetMessagePayload {
+    fn new(id: String, message: &OlmMessage) -> Self {
+        let (message_type, ciphertext) = message.to_parts();
+        RatchetMessagePayload {
+            id,
+            created_at: now(),
+            message_type,
+            ciphertext: base64_encode(&ciphertext),
         }
-        let dhs = StaticSecret::from(hex32(&session.dhs_secret)?);
-        let new_dhr = XPublicKey::from(hex32(&payload.header.dh_pub)?);
-        let dh_out = dhs.diffie_hellman(&new_dhr);
-        let (root, chain) = kdf_rk(&hex32(&session.root_key)?, dh_out.as_bytes());
-        session.root_key = hex::encode(root);
-        session.receiving_chain = Some(hex::encode(chain));
-        session.receiving_n = 0;
-        session.dhr_pub = payload.header.dh_pub.clone();
-
-        // Ratchet our own sending side forward too, so our next message
-        // (if any) uses a fresh ephemeral instead of re-using whatever DH
-        // keypair was current before — this is what gives the *other*
-        // side's future incoming messages forward secrecy on our end.
-        session.prev_sending_n = session.sending_n;
-        session.sending_n = 0;
-        session.sending_chain = None;
-        let fresh = StaticSecret::random_from_rng(OsRng);
-        session.dhs_secret = hex::encode(fresh.to_bytes());
     }
 
-    // Cache any keys between our current position and this message's `n`,
-    // then derive this message's own key.
-    skip_receiving_keys(session, session.receiving_chain.as_ref().unwrap().clone().as_str(), &session.dhr_pub.clone(), payload.header.n)?;
-    let (next_chain, message_key) = kdf_ck(&hex32(session.receiving_chain.as_ref().unwrap())?);
-    session.receiving_chain = Some(hex::encode(next_chain));
-    session.receiving_n += 1;
-    decrypt_with_key(&message_key, &payload.nonce, &payload.ciphertext)
+    fn to_olm_message(&self) -> Result<OlmMessage, String> {
+        OlmMessage::from_parts(self.message_type, &base64_decode(&self.ciphertext)?)
+            .map_err(|e| e.to_string())
+    }
 }
 
-/// Advances the receiving chain up to (but not including) `until_n`,
-/// stashing each intermediate message key so a message that arrives late
-/// can still be decrypted — bounded by [MAX_SKIPPED_KEYS].
-fn skip_receiving_keys(
-    session: &mut RatchetSession,
-    chain: &str,
-    dhr_pub: &str,
-    until_n: u32,
-) -> Result<(), String> {
-    let mut chain_key = hex32(chain)?;
-    while session.receiving_n < until_n {
-        if session.skipped.len() >= MAX_SKIPPED_KEYS {
-            break;
+/// Adds `session` to `store`, replacing an existing entry for the same Olm
+/// session id rather than accumulating duplicates of it, and trimming the
+/// oldest once past [MAX_SESSIONS_PER_PEER].
+fn store_session(store: &mut SessionStore, session: &Session, received: bool) -> Result<(), String> {
+    let updated = StoredSession::new(session, received)?;
+    match store.sessions.iter_mut().find(|s| s.session_id == updated.session_id) {
+        Some(existing) => {
+            existing.pickle = updated.pickle;
+            existing.received |= received;
         }
-        let (next_chain, message_key) = kdf_ck(&chain_key);
-        session.skipped.insert(format!("{}:{}", dhr_pub, session.receiving_n), hex::encode(message_key));
-        chain_key = next_chain;
-        session.receiving_n += 1;
+        None => {
+            store.sessions.push(updated);
+            if store.sessions.len() > MAX_SESSIONS_PER_PEER {
+                let excess = store.sessions.len() - MAX_SESSIONS_PER_PEER;
+                store.sessions.drain(0..excess);
+            }
+        }
     }
-    session.receiving_chain = Some(hex::encode(chain_key));
     Ok(())
 }
 
-fn decrypt_with_key(key: &[u8; 32], nonce_hex: &str, ciphertext_b64: &str) -> Result<Vec<u8>, String> {
-    let nonce = hex::decode(nonce_hex).map_err(|e| e.to_string())?;
-    let ciphertext = base64_decode(ciphertext_b64)?;
-    let cipher = XChaCha20Poly1305::new(key.into());
-    cipher
-        .decrypt(nonce.as_slice().into(), ciphertext.as_slice())
-        .map_err(|_| "failed to decrypt ratchet message".to_string())
+/// Encrypts `plaintext` for the peer described by `peer`, over the best
+/// existing session with them or a fresh outbound one.
+///
+/// Prefers a session the peer has demonstrably used (something was
+/// decrypted on it) over one we opened optimistically, and the newest among
+/// those — so after the crossed-first-message race above, both sides
+/// converge onto sessions that are known to work instead of talking past
+/// each other. Either side can still decrypt whichever session the other
+/// picks, since [ratchet_decrypt] tries them all.
+pub(crate) fn ratchet_encrypt(
+    account: &Account,
+    store: &mut SessionStore,
+    peer: &DeviceBundle,
+    plaintext: &[u8],
+) -> Result<RatchetMessagePayload, String> {
+    let best = store
+        .sessions
+        .iter()
+        .enumerate()
+        .max_by_key(|(index, s)| (s.received, s.created_at, *index))
+        .map(|(index, _)| index);
+
+    let mut session = match best {
+        Some(index) => store.sessions[index].session()?,
+        None => account
+            .create_outbound_session(session_config(), peer.identity, peer.fallback)
+            .map_err(|e| e.to_string())?,
+    };
+    let message = session.encrypt(plaintext).map_err(|e| e.to_string())?;
+    store_session(store, &session, false)?;
+    Ok(RatchetMessagePayload::new(random_hex(16), &message))
+}
+
+/// Decrypts `payload`, establishing a new inbound session if it's a pre-key
+/// message for one we don't have yet. `account` is mutated when that
+/// happens, so the caller must persist it as well as `store`.
+pub(crate) fn ratchet_decrypt(
+    account: &mut Account,
+    store: &mut SessionStore,
+    payload: &RatchetMessagePayload,
+) -> Result<Vec<u8>, String> {
+    let message = payload.to_olm_message()?;
+
+    // A pre-key message that belongs to a session we already have is just
+    // an ordinary message on it — Olm keeps sending pre-key messages until
+    // the peer's first reply proves the session took, so most of them
+    // arrive for an already-established session.
+    if let OlmMessage::PreKey(pre_key) = &message {
+        let session_id = pre_key.session_id();
+        if !store.sessions.iter().any(|s| s.session_id == session_id) {
+            let result = account
+                .create_inbound_session(session_config(), pre_key.identity_key(), pre_key)
+                .map_err(|e| e.to_string())?;
+            store_session(store, &result.session, true)?;
+            return Ok(result.plaintext);
+        }
+    }
+
+    // Otherwise try each session: which one a normal message belongs to
+    // isn't knowable from the outside, and a failed attempt leaves the
+    // stored session untouched (only the unpickled copy is advanced).
+    for index in (0..store.sessions.len()).rev() {
+        let mut session = store.sessions[index].session()?;
+        if let Ok(plaintext) = session.decrypt(&message) {
+            store_session(store, &session, true)?;
+            return Ok(plaintext);
+        }
+    }
+    Err("no session could decrypt this ratchet message".to_string())
 }
 
 fn base64_encode(data: &[u8]) -> String {
@@ -670,18 +788,13 @@ fn send_ratchet_envelope(
     // block incoming messages from being processed.
     let payload = {
         let _guard = ratchet_lock().lock().unwrap_or_else(|e| e.into_inner());
+        let announced = friend_device_pubkey(storage_dir.to_string(), friend_pubkey.to_string())
+            .ok_or("friend hasn't announced a forward-secrecy device yet")?;
+        let peer = DeviceBundle::decode(&announced)?;
+        let account = load_or_create_account(storage_dir, local_key_bytes)?;
         let mut sessions = load_sessions(storage_dir, local_key_bytes);
-        let mut session = match sessions.get(friend_pubkey) {
-            Some(s) => s.clone(),
-            None => {
-                let identity = load_or_create_identity(storage_dir, local_key_bytes)?;
-                let remote_hex = friend_device_pubkey(storage_dir.to_string(), friend_pubkey.to_string())
-                    .ok_or("friend hasn't announced a forward-secrecy device yet")?;
-                RatchetSession::new(identity.to_bytes(), hex32(&remote_hex)?)
-            }
-        };
-        let payload = ratchet_encrypt(&mut session, &plaintext)?;
-        sessions.insert(friend_pubkey.to_string(), session);
+        let store = sessions.entry(friend_pubkey.to_string()).or_default();
+        let payload = ratchet_encrypt(&account, store, &peer, &plaintext)?;
         save_sessions(storage_dir, local_key_bytes, &sessions)?;
         payload
     };
@@ -720,11 +833,8 @@ fn mark_processed(storage_dir: &str, seal_id: &str) {
         .and_then(|s| serde_json::from_str(&s).ok())
         .unwrap_or_default();
     ids.push(seal_id.to_string());
-    // Same-order eviction as the skipped-key cache — this only needs to be
-    // "big enough to outlast realistic relay-replay duplication", not
-    // unbounded.
-    if ids.len() > MAX_SKIPPED_KEYS * 4 {
-        let excess = ids.len() - MAX_SKIPPED_KEYS * 4;
+    if ids.len() > MAX_PROCESSED_IDS {
+        let excess = ids.len() - MAX_PROCESSED_IDS;
         ids.drain(0..excess);
     }
     let _ = std::fs::write(processed_ids_path(storage_dir), serde_json::to_string(&ids).unwrap_or_default());
@@ -775,7 +885,16 @@ pub(crate) async fn receive_ratchet_gift_wrap(
 
     if rumor.kind == DEVICE_ANNOUNCE_KIND {
         let payload: DeviceAnnouncePayload = serde_json::from_str(&rumor.content).ok()?;
-        save_friend_device(storage_dir, &expected_sender.to_hex(), &payload.device_pubkey);
+        let friend_pubkey = expected_sender.to_hex();
+        if let Ok(local_key_bytes) = hex32(local_key) {
+            forget_sessions_if_reinstalled(
+                storage_dir,
+                &local_key_bytes,
+                &friend_pubkey,
+                &payload.device_pubkey,
+            );
+        }
+        save_friend_device(storage_dir, &friend_pubkey, &payload.device_pubkey);
         mark_processed(storage_dir, &seal_id);
         return Some(RatchetReceived::DeviceAnnounced);
     }
@@ -784,16 +903,13 @@ pub(crate) async fn receive_ratchet_gift_wrap(
     let local_key_bytes = hex32(local_key).ok()?;
     let friend_pubkey = expected_sender.to_hex();
 
+    let mut account = load_or_create_account(storage_dir, &local_key_bytes).ok()?;
     let mut sessions = load_sessions(storage_dir, &local_key_bytes);
-    let mut session = match sessions.get(&friend_pubkey) {
-        Some(s) => s.clone(),
-        None => {
-            let identity = load_or_create_identity(storage_dir, &local_key_bytes).ok()?;
-            RatchetSession::new(identity.to_bytes(), hex32(&payload.header.dh_pub).ok()?)
-        }
-    };
-    let plaintext = ratchet_decrypt(&mut session, &payload).ok()?;
-    sessions.insert(friend_pubkey.clone(), session);
+    let store = sessions.entry(friend_pubkey.clone()).or_default();
+    let plaintext = ratchet_decrypt(&mut account, store, &payload).ok()?;
+    // Establishing an inbound session consumes key material from the
+    // account, so it has to be persisted alongside the session itself.
+    save_account(storage_dir, &local_key_bytes, &account).ok()?;
     save_sessions(storage_dir, &local_key_bytes, &sessions).ok()?;
 
     let envelope: RatchetContent = serde_json::from_slice(&plaintext).ok()?;
@@ -838,8 +954,308 @@ pub(crate) async fn receive_ratchet_gift_wrap(
 
 // Group chat forward+backward secrecy lives in `group_ratchet.rs` instead
 // of here — it needs a *third* identity (not this module's per-friend
-// contact key, nor its X25519 device identity alone) per (group, member)
+// contact key, nor its Olm device identity alone) per (group, member)
 // pair, since group members generally aren't 1:1 friends of each other.
 // See that module's doc comment for the full design; it reuses this
-// module's `RatchetSession`/KDF/DH-step primitives (all `pub(crate)`)
+// module's session store and encrypt/decrypt helpers (all `pub(crate)`)
 // rather than duplicating them.
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A throwaway storage directory, since the account/session helpers are
+    /// file-backed.
+    fn temp_dir(tag: &str) -> String {
+        let path = std::env::temp_dir().join(format!("keychat-ratchet-test-{tag}-{}", random_hex(8)));
+        std::fs::create_dir_all(&path).expect("create temp storage dir");
+        path.to_string_lossy().to_string()
+    }
+
+    /// One side of a conversation: an Olm account plus its sessions.
+    struct Device {
+        account: Account,
+        store: SessionStore,
+    }
+
+    impl Device {
+        fn new() -> Self {
+            let mut account = Account::new();
+            account.generate_fallback_key();
+            Device { account, store: SessionStore::default() }
+        }
+
+        fn bundle(&self) -> DeviceBundle {
+            DeviceBundle::of(&self.account).expect("a fallback key exists")
+        }
+
+        fn send(&mut self, peer: &DeviceBundle, text: &str) -> RatchetMessagePayload {
+            ratchet_encrypt(&self.account, &mut self.store, peer, text.as_bytes())
+                .expect("encrypts")
+        }
+
+        fn receive(&mut self, payload: &RatchetMessagePayload) -> Result<String, String> {
+            let plaintext = ratchet_decrypt(&mut self.account, &mut self.store, payload)?;
+            String::from_utf8(plaintext).map_err(|e| e.to_string())
+        }
+    }
+
+    /// The payload has to survive the JSON round-trip it makes as a rumor's
+    /// `content` on the way through a relay.
+    fn over_the_wire(payload: &RatchetMessagePayload) -> RatchetMessagePayload {
+        let json = serde_json::to_string(payload).expect("serializes");
+        serde_json::from_str(&json).expect("deserializes")
+    }
+
+    #[test]
+    fn device_bundle_round_trip() {
+        let device = Device::new();
+        let encoded = device.bundle().encode();
+        let decoded = DeviceBundle::decode(&encoded).expect("decodes");
+        assert_eq!(decoded.identity, device.account.curve25519_key());
+        assert_eq!(decoded.fallback, device.bundle().fallback);
+    }
+
+    #[test]
+    fn device_bundle_rejects_garbage() {
+        assert!(DeviceBundle::decode("no-separator").is_err());
+        assert!(DeviceBundle::decode("not.base64!!").is_err());
+        // An old-format announce (a bare hex X25519 key) must be rejected
+        // rather than silently misread as a bundle.
+        assert!(DeviceBundle::decode(&random_hex(32)).is_err());
+    }
+
+    #[test]
+    fn message_round_trip_between_two_devices() {
+        let mut alice = Device::new();
+        let mut bob = Device::new();
+        let bob_bundle = bob.bundle();
+        let alice_bundle = alice.bundle();
+
+        let first = alice.send(&bob_bundle, "hello bob");
+        assert_eq!(bob.receive(&over_the_wire(&first)).unwrap(), "hello bob");
+
+        let reply = bob.send(&alice_bundle, "hello alice");
+        assert_eq!(alice.receive(&over_the_wire(&reply)).unwrap(), "hello alice");
+
+        // And keeps working once both chains are established.
+        let third = alice.send(&bob_bundle, "still here");
+        assert_eq!(bob.receive(&over_the_wire(&third)).unwrap(), "still here");
+    }
+
+    /// Each payload carries its own id, which both sides store the message
+    /// under — so they must not collide across messages.
+    #[test]
+    fn each_message_gets_a_distinct_id() {
+        let mut alice = Device::new();
+        let bob_bundle = Device::new().bundle();
+        let a = alice.send(&bob_bundle, "one");
+        let b = alice.send(&bob_bundle, "two");
+        assert_ne!(a.id, b.id);
+    }
+
+    /// Relays deliver in no particular order.
+    #[test]
+    fn out_of_order_delivery() {
+        let mut alice = Device::new();
+        let mut bob = Device::new();
+        let bob_bundle = bob.bundle();
+
+        let one = alice.send(&bob_bundle, "one");
+        let two = alice.send(&bob_bundle, "two");
+        let three = alice.send(&bob_bundle, "three");
+
+        assert_eq!(bob.receive(&two).unwrap(), "two");
+        assert_eq!(bob.receive(&three).unwrap(), "three");
+        assert_eq!(bob.receive(&one).unwrap(), "one", "a late earlier message must still decrypt");
+    }
+
+    /// Relays also deliver the same event repeatedly, and `sync.rs` can hand
+    /// the same payload here more than once — that must not wedge the
+    /// session for everything after it.
+    #[test]
+    fn duplicate_delivery_leaves_the_session_usable() {
+        let mut alice = Device::new();
+        let mut bob = Device::new();
+        let bob_bundle = bob.bundle();
+
+        let first = alice.send(&bob_bundle, "one");
+        assert_eq!(bob.receive(&first).unwrap(), "one");
+        assert!(bob.receive(&first).is_err(), "a replay must not decrypt twice");
+
+        let second = alice.send(&bob_bundle, "two");
+        assert_eq!(bob.receive(&second).unwrap(), "two", "the session survives the replay");
+    }
+
+    /// The case a single-session-per-peer store would lose messages on: both
+    /// sides send before either has received, so each starts its own
+    /// outbound session against the other's reusable fallback key.
+    #[test]
+    fn crossed_first_messages_keep_both_directions_working() {
+        let mut alice = Device::new();
+        let mut bob = Device::new();
+        let alice_bundle = alice.bundle();
+        let bob_bundle = bob.bundle();
+
+        let from_alice = alice.send(&bob_bundle, "from alice");
+        let from_bob = bob.send(&alice_bundle, "from bob");
+
+        assert_eq!(bob.receive(&from_alice).unwrap(), "from alice");
+        assert_eq!(alice.receive(&from_bob).unwrap(), "from bob");
+
+        // Both sides now hold two sessions; conversation has to continue
+        // regardless of which one either picks to send on.
+        for i in 0..4 {
+            let a = alice.send(&bob_bundle, &format!("a{i}"));
+            assert_eq!(bob.receive(&a).unwrap(), format!("a{i}"));
+            let b = bob.send(&alice_bundle, &format!("b{i}"));
+            assert_eq!(alice.receive(&b).unwrap(), format!("b{i}"));
+        }
+    }
+
+    /// Sessions are retained per peer but must not grow without bound.
+    #[test]
+    fn session_count_is_capped() {
+        let mut bob = Device::new();
+        let bob_bundle = bob.bundle();
+        // Each fresh peer establishes a distinct inbound session with Bob.
+        for i in 0..(MAX_SESSIONS_PER_PEER + 3) {
+            let mut peer = Device::new();
+            let payload = peer.send(&bob_bundle, &format!("peer {i}"));
+            // Deliberately all filed under one peer key, which is what a
+            // long-lived conversation that re-handshakes repeatedly looks
+            // like to the store.
+            let text = ratchet_decrypt(&mut bob.account, &mut bob.store, &payload).unwrap();
+            assert_eq!(String::from_utf8(text).unwrap(), format!("peer {i}"));
+        }
+        assert_eq!(bob.store.sessions.len(), MAX_SESSIONS_PER_PEER);
+    }
+
+    /// An account must come back identical across restarts, or every friend's
+    /// cached copy of our announce would go stale.
+    #[test]
+    fn account_persists_with_a_stable_bundle() {
+        let dir = temp_dir("account");
+        let local_key = hex32(&random_hex(32)).unwrap();
+
+        let first = load_or_create_account(&dir, &local_key).unwrap();
+        let announced = DeviceBundle::of(&first).unwrap().encode();
+
+        let second = load_or_create_account(&dir, &local_key).unwrap();
+        assert_eq!(DeviceBundle::of(&second).unwrap().encode(), announced);
+    }
+
+    /// The at-rest encryption must actually be keyed by `local_key`.
+    #[test]
+    fn account_is_unreadable_with_the_wrong_local_key() {
+        let dir = temp_dir("wrong-key");
+        let right = hex32(&random_hex(32)).unwrap();
+        let wrong = hex32(&random_hex(32)).unwrap();
+
+        let announced = DeviceBundle::of(&load_or_create_account(&dir, &right).unwrap())
+            .unwrap()
+            .encode();
+        // A wrong key can't decrypt it, so a *different* account is minted
+        // rather than the caller getting the original one back.
+        let other = DeviceBundle::of(&load_or_create_account(&dir, &wrong).unwrap()).unwrap().encode();
+        assert_ne!(other, announced);
+    }
+
+    /// Sessions have to survive an app restart mid-conversation.
+    #[test]
+    fn sessions_persist_across_a_reload() {
+        let dir = temp_dir("sessions");
+        let local_key = hex32(&random_hex(32)).unwrap();
+        let peer_key = "friend-pubkey";
+
+        let alice = Device::new();
+        let mut bob = Device::new();
+        let bob_bundle = bob.bundle();
+
+        // Alice sends, persists, and "restarts".
+        let first = {
+            let account = load_or_create_account(&dir, &local_key).unwrap();
+            let mut sessions: HashMap<String, SessionStore> = load_sessions(&dir, &local_key);
+            let store = sessions.entry(peer_key.to_string()).or_default();
+            let payload = ratchet_encrypt(&account, store, &bob_bundle, b"before restart").unwrap();
+            save_sessions(&dir, &local_key, &sessions).unwrap();
+            payload
+        };
+        assert_eq!(bob.receive(&first).unwrap(), "before restart");
+
+        let reloaded = load_sessions(&dir, &local_key);
+        assert_eq!(reloaded.get(peer_key).map(|s| s.sessions.len()), Some(1));
+
+        // The restored session keeps the same chain rather than starting over.
+        let second = {
+            let account = load_or_create_account(&dir, &local_key).unwrap();
+            let mut sessions = reloaded;
+            let store = sessions.entry(peer_key.to_string()).or_default();
+            ratchet_encrypt(&account, store, &bob_bundle, b"after restart").unwrap()
+        };
+        assert_eq!(bob.receive(&second).unwrap(), "after restart");
+
+        // Sanity: `alice` (the in-memory device) was never used here, so the
+        // persisted path really is what carried the conversation.
+        assert!(alice.store.sessions.is_empty());
+    }
+
+    /// A friend reinstalling announces a brand-new identity key, and the
+    /// sessions bound to the old one have to go — nothing sent on them
+    /// could ever be decrypted again.
+    #[test]
+    fn reinstalled_friend_clears_stale_sessions() {
+        let dir = temp_dir("reinstall");
+        let local_key = hex32(&random_hex(32)).unwrap();
+        let friend = "friend-pubkey";
+
+        // Establish a session against their first device, and store it.
+        let first_device = Device::new();
+        let mut sessions: HashMap<String, SessionStore> = HashMap::new();
+        let account = load_or_create_account(&dir, &local_key).unwrap();
+        let store = sessions.entry(friend.to_string()).or_default();
+        ratchet_encrypt(&account, store, &first_device.bundle(), b"hi").unwrap();
+        save_sessions(&dir, &local_key, &sessions).unwrap();
+        save_friend_device(&dir, friend, &first_device.bundle().encode());
+        assert_eq!(load_sessions(&dir, &local_key).get(friend).map(|s| s.sessions.len()), Some(1));
+
+        // Re-announcing the *same* device must not disturb anything, even
+        // though its fallback key could have rotated.
+        forget_sessions_if_reinstalled(
+            &dir,
+            &local_key,
+            friend,
+            &first_device.bundle().encode(),
+        );
+        assert_eq!(load_sessions(&dir, &local_key).get(friend).map(|s| s.sessions.len()), Some(1));
+
+        // A different account (reinstall) drops them.
+        let reinstalled = Device::new();
+        forget_sessions_if_reinstalled(&dir, &local_key, friend, &reinstalled.bundle().encode());
+        assert!(load_sessions(&dir, &local_key).get(friend).is_none());
+    }
+
+    /// A payload that isn't decryptable by any session must fail cleanly
+    /// rather than corrupting the store.
+    #[test]
+    fn undecryptable_payload_is_rejected() {
+        let mut alice = Device::new();
+        let mut bob = Device::new();
+        let mut eve = Device::new();
+        let bob_bundle = bob.bundle();
+
+        let good = alice.send(&bob_bundle, "legit");
+        assert_eq!(bob.receive(&good).unwrap(), "legit");
+        let sessions_before = bob.store.sessions.len();
+
+        // A message from a third party's session with Bob decrypts (it's a
+        // valid prekey message), but a *tampered* one must not.
+        let mut tampered = eve.send(&bob_bundle, "spoofed");
+        tampered.ciphertext = base64_encode(b"garbage that is not an olm message");
+        assert!(bob.receive(&tampered).is_err());
+
+        let next = alice.send(&bob_bundle, "still fine");
+        assert_eq!(bob.receive(&next).unwrap(), "still fine");
+        assert_eq!(bob.store.sessions.len(), sessions_before);
+    }
+}

@@ -303,10 +303,10 @@ class GroupMember {
   /// self-reported alongside it.
   final List<String> relays;
 
-  /// This member's forward-secrecy device identity (the same X25519 key
-  /// `ratchet.rs` uses for 1:1 — see that module's doc comment), needed
-  /// to bootstrap this group's pairwise Double Ratchet session with
-  /// them (see `group_ratchet.rs`).
+  /// This member's forward-secrecy device key bundle (the same one
+  /// `ratchet.rs` announces for 1:1 — see that module's doc comment),
+  /// needed to bootstrap this group's pairwise Olm session with them
+  /// (see `group_ratchet.rs`). Opaque here; only `ratchet.rs` parses it.
   final String? devicePubkey;
 
   const GroupMember({
