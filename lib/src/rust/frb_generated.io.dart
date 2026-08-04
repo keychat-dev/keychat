@@ -11,6 +11,7 @@ import 'api/friends.dart';
 import 'api/groups.dart';
 import 'api/invites.dart';
 import 'api/keys.dart';
+import 'api/link_preview.dart';
 import 'api/ratchet.dart';
 import 'api/relay.dart';
 import 'api/simple.dart';
@@ -127,6 +128,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   InviteQrPayload dco_decode_invite_qr_payload(dynamic raw);
+
+  @protected
+  LinkPreview dco_decode_link_preview(dynamic raw);
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
@@ -364,6 +368,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   InviteQrPayload sse_decode_invite_qr_payload(SseDeserializer deserializer);
+
+  @protected
+  LinkPreview sse_decode_link_preview(SseDeserializer deserializer);
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
@@ -654,6 +661,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     InviteQrPayload self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_link_preview(LinkPreview self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);

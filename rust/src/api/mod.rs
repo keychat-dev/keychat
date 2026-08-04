@@ -7,6 +7,7 @@ mod group_ratchet;
 pub mod groups;
 pub mod invites;
 pub mod keys;
+pub mod link_preview;
 pub mod ratchet;
 pub mod relay;
 pub mod requests;
