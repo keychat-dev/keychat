@@ -479,6 +479,37 @@ pub struct RatchetChatMessage {
     pub content: String,
     pub created_at: i64,
     pub is_mine: bool,
+    #[serde(default)]
+    pub hidden: bool,
+    #[serde(default)]
+    pub is_edited: bool,
+    #[serde(default)]
+    pub is_deleted: bool,
+    #[serde(default)]
+    pub reply_to: Option<String>,
+}
+
+/// What a decrypted [RatchetMessagePayload]'s plaintext actually is — a
+/// message (optionally replying to an earlier one), or a control
+/// instruction targeting a message this device (specifically — see module
+/// doc comment on why history isn't shared across a user's devices) has
+/// already stored. Unlike `chat.rs`, which authenticates edit/delete via
+/// the outer Seal's signature, there's no separate signature layer here:
+/// the ratchet key agreement itself is what authenticates the sender, the
+/// same way it authenticates every ordinary message.
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "t")]
+enum RatchetContent {
+    #[serde(rename = "msg")]
+    Msg {
+        body: String,
+        #[serde(default)]
+        reply_to: Option<String>,
+    },
+    #[serde(rename = "edit")]
+    Edit { target: String, body: String },
+    #[serde(rename = "delete")]
+    Delete { target: String },
 }
 
 fn messages_path(storage_dir: &str) -> PathBuf {
@@ -509,10 +540,25 @@ pub fn load_ratchet_history(
     let local_key = hex32(&local_key)?;
     let mut messages: Vec<RatchetChatMessage> = load_all_messages(&storage_dir, &local_key)
         .into_iter()
-        .filter(|m| m.friend_pubkey == friend_pubkey)
+        .filter(|m| m.friend_pubkey == friend_pubkey && !m.hidden)
         .collect();
     messages.sort_by_key(|m| m.created_at);
     Ok(messages)
+}
+
+/// Hides a forward-secret message from this device's view only — there's
+/// no signed retraction for ratchet messages (see module doc: only the
+/// receiving device ever holds the plaintext, so there's nothing for a
+/// friend's device to authenticate against), so unlike [chat]'s
+/// hide/edit/unsend this can't be anything but local.
+pub fn hide_ratchet_message(storage_dir: String, local_key: String, message_id: String) -> Result<(), String> {
+    let local_key = hex32(&local_key)?;
+    let mut all = load_all_messages(&storage_dir, &local_key);
+    let Some(m) = all.iter_mut().find(|m| m.id == message_id) else {
+        return Ok(());
+    };
+    m.hidden = true;
+    write_encrypted(&messages_path(&storage_dir), &local_key, &all)
 }
 
 // ---------------------------------------------------------------------
@@ -529,15 +575,93 @@ pub fn send_ratchet_message(
     friend_pubkey: String,
     local_key: String,
     content: String,
+    reply_to: Option<String>,
 ) -> Result<(), String> {
     let local_key_bytes = hex32(&local_key)?;
-    friends::load_friends(storage_dir.clone())
+    let envelope = RatchetContent::Msg { body: content.clone(), reply_to: reply_to.clone() };
+    let msg_id = send_ratchet_envelope(&mnemonic, &storage_dir, &friend_pubkey, &local_key_bytes, &envelope)?;
+    append_message(
+        &storage_dir,
+        &local_key_bytes,
+        RatchetChatMessage {
+            id: msg_id,
+            friend_pubkey,
+            content,
+            created_at: now(),
+            is_mine: true,
+            hidden: false,
+            is_edited: false,
+            is_deleted: false,
+            reply_to,
+        },
+    )
+}
+
+/// Replaces the content of a message this device previously sent, both
+/// locally and (via a fresh ratchet-encrypted `edit` envelope) for the
+/// friend's copy of it.
+pub fn edit_ratchet_message(
+    mnemonic: String,
+    storage_dir: String,
+    friend_pubkey: String,
+    local_key: String,
+    message_id: String,
+    new_content: String,
+) -> Result<(), String> {
+    let local_key_bytes = hex32(&local_key)?;
+    let envelope = RatchetContent::Edit { target: message_id.clone(), body: new_content.clone() };
+    send_ratchet_envelope(&mnemonic, &storage_dir, &friend_pubkey, &local_key_bytes, &envelope)?;
+
+    let mut all = load_all_messages(&storage_dir, &local_key_bytes);
+    if let Some(m) = all.iter_mut().find(|m| m.id == message_id && m.is_mine) {
+        m.content = new_content;
+        m.is_edited = true;
+    }
+    write_encrypted(&messages_path(&storage_dir), &local_key_bytes, &all)
+}
+
+/// Unsends a message this device previously sent, both locally and (via a
+/// fresh ratchet-encrypted `delete` envelope) for the friend's copy.
+pub fn delete_ratchet_message(
+    mnemonic: String,
+    storage_dir: String,
+    friend_pubkey: String,
+    local_key: String,
+    message_id: String,
+) -> Result<(), String> {
+    let local_key_bytes = hex32(&local_key)?;
+    let envelope = RatchetContent::Delete { target: message_id.clone() };
+    send_ratchet_envelope(&mnemonic, &storage_dir, &friend_pubkey, &local_key_bytes, &envelope)?;
+
+    let mut all = load_all_messages(&storage_dir, &local_key_bytes);
+    if let Some(m) = all.iter_mut().find(|m| m.id == message_id && m.is_mine) {
+        m.content = String::new();
+        m.is_deleted = true;
+    }
+    write_encrypted(&messages_path(&storage_dir), &local_key_bytes, &all)
+}
+
+/// Encrypts `envelope` over this device's ratchet session with
+/// `friend_pubkey` and publishes it as a [RATCHET_MESSAGE_KIND] control
+/// rumor, the same way an ordinary message is sent — a message and an
+/// edit/delete instruction are indistinguishable at the transport layer,
+/// only the decrypted plaintext's `t` tag tells them apart. Returns the
+/// payload's locally-generated id (only meaningful for a plain `Msg`).
+fn send_ratchet_envelope(
+    mnemonic: &str,
+    storage_dir: &str,
+    friend_pubkey: &str,
+    local_key_bytes: &[u8; 32],
+    envelope: &RatchetContent,
+) -> Result<String, String> {
+    friends::load_friends(storage_dir.to_string())
         .into_iter()
         .find(|f| f.pubkey == friend_pubkey)
         .ok_or("not a friend")?;
-    if friends::load_blocked(&storage_dir).contains(&friend_pubkey) {
+    if friends::load_blocked(storage_dir).contains(&friend_pubkey.to_string()) {
         return Err("friend is blocked".to_string());
     }
+    let plaintext = serde_json::to_vec(envelope).map_err(|e| e.to_string())?;
 
     // See [ratchet_lock]'s doc comment — this device's own concurrent
     // relay-delivered receives must not race this send's session
@@ -546,32 +670,26 @@ pub fn send_ratchet_message(
     // block incoming messages from being processed.
     let payload = {
         let _guard = ratchet_lock().lock().unwrap_or_else(|e| e.into_inner());
-        let mut sessions = load_sessions(&storage_dir, &local_key_bytes);
-        let mut session = match sessions.get(&friend_pubkey) {
+        let mut sessions = load_sessions(storage_dir, local_key_bytes);
+        let mut session = match sessions.get(friend_pubkey) {
             Some(s) => s.clone(),
             None => {
-                let identity = load_or_create_identity(&storage_dir, &local_key_bytes)?;
-                let remote_hex = friend_device_pubkey(storage_dir.clone(), friend_pubkey.clone())
+                let identity = load_or_create_identity(storage_dir, local_key_bytes)?;
+                let remote_hex = friend_device_pubkey(storage_dir.to_string(), friend_pubkey.to_string())
                     .ok_or("friend hasn't announced a forward-secrecy device yet")?;
                 RatchetSession::new(identity.to_bytes(), hex32(&remote_hex)?)
             }
         };
-        let payload = ratchet_encrypt(&mut session, content.as_bytes())?;
-        sessions.insert(friend_pubkey.clone(), session);
-        save_sessions(&storage_dir, &local_key_bytes, &sessions)?;
+        let payload = ratchet_encrypt(&mut session, &plaintext)?;
+        sessions.insert(friend_pubkey.to_string(), session);
+        save_sessions(storage_dir, local_key_bytes, &sessions)?;
         payload
     };
 
     let msg_id = payload.id.clone();
-    let created_at = payload.created_at;
     let json = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
-    chat::send_control_rumor(&mnemonic, &storage_dir, &friend_pubkey, RATCHET_MESSAGE_KIND, json, true, None)?;
-
-    append_message(
-        &storage_dir,
-        &local_key_bytes,
-        RatchetChatMessage { id: msg_id, friend_pubkey, content, created_at, is_mine: true },
-    )
+    chat::send_control_rumor(mnemonic, storage_dir, friend_pubkey, RATCHET_MESSAGE_KIND, json, true, None)?;
+    Ok(msg_id)
 }
 
 // ---------------------------------------------------------------------
@@ -678,18 +796,42 @@ pub(crate) async fn receive_ratchet_gift_wrap(
     sessions.insert(friend_pubkey.clone(), session);
     save_sessions(storage_dir, &local_key_bytes, &sessions).ok()?;
 
-    let content = String::from_utf8(plaintext).ok()?;
-    let _ = append_message(
-        storage_dir,
-        &local_key_bytes,
-        RatchetChatMessage {
-            id: payload.id,
-            friend_pubkey,
-            content,
-            created_at: payload.created_at,
-            is_mine: false,
-        },
-    );
+    let envelope: RatchetContent = serde_json::from_slice(&plaintext).ok()?;
+    match envelope {
+        RatchetContent::Msg { body, reply_to } => {
+            let _ = append_message(
+                storage_dir,
+                &local_key_bytes,
+                RatchetChatMessage {
+                    id: payload.id,
+                    friend_pubkey,
+                    content: body,
+                    created_at: payload.created_at,
+                    is_mine: false,
+                    hidden: false,
+                    is_edited: false,
+                    is_deleted: false,
+                    reply_to,
+                },
+            );
+        }
+        RatchetContent::Edit { target, body } => {
+            let mut all = load_all_messages(storage_dir, &local_key_bytes);
+            if let Some(m) = all.iter_mut().find(|m| m.id == target && !m.is_mine) {
+                m.content = body;
+                m.is_edited = true;
+                let _ = write_encrypted(&messages_path(storage_dir), &local_key_bytes, &all);
+            }
+        }
+        RatchetContent::Delete { target } => {
+            let mut all = load_all_messages(storage_dir, &local_key_bytes);
+            if let Some(m) = all.iter_mut().find(|m| m.id == target && !m.is_mine) {
+                m.content = String::new();
+                m.is_deleted = true;
+                let _ = write_encrypted(&messages_path(storage_dir), &local_key_bytes, &all);
+            }
+        }
+    }
     mark_processed(storage_dir, &seal_id);
     Some(RatchetReceived::Message)
 }

@@ -6,8 +6,8 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `already_processed`, `append_message`, `base64_decode`, `base64_encode`, `decrypt_at_rest`, `decrypt_with_key`, `encrypt_at_rest`, `friend_devices_path`, `hex32`, `identity_path`, `kdf_ck`, `kdf_rk`, `load_all_messages`, `load_friend_devices`, `load_or_create_identity`, `load_sessions`, `mark_processed`, `messages_path`, `new`, `now`, `processed_ids_path`, `random_hex`, `ratchet_decrypt`, `ratchet_encrypt`, `ratchet_lock`, `read_encrypted`, `receive_ratchet_gift_wrap`, `save_friend_device`, `save_sessions`, `sessions_path`, `skip_receiving_keys`, `write_encrypted`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DeviceAnnouncePayload`, `RatchetHeader`, `RatchetMessagePayload`, `RatchetReceived`, `RatchetSession`
+// These functions are ignored because they are not marked as `pub`: `already_processed`, `append_message`, `base64_decode`, `base64_encode`, `decrypt_at_rest`, `decrypt_with_key`, `encrypt_at_rest`, `friend_devices_path`, `hex32`, `identity_path`, `kdf_ck`, `kdf_rk`, `load_all_messages`, `load_friend_devices`, `load_or_create_identity`, `load_sessions`, `mark_processed`, `messages_path`, `new`, `now`, `processed_ids_path`, `random_hex`, `ratchet_decrypt`, `ratchet_encrypt`, `ratchet_lock`, `read_encrypted`, `receive_ratchet_gift_wrap`, `save_friend_device`, `save_sessions`, `send_ratchet_envelope`, `sessions_path`, `skip_receiving_keys`, `write_encrypted`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DeviceAnnouncePayload`, `RatchetContent`, `RatchetHeader`, `RatchetMessagePayload`, `RatchetReceived`, `RatchetSession`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`
 
 /// A fresh random key for encrypting this module's local state at rest —
@@ -71,6 +71,21 @@ Future<List<RatchetChatMessage>> loadRatchetHistory({
   friendPubkey: friendPubkey,
 );
 
+/// Hides a forward-secret message from this device's view only — there's
+/// no signed retraction for ratchet messages (see module doc: only the
+/// receiving device ever holds the plaintext, so there's nothing for a
+/// friend's device to authenticate against), so unlike [chat]'s
+/// hide/edit/unsend this can't be anything but local.
+Future<void> hideRatchetMessage({
+  required String storageDir,
+  required String localKey,
+  required String messageId,
+}) => RustLib.instance.api.crateApiRatchetHideRatchetMessage(
+  storageDir: storageDir,
+  localKey: localKey,
+  messageId: messageId,
+);
+
 /// Sends `content` to `friend_pubkey` with forward secrecy, over a Double
 /// Ratchet session with their most-recently-announced device — fails with
 /// a clear error if they haven't announced one yet (call
@@ -81,12 +96,49 @@ Future<void> sendRatchetMessage({
   required String friendPubkey,
   required String localKey,
   required String content,
+  String? replyTo,
 }) => RustLib.instance.api.crateApiRatchetSendRatchetMessage(
   mnemonic: mnemonic,
   storageDir: storageDir,
   friendPubkey: friendPubkey,
   localKey: localKey,
   content: content,
+  replyTo: replyTo,
+);
+
+/// Replaces the content of a message this device previously sent, both
+/// locally and (via a fresh ratchet-encrypted `edit` envelope) for the
+/// friend's copy of it.
+Future<void> editRatchetMessage({
+  required String mnemonic,
+  required String storageDir,
+  required String friendPubkey,
+  required String localKey,
+  required String messageId,
+  required String newContent,
+}) => RustLib.instance.api.crateApiRatchetEditRatchetMessage(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+  friendPubkey: friendPubkey,
+  localKey: localKey,
+  messageId: messageId,
+  newContent: newContent,
+);
+
+/// Unsends a message this device previously sent, both locally and (via a
+/// fresh ratchet-encrypted `delete` envelope) for the friend's copy.
+Future<void> deleteRatchetMessage({
+  required String mnemonic,
+  required String storageDir,
+  required String friendPubkey,
+  required String localKey,
+  required String messageId,
+}) => RustLib.instance.api.crateApiRatchetDeleteRatchetMessage(
+  mnemonic: mnemonic,
+  storageDir: storageDir,
+  friendPubkey: friendPubkey,
+  localKey: localKey,
+  messageId: messageId,
 );
 
 /// A forward-secret message, already decrypted — exposed to the UI to be
@@ -97,6 +149,10 @@ class RatchetChatMessage {
   final String content;
   final PlatformInt64 createdAt;
   final bool isMine;
+  final bool hidden;
+  final bool isEdited;
+  final bool isDeleted;
+  final String? replyTo;
 
   const RatchetChatMessage({
     required this.id,
@@ -104,6 +160,10 @@ class RatchetChatMessage {
     required this.content,
     required this.createdAt,
     required this.isMine,
+    required this.hidden,
+    required this.isEdited,
+    required this.isDeleted,
+    this.replyTo,
   });
 
   @override
@@ -112,7 +172,11 @@ class RatchetChatMessage {
       friendPubkey.hashCode ^
       content.hashCode ^
       createdAt.hashCode ^
-      isMine.hashCode;
+      isMine.hashCode ^
+      hidden.hashCode ^
+      isEdited.hashCode ^
+      isDeleted.hashCode ^
+      replyTo.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -123,5 +187,9 @@ class RatchetChatMessage {
           friendPubkey == other.friendPubkey &&
           content == other.content &&
           createdAt == other.createdAt &&
-          isMine == other.isMine;
+          isMine == other.isMine &&
+          hidden == other.hidden &&
+          isEdited == other.isEdited &&
+          isDeleted == other.isDeleted &&
+          replyTo == other.replyTo;
 }

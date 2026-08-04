@@ -358,9 +358,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
             content: m.content,
             createdAt: m.createdAt,
             isMine: m.isMine,
-            isEdited: false,
-            isDeleted: false,
-            replyTo: null,
+            isEdited: m.isEdited,
+            isDeleted: m.isDeleted,
+            replyTo: m.replyTo,
             attachment: null,
           ),
         )
@@ -482,9 +482,8 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       await _sendPendingAttachment(mnemonic, storageDir.path, text);
     } else if (_friendHasRatchetDevice) {
       // Forward secrecy is used automatically whenever the friend has an
-      // announced device — no reply-to support (v1 scope) and no
-      // self-echo, so this device is the only one that will ever see it
-      // (see `ratchet.rs`'s module doc).
+      // announced device — no self-echo, so this device is the only one
+      // that will ever see it (see `ratchet.rs`'s module doc).
       try {
         final ratchetKey = await getOrCreateRatchetKey();
         await ratchet_api.sendRatchetMessage(
@@ -493,6 +492,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
           friendPubkey: widget.friend.pubkey,
           localKey: ratchetKey,
           content: text,
+          replyTo: _replyingTo?.id,
         );
         _messageController.clear();
         setState(() => _replyingTo = null);
@@ -695,10 +695,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   /// sender); "hide for me" is local-only, so it's offered for either
   /// side's messages.
   Future<void> _showMessageMenu(chat_api.ChatMessage message) async {
-    // Forward-secret messages aren't stored as Seals in chat.lmdb (see
-    // ratchet.rs's module doc), so edit/unsend/hide/reply — which all
-    // operate on a Seal id — don't apply to them; no menu at all for v1.
-    if (message.isDeleted || _forwardSecretIds.contains(message.id)) return;
+    if (message.isDeleted) return;
     final l10n = AppLocalizations.of(context)!;
     final action = await showDialog<String>(
       context: context,
@@ -794,10 +791,21 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       ),
     );
     if (confirmed != true || !mounted) return;
+    final storageDir = await getApplicationDocumentsDirectory();
+    if (_forwardSecretIds.contains(message.id)) {
+      final ratchetKey = await getOrCreateRatchetKey();
+      if (!mounted) return;
+      await ratchet_api.hideRatchetMessage(
+        storageDir: storageDir.path,
+        localKey: ratchetKey,
+        messageId: message.id,
+      );
+      await _loadHistory();
+      return;
+    }
     const secureStorage = FlutterSecureStorage();
     final mnemonic = await secureStorage.read(key: seedStorageKey);
     if (mnemonic == null) return;
-    final storageDir = await getApplicationDocumentsDirectory();
     await chat_api.hideMessage(
       mnemonic: mnemonic,
       storageDir: storageDir.path,
@@ -843,18 +851,34 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       return;
     }
     if (!mounted) return;
-    const secureStorage = FlutterSecureStorage();
-    final mnemonic = await secureStorage.read(key: seedStorageKey);
-    if (mnemonic == null) return;
     final storageDir = await getApplicationDocumentsDirectory();
     try {
-      await chat_api.editChatMessage(
-        mnemonic: mnemonic,
-        storageDir: storageDir.path,
-        friendPubkey: widget.friend.pubkey,
-        messageId: message.id,
-        content: newContent,
-      );
+      if (_forwardSecretIds.contains(message.id)) {
+        const secureStorage = FlutterSecureStorage();
+        final mnemonic = await secureStorage.read(key: seedStorageKey);
+        if (mnemonic == null) return;
+        final ratchetKey = await getOrCreateRatchetKey();
+        if (!mounted) return;
+        await ratchet_api.editRatchetMessage(
+          mnemonic: mnemonic,
+          storageDir: storageDir.path,
+          friendPubkey: widget.friend.pubkey,
+          localKey: ratchetKey,
+          messageId: message.id,
+          newContent: newContent,
+        );
+      } else {
+        const secureStorage = FlutterSecureStorage();
+        final mnemonic = await secureStorage.read(key: seedStorageKey);
+        if (mnemonic == null) return;
+        await chat_api.editChatMessage(
+          mnemonic: mnemonic,
+          storageDir: storageDir.path,
+          friendPubkey: widget.friend.pubkey,
+          messageId: message.id,
+          content: newContent,
+        );
+      }
       await _loadHistory();
     } catch (_) {
       // Offline or every relay unreachable — the edit just doesn't apply
@@ -885,17 +909,32 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    const secureStorage = FlutterSecureStorage();
-    final mnemonic = await secureStorage.read(key: seedStorageKey);
-    if (mnemonic == null) return;
     final storageDir = await getApplicationDocumentsDirectory();
     try {
-      await chat_api.deleteChatMessage(
-        mnemonic: mnemonic,
-        storageDir: storageDir.path,
-        friendPubkey: widget.friend.pubkey,
-        messageId: message.id,
-      );
+      if (_forwardSecretIds.contains(message.id)) {
+        const secureStorage = FlutterSecureStorage();
+        final mnemonic = await secureStorage.read(key: seedStorageKey);
+        if (mnemonic == null) return;
+        final ratchetKey = await getOrCreateRatchetKey();
+        if (!mounted) return;
+        await ratchet_api.deleteRatchetMessage(
+          mnemonic: mnemonic,
+          storageDir: storageDir.path,
+          friendPubkey: widget.friend.pubkey,
+          localKey: ratchetKey,
+          messageId: message.id,
+        );
+      } else {
+        const secureStorage = FlutterSecureStorage();
+        final mnemonic = await secureStorage.read(key: seedStorageKey);
+        if (mnemonic == null) return;
+        await chat_api.deleteChatMessage(
+          mnemonic: mnemonic,
+          storageDir: storageDir.path,
+          friendPubkey: widget.friend.pubkey,
+          messageId: message.id,
+        );
+      }
       await _loadHistory();
     } catch (_) {
       // Offline or every relay unreachable — the message stays as-is.
