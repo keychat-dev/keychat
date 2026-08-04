@@ -59,10 +59,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     // Only copy the picked file into permanent storage if it isn't already
     // there (i.e. the user picked a new image rather than keeping the old one).
     if (avatarPath != null && !avatarPath.startsWith(storageDir.path)) {
-      final extension = avatarPath.split('.').last;
-      final destination = '${storageDir.path}/avatar.$extension';
-      await File(avatarPath).copy(destination);
-      avatarPath = destination;
+      avatarPath = await account_api.saveAccountAvatar(
+        storageDir: storageDir.path,
+        pickedPath: avatarPath,
+      );
     }
 
     await account_api.saveAccount(

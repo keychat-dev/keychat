@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -93,7 +92,10 @@ class _KeyChatAppState extends State<KeyChatApp> {
     for (final entity in storageDir.listSync()) {
       final name = entity.uri.pathSegments.where((s) => s.isNotEmpty).last;
       if (entity is File &&
-          (jsonFiles.contains(name) || name.startsWith('avatar.') || name == 'avatar_synced')) {
+          (jsonFiles.contains(name) ||
+              name.startsWith('avatar.') ||
+              name == 'avatar_synced' ||
+              name.startsWith('account_avatar_'))) {
         await entity.delete();
       } else if (entity is Directory && name == 'chat.lmdb') {
         await entity.delete(recursive: true);
@@ -165,10 +167,10 @@ class _KeyChatAppState extends State<KeyChatApp> {
         relayUrls: relayUrls,
       );
       if (remoteAvatar != null) {
-        final bytes = base64Decode(remoteAvatar.avatarBase64);
-        final destination = File('${storageDir.path}/avatar_synced');
-        await destination.writeAsBytes(bytes);
-        avatarPath = destination.path;
+        avatarPath = await account_api.saveAccountAvatarBase64(
+          storageDir: storageDir.path,
+          avatarBase64: remoteAvatar.avatarBase64,
+        );
       }
     } catch (_) {
       // No avatar backup, or relays unreachable — proceed without one.
@@ -233,10 +235,10 @@ class _KeyChatAppState extends State<KeyChatApp> {
     final storageDir = await getApplicationDocumentsDirectory();
     String? persistedAvatarPath;
     if (avatarPath != null) {
-      final extension = avatarPath.split('.').last;
-      final destination = '${storageDir.path}/avatar.$extension';
-      await File(avatarPath).copy(destination);
-      persistedAvatarPath = destination;
+      persistedAvatarPath = await account_api.saveAccountAvatar(
+        storageDir: storageDir.path,
+        pickedPath: avatarPath,
+      );
     }
     await account_api.saveAccount(
       storageDir: storageDir.path,

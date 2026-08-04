@@ -6,7 +6,27 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `account_path`, `now`
+// These functions are ignored because they are not marked as `pub`: `account_path`, `now`, `write_avatar_bytes`
+
+/// Copies a freshly-picked avatar image into permanent per-account storage.
+/// Returns `None` if `picked_path` couldn't be read.
+Future<String?> saveAccountAvatar({
+  required String storageDir,
+  required String pickedPath,
+}) => RustLib.instance.api.crateApiAccountSaveAccountAvatar(
+  storageDir: storageDir,
+  pickedPath: pickedPath,
+);
+
+/// Decodes a base64-encoded avatar pulled from a relay backup and saves it
+/// the same content-hash-suffixed way as a locally-picked one.
+Future<String?> saveAccountAvatarBase64({
+  required String storageDir,
+  required String avatarBase64,
+}) => RustLib.instance.api.crateApiAccountSaveAccountAvatarBase64(
+  storageDir: storageDir,
+  avatarBase64: avatarBase64,
+);
 
 /// Saves the account as JSON under `storage_dir`, stamping `updated_at` with
 /// the current time. `storage_dir` must already exist (e.g. the app's

@@ -1328,21 +1328,17 @@ async fn listen_for_account_sync(
                     // back through this same subscription) — never applied.
                     false
                 } else {
-                    let Some(bytes) =
-                        base64::engine::general_purpose::STANDARD.decode(&payload.avatar_base64).ok()
+                    let Some(path) =
+                        account::save_account_avatar_base64(storage_dir.to_string(), payload.avatar_base64)
                     else {
                         continue;
                     };
-                    let path = Path::new(storage_dir).join("avatar_synced");
-                    if std::fs::write(&path, &bytes).is_err() {
-                        continue;
-                    }
                     if let Some(account) = account::load_account(storage_dir.to_string()) {
                         let _ = account::save_account_with_timestamp(
                             storage_dir.to_string(),
                             account.display_name,
                             account.status_message,
-                            Some(path.to_string_lossy().to_string()),
+                            Some(path),
                             account.updated_at,
                         );
                     }
