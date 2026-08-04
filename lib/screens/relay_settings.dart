@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:workspace/l10n/app_localizations.dart';
 import 'package:workspace/screens/login.dart';
 import 'package:workspace/services/account_sync.dart';
+import 'package:workspace/src/rust/api/account.dart' as account_api;
 import 'package:workspace/src/rust/api/relay.dart' as relay_api;
 import 'package:workspace/src/rust/api/sync.dart' as sync_api;
 
@@ -44,6 +45,14 @@ class _RelaySettingsScreenState extends State<RelaySettingsScreen> {
   bool _checkingStatus = false;
   StreamSubscription<sync_api.FriendEvent>? _eventsSub;
 
+  /// Coalesces the network side of [_persist] (the self-device backup and
+  /// the per-friend profile-update broadcast — the latter signs and
+  /// publishes one event per friend, sequentially) so that adding/removing
+  /// several relays in quick succession publishes once, not once per edit.
+  /// The local save ([relay_api.saveRelayList]) still happens immediately
+  /// on every edit — only the relay round-trips are delayed.
+  Timer? _publishDebounce;
+
   @override
   void initState() {
     super.initState();
@@ -57,6 +66,10 @@ class _RelaySettingsScreenState extends State<RelaySettingsScreen> {
   void dispose() {
     _urlController.dispose();
     _eventsSub?.cancel();
+    if (_publishDebounce?.isActive ?? false) {
+      _publishDebounce!.cancel();
+      unawaited(_publishNow());
+    }
     super.dispose();
   }
 
@@ -86,10 +99,27 @@ class _RelaySettingsScreenState extends State<RelaySettingsScreen> {
 
   Future<void> _persist() async {
     final storageDir = await getApplicationDocumentsDirectory();
-    final previousUrls = _lastPersistedUrls;
     await relay_api.saveRelayList(storageDir: storageDir.path, urls: _urls);
-    unawaited(publishAccountRelaysBackup(_urls, previousRelays: previousUrls));
-    _lastPersistedUrls = List.of(_urls);
+    _publishDebounce?.cancel();
+    _publishDebounce = Timer(const Duration(seconds: 2), _publishNow);
+  }
+
+  /// The actual network side of [_persist] — self-device backup plus a
+  /// per-friend profile-update broadcast, so a friend's cached copy of our
+  /// relay list catches up without waiting for the slower NIP-65 fallback
+  /// (see `friends.rs`'s doc comment on relay resolution). Friends don't
+  /// watch the relays-backup slot itself; that one's for this account's
+  /// *other* devices only.
+  Future<void> _publishNow() async {
+    final previousUrls = _lastPersistedUrls;
+    final urls = _urls;
+    unawaited(publishAccountRelaysBackup(urls, previousRelays: previousUrls));
+    final storageDir = await getApplicationDocumentsDirectory();
+    final profile = await account_api.loadAccount(storageDir: storageDir.path);
+    if (profile != null) {
+      unawaited(publishProfileUpdateToFriends(profile));
+    }
+    _lastPersistedUrls = List.of(urls);
   }
 
   void _addRelay() {
