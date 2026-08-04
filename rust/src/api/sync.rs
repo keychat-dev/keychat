@@ -1709,6 +1709,15 @@ async fn listen_for_friend_events(
                         if !mark_event_seen(event.id) {
                             continue;
                         }
+                        // Same reasoning as the non-ratchet message path
+                        // below: persist the thread's active flag before
+                        // Dart re-queries the Talk-tab list.
+                        if kind == "ratchet_message" {
+                            let _ = chat::mark_chat_started(
+                                storage_dir.to_string(),
+                                friend_pubkey.clone(),
+                            );
+                        }
                         if sink
                             .add(FriendEvent {
                                 kind: kind.to_string(),
@@ -1789,6 +1798,18 @@ async fn listen_for_friend_events(
             if friends::load_blocked(storage_dir).contains(friend_pubkey) {
                 chat::hold_message(storage_dir, &seal_id);
                 continue;
+            }
+            // A real incoming message (not an edit/delete/hide/clear signal,
+            // which all have `content == None`) makes this thread active in
+            // the Talk tab. Persist that via the same durable started-flag
+            // the "Talk" button uses, *before* notifying Dart: the Dart side
+            // reacts by re-querying `list_active_chat_pubkeys`, and the
+            // just-saved Seal isn't reliably visible to an immediate LMDB
+            // read — without this flag the recomputed list wouldn't include
+            // this friend yet, wiping the brand-new thread right back off
+            // the list until something else forced another reload.
+            if content.is_some() {
+                let _ = chat::mark_chat_started(storage_dir.to_string(), friend_pubkey.clone());
             }
             if sink
                 .add(FriendEvent {

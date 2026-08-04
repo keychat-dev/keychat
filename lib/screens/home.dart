@@ -136,8 +136,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       } else if (event.kind == 'request') {
         _refreshPendingRequestCount();
       } else if (event.kind == 'message' || event.kind == 'ratchet_message') {
-        // A friend messaging us first means their thread should show up
-        // in the Talk tab even though nobody tapped "Talk" yet.
+        // A friend messaging us first means their thread should show up in
+        // the Talk tab even though nobody tapped "Talk" yet — the Rust side
+        // has already durably marked the thread started before emitting
+        // this event, so this re-query reliably includes them.
         _loadActiveChatPubkeys();
       } else if (event.kind == 'group_invite') {
         // A new group, or an updated member list for one we already know —
