@@ -96,6 +96,14 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   int _maxMessageChars = 4000;
   StreamSubscription<sync_api.FriendEvent>? _sub;
 
+  /// Mirrors [widget.friend], refreshed on a `profile_updated` event — the
+  /// widget itself is a fixed snapshot from when this route was pushed, so
+  /// without this an avatar/name change made while the thread is open
+  /// (rather than picked up on the next visit from the Talk tab, which
+  /// rebuilds this screen with a fresh [friends_api.Friend]) would never
+  /// show here until the thread is closed and reopened.
+  late friends_api.Friend _friend = widget.friend;
+
   /// Ids of messages in [_messages] that came from [ratchet_api] (forward
   /// secret) rather than the regular NIP-44 history — drives a lock badge
   /// on those bubbles.
@@ -191,8 +199,18 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         _loadHistory();
       } else if (event.kind == 'ratchet_device_announced') {
         _refreshFriendRatchetDevice();
+      } else if (event.kind == 'profile_updated') {
+        _refreshFriend();
       }
     });
+  }
+
+  Future<void> _refreshFriend() async {
+    final storageDir = await getApplicationDocumentsDirectory();
+    final friends = await friends_api.loadFriends(storageDir: storageDir.path);
+    if (!mounted) return;
+    final updated = friends.where((f) => f.pubkey == widget.friend.pubkey).firstOrNull;
+    if (updated != null) setState(() => _friend = updated);
   }
 
   @override
@@ -396,7 +414,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.clearChatConfirmTitle),
-        content: Text(l10n.clearChatConfirmBody(widget.friend.displayName)),
+        content: Text(l10n.clearChatConfirmBody(_friend.displayName)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -775,7 +793,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.hideMessageConfirmTitle),
-        content: Text(l10n.hideMessageConfirmBody(widget.friend.displayName)),
+        content: Text(l10n.hideMessageConfirmBody(_friend.displayName)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -892,7 +910,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.unsendMessageConfirmTitle),
-        content: Text(l10n.unsendMessageConfirmBody(widget.friend.displayName)),
+        content: Text(l10n.unsendMessageConfirmBody(_friend.displayName)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -945,8 +963,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final hasAvatar =
-        widget.friend.avatarPath != null &&
-        File(widget.friend.avatarPath!).existsSync();
+        _friend.avatarPath != null && File(_friend.avatarPath!).existsSync();
     final messagesById = {for (final m in _messages) m.id: m};
     return Scaffold(
       backgroundColor: _WaColors.wallpaper,
@@ -969,7 +986,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                 radius: 16,
                 backgroundColor: KeychatColors.surface,
                 backgroundImage: hasAvatar
-                    ? FileImage(File(widget.friend.avatarPath!))
+                    ? FileImage(File(_friend.avatarPath!))
                     : null,
                 child: hasAvatar
                     ? null
@@ -980,7 +997,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       ),
               ),
               const SizedBox(width: 10),
-              Text(widget.friend.displayName),
+              Text(_friend.displayName),
             ],
           ),
         ),
@@ -1081,8 +1098,8 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                             repliedMessage: message.replyTo != null
                                 ? messagesById[message.replyTo]
                                 : null,
-                            friendAvatarPath: widget.friend.avatarPath,
-                            friendDisplayName: widget.friend.displayName,
+                            friendAvatarPath: _friend.avatarPath,
+                            friendDisplayName: _friend.displayName,
                             friendPubkey: widget.friend.pubkey,
                             onAvatarTap: () => _openProfile(context),
                             onLongPress: () => _showMessageMenu(message),
@@ -1111,7 +1128,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                             l10n.replyingToLabel(
                               _replyingTo!.isMine
                                   ? l10n.youLabel
-                                  : widget.friend.displayName,
+                                  : _friend.displayName,
                             ),
                             style: const TextStyle(
                               color: KeychatColors.textPrimary,

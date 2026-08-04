@@ -60,7 +60,38 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
   late bool _isFavorite = widget.friend.isFavorite;
   late bool _isBlocked = widget.friend.isBlocked;
 
-  friends_api.Friend get friend => widget.friend;
+  /// Mirrors [widget.friend], refreshed on a `profile_updated` event — see
+  /// `chat_thread.dart`'s identical `_friend`/`_refreshFriend` for why:
+  /// [widget.friend] is a fixed snapshot from when this route was pushed,
+  /// so without this a friend changing their name/avatar/relays while this
+  /// screen is open wouldn't show here until it's closed and reopened.
+  late friends_api.Friend _friend = widget.friend;
+  StreamSubscription<sync_api.FriendEvent>? _sub;
+
+  friends_api.Friend get friend => _friend;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = widget.messageEvents?.listen((event) {
+      if (event.kind != 'profile_updated' || event.pubkey != widget.friend.pubkey) return;
+      _refreshFriend();
+    });
+  }
+
+  Future<void> _refreshFriend() async {
+    final storageDir = await getApplicationDocumentsDirectory();
+    final friends = await friends_api.loadFriends(storageDir: storageDir.path);
+    if (!mounted) return;
+    final updated = friends.where((f) => f.pubkey == widget.friend.pubkey).firstOrNull;
+    if (updated != null) setState(() => _friend = updated);
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
 
   Future<void> _toggleFavorite() async {
     setState(() => _isFavorite = !_isFavorite);
