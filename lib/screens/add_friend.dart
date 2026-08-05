@@ -23,7 +23,12 @@ import 'package:workspace/src/rust/api/sync.dart' as sync_api;
 /// revocable per-relationship key (see `keys::derive_contact_keys`) —
 /// nothing here is the account's core identity.
 class AddFriendScreen extends StatefulWidget {
-  const AddFriendScreen({super.key});
+  const AddFriendScreen({super.key, this.messageEvents});
+
+  /// Live friend-protocol events (shared with `home.dart`'s subscription)
+  /// — without this, a request arriving while this screen is already open
+  /// wouldn't update the badge until the user navigated away and back.
+  final Stream<sync_api.FriendEvent>? messageEvents;
 
   @override
   State<AddFriendScreen> createState() => _AddFriendScreenState();
@@ -31,11 +36,21 @@ class AddFriendScreen extends StatefulWidget {
 
 class _AddFriendScreenState extends State<AddFriendScreen> {
   int _pendingRequestCount = 0;
+  StreamSubscription<sync_api.FriendEvent>? _sub;
 
   @override
   void initState() {
     super.initState();
     _refreshPendingRequestCount();
+    _sub = widget.messageEvents?.listen((event) {
+      if (event.kind == 'request') _refreshPendingRequestCount();
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
   }
 
   Future<void> _refreshPendingRequestCount() async {
@@ -45,9 +60,11 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
   }
 
   Future<void> _openFriendRequests() async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const FriendRequestsScreen()));
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FriendRequestsScreen(messageEvents: widget.messageEvents),
+      ),
+    );
     _refreshPendingRequestCount();
   }
 

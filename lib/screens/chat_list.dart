@@ -31,6 +31,8 @@ class ChatListTab extends StatefulWidget {
     required this.onDeleteFriend,
     required this.onClearChat,
     required this.onGroupsChanged,
+    required this.unreadCounts,
+    required this.onUnreadCountsChanged,
   });
 
   final List<friends_api.Friend> friends;
@@ -52,13 +54,22 @@ class ChatListTab extends StatefulWidget {
   /// the group, which deletes it locally) is reflected here immediately.
   final Future<void> Function() onGroupsChanged;
 
+  /// Per-friend unread counts, computed and owned by `home.dart` (not here)
+  /// so they stay correct even while this tab isn't mounted — see that
+  /// field's doc comment for why. Read directly for each row's badge.
+  final Map<String, int> unreadCounts;
+
+  /// Triggers `home.dart`'s fetch behind [unreadCounts] — call after
+  /// anything here that could change read state (opening or clearing a
+  /// thread) instead of computing a local copy.
+  final Future<void> Function() onUnreadCountsChanged;
+
   @override
   State<ChatListTab> createState() => _ChatListTabState();
 }
 
 class _ChatListTabState extends State<ChatListTab> {
   final Map<String, chat_api.ChatMessage?> _previews = {};
-  final Map<String, int> _unreadCounts = {};
   final Map<String, groups_api.GroupChatMessage?> _groupPreviews = {};
   StreamSubscription<sync_api.FriendEvent>? _sub;
 
@@ -66,7 +77,6 @@ class _ChatListTabState extends State<ChatListTab> {
   void initState() {
     super.initState();
     _loadPreviews();
-    _loadUnreadCounts();
     _loadGroupPreviews();
     _subscribe();
   }
@@ -75,7 +85,6 @@ class _ChatListTabState extends State<ChatListTab> {
     _sub = widget.messageEvents?.listen((event) {
       if (event.kind == 'message' || event.kind == 'ratchet_message') {
         _loadPreviewFor(event.pubkey);
-        _loadUnreadCounts();
       } else if (event.kind == 'group_message' || event.kind == 'group_invite') {
         _loadGroupPreviewFor(event.pubkey);
       }
@@ -87,7 +96,6 @@ class _ChatListTabState extends State<ChatListTab> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.friends != widget.friends) {
       _loadPreviews();
-      _loadUnreadCounts();
     }
     if (oldWidget.groups != widget.groups) {
       _loadGroupPreviews();
@@ -144,7 +152,7 @@ class _ChatListTabState extends State<ChatListTab> {
           createdAt: latestRatchet.createdAt,
           isMine: latestRatchet.isMine,
           isEdited: false,
-          isDeleted: false,
+          isDeleted: latestRatchet.isDeleted,
           replyTo: null,
           attachment: null,
         );
@@ -152,24 +160,6 @@ class _ChatListTabState extends State<ChatListTab> {
     }
     if (!mounted) return;
     setState(() => _previews[friendPubkey] = latest);
-  }
-
-  Future<void> _loadUnreadCounts() async {
-    const secureStorage = FlutterSecureStorage();
-    final mnemonic = await secureStorage.read(key: seedStorageKey);
-    if (mnemonic == null || widget.friends.isEmpty) return;
-    final storageDir = await getApplicationDocumentsDirectory();
-    final counts = await chat_api.loadUnreadCounts(
-      mnemonic: mnemonic,
-      storageDir: storageDir.path,
-      friendPubkeys: widget.friends.map((f) => f.pubkey).toList(),
-    );
-    if (!mounted) return;
-    setState(() {
-      for (final c in counts) {
-        _unreadCounts[c.friendPubkey] = c.count.toInt();
-      }
-    });
   }
 
   Future<void> _loadGroupPreviews() async {
@@ -216,7 +206,7 @@ class _ChatListTabState extends State<ChatListTab> {
         ),
       ),
     );
-    _loadUnreadCounts();
+    unawaited(widget.onUnreadCountsChanged());
   }
 
   /// Long-press on a row: shows a small menu with "Clear chat", which then
@@ -264,10 +254,8 @@ class _ChatListTabState extends State<ChatListTab> {
     if (confirmed != true) return;
     await widget.onClearChat(friend);
     if (!mounted) return;
-    setState(() {
-      _previews.remove(friend.pubkey);
-      _unreadCounts.remove(friend.pubkey);
-    });
+    setState(() => _previews.remove(friend.pubkey));
+    unawaited(widget.onUnreadCountsChanged());
   }
 
   @override
@@ -363,7 +351,7 @@ class _ChatListTabState extends State<ChatListTab> {
         }
         final friend = widget.friends[index - widget.groups.length];
         final preview = _previews[friend.pubkey];
-        final unread = _unreadCounts[friend.pubkey] ?? 0;
+        final unread = widget.unreadCounts[friend.pubkey] ?? 0;
         final hasAvatar = friend.avatarPath != null && File(friend.avatarPath!).existsSync();
         return InkWell(
           onTap: () => _openThread(friend),
@@ -397,7 +385,9 @@ class _ChatListTabState extends State<ChatListTab> {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        preview?.content ?? l10n.noMessagesYet,
+                        preview == null
+                            ? l10n.noMessagesYet
+                            : (preview.isDeleted ? l10n.messageUnsentLabel : preview.content),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

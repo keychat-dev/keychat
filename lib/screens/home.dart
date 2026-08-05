@@ -60,8 +60,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<groups_api.Group> _groups = [];
   Set<String> _activeChatPubkeys = {};
   int _pendingRequestCount = 0;
+
+  /// Per-friend unread counts for the Talk tab — the single source of
+  /// truth, computed here (not in [ChatListTab]) so it stays correct even
+  /// while Talk isn't the visible tab (`BottomNavigationBar` doesn't mount
+  /// the tabs it isn't showing, so anything computed inside `ChatListTab`
+  /// itself would silently stop updating whenever another tab is active).
+  /// [ChatListTab] reads this directly for its per-row badges instead of
+  /// fetching its own copy.
+  Map<String, int> _unreadCounts = {};
+  int get _talkUnreadTotal => _unreadCounts.values.fold(0, (a, b) => a + b);
+
   StreamSubscription<sync_api.FriendEvent>? _friendEventsSub;
-  Stream<sync_api.FriendEvent>? _friendEventsStream;
+
+  /// A stable broadcast stream that outlives individual relay
+  /// (re)subscriptions — [_subscribeFriendEvents] tears down and rebuilds
+  /// the underlying raw subscription often (new invite, accepted friend,
+  /// app resume, ...), but this controller and the `Stream` object its
+  /// `.stream` getter returns never change identity. Screens pushed via
+  /// `Navigator` (e.g. `AddFriendScreen`) capture this stream once as a
+  /// constructor parameter and are never rebuilt afterwards, so if the
+  /// exposed stream were swapped for a new object on every resubscribe (as
+  /// it used to be), any such screen still open at resubscribe time would
+  /// silently stop receiving events — e.g. sitting on "Add friend" while
+  /// generating a fresh QR (which itself triggers a resubscribe) used to
+  /// mean incoming requests stopped updating the badge until the screen
+  /// was closed and reopened.
+  final _friendEventsController = StreamController<sync_api.FriendEvent>.broadcast();
+  Stream<sync_api.FriendEvent> get _friendEventsStream => _friendEventsController.stream;
 
   @override
   void initState() {
@@ -80,6 +106,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     friendEventsRefreshSignal.removeListener(_subscribeFriendEvents);
     _friendEventsSub?.cancel();
+    _friendEventsController.close();
     super.dispose();
   }
 
@@ -114,8 +141,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ratchetKey: ratchetKey,
         )
         .asBroadcastStream();
-    setState(() => _friendEventsStream = stream);
     _friendEventsSub = stream.listen((event) {
+      _friendEventsController.add(event);
       if (event.kind == 'accepted' || event.kind == 'already_friend') {
         _loadFriends();
         unawaited(publishAccountFriendsBackup());
@@ -178,12 +205,43 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
     if (!mounted) return;
     setState(() => _activeChatPubkeys = pubkeys.toSet());
+    unawaited(_refreshUnreadCounts());
   }
 
   Future<void> _refreshPendingRequestCount() async {
     final count = await pendingFriendRequestCount();
     if (!mounted) return;
     setState(() => _pendingRequestCount = count);
+  }
+
+  /// The single fetch behind [_unreadCounts]/[_talkUnreadTotal] — kept here
+  /// rather than in [ChatListTab] so it stays correct even while Talk isn't
+  /// the visible tab (see [_unreadCounts]'s doc comment). Passed down to
+  /// [ChatListTab] as `onUnreadCountsChanged` so it can trigger a refresh
+  /// after the same events that used to make it re-fetch on its own
+  /// (opening/reading a thread, clearing one) without duplicating the fetch
+  /// itself.
+  Future<void> _refreshUnreadCounts() async {
+    if (_activeChatPubkeys.isEmpty) {
+      if (mounted) setState(() => _unreadCounts = {});
+      return;
+    }
+    const secureStorage = FlutterSecureStorage();
+    final mnemonic = await secureStorage.read(key: seedStorageKey);
+    if (mnemonic == null) return;
+    final storageDir = await getApplicationDocumentsDirectory();
+    final ratchetKey = await getOrCreateRatchetKey();
+    if (!mounted) return;
+    final counts = await chat_api.loadUnreadCounts(
+      mnemonic: mnemonic,
+      storageDir: storageDir.path,
+      friendPubkeys: _activeChatPubkeys.toList(),
+      ratchetLocalKey: ratchetKey,
+    );
+    if (!mounted) return;
+    setState(() {
+      _unreadCounts = {for (final c in counts) c.friendPubkey: c.count.toInt()};
+    });
   }
 
   Future<void> _reloadProfile() async {
@@ -371,9 +429,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _openAddFriend() async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const AddFriendScreen()));
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AddFriendScreen(messageEvents: _friendEventsStream),
+      ),
+    );
     _refreshFriends();
     _refreshPendingRequestCount();
     unawaited(publishAccountFriendsBackup());
@@ -436,6 +496,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           // subscription watch list defensively after any roster mutation.
           _subscribeFriendEvents();
         },
+        unreadCounts: _unreadCounts,
+        onUnreadCountsChanged: _refreshUnreadCounts,
       ),
       const PublicChatListTab(),
     ];
@@ -460,6 +522,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       bottomNavigationBar: KeychatNavBar(
         selectedIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
+        talkUnreadCount: _talkUnreadTotal,
+        pendingRequestCount: _pendingRequestCount,
       ),
     );
   }
@@ -509,7 +573,11 @@ class _HomeTopBar extends StatelessWidget {
               onTap: () => Navigator.of(sheetContext).pop('group'),
             ),
             ListTile(
-              leading: const Icon(Icons.person_add_alt_outlined),
+              leading: Badge(
+                isLabelVisible: pendingRequestCount > 0,
+                label: Text('$pendingRequestCount'),
+                child: const Icon(Icons.person_add_alt_outlined),
+              ),
               title: Text(l10n.addFriendTitle),
               onTap: () => Navigator.of(sheetContext).pop('friend'),
             ),
@@ -537,7 +605,11 @@ class _HomeTopBar extends StatelessWidget {
           _topBarIcon(Icons.notifications_outlined, () {}),
           const SizedBox(width: 12),
           if (isTalkTab)
-            _topBarIcon(Icons.add, () => _showTalkAddMenu(context))
+            _topBarIcon(
+              Icons.add,
+              () => _showTalkAddMenu(context),
+              badgeCount: pendingRequestCount,
+            )
           else
             _topBarIcon(
               Icons.person_add_alt_outlined,

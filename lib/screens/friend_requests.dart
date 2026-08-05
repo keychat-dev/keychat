@@ -13,7 +13,12 @@ import 'package:workspace/src/rust/api/sync.dart' as sync_api;
 /// Shows pending incoming friend requests (sent to any of our still-active
 /// invites) and lets the user accept or reject each one.
 class FriendRequestsScreen extends StatefulWidget {
-  const FriendRequestsScreen({super.key});
+  const FriendRequestsScreen({super.key, this.messageEvents});
+
+  /// Live friend-protocol events (shared with `home.dart`'s subscription)
+  /// — a request arriving while this screen is already open otherwise
+  /// wouldn't show up until it's closed and reopened.
+  final Stream<sync_api.FriendEvent>? messageEvents;
 
   @override
   State<FriendRequestsScreen> createState() => _FriendRequestsScreenState();
@@ -23,11 +28,21 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
   List<sync_api.PendingFriendRequest> _requests = [];
   bool _loading = true;
   final _busy = <String>{};
+  StreamSubscription<sync_api.FriendEvent>? _sub;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _sub = widget.messageEvents?.listen((event) {
+      if (event.kind == 'request') _load();
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {

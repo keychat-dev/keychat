@@ -5,10 +5,28 @@ import 'package:workspace/screens/login.dart';
 /// Bottom navigation bar for the home screen: Profile & Friends, Talk, and
 /// Public Chat.
 class KeychatNavBar extends StatelessWidget {
-  const KeychatNavBar({super.key, required this.selectedIndex, required this.onTap});
+  const KeychatNavBar({
+    super.key,
+    required this.selectedIndex,
+    required this.onTap,
+    this.talkUnreadCount = 0,
+    this.pendingRequestCount = 0,
+  });
 
   final int selectedIndex;
   final ValueChanged<int> onTap;
+
+  /// Total unread message count across every Talk-tab conversation (friends
+  /// and groups combined) — shown as a badge on the Talk icon itself, so
+  /// unread messages stay visible even while looking at another tab, the
+  /// same way the per-row badges in `chat_list.dart` work while already on
+  /// the Talk tab.
+  final int talkUnreadCount;
+
+  /// Pending incoming friend requests — shown as a badge on the Home icon
+  /// (Profile & Friends tab), so a new request stays visible from other
+  /// tabs too, the same way [talkUnreadCount] does for Talk.
+  final int pendingRequestCount;
 
   @override
   Widget build(BuildContext context) {
@@ -28,8 +46,20 @@ class KeychatNavBar extends StatelessWidget {
         selectedItemColor: KeychatColors.primaryDark,
         unselectedItemColor: KeychatColors.textSecondary,
         items: [
-          _navItem(Icons.person_outline, Icons.person, l10n.navProfileFriends, 0),
-          _navItem(Icons.chat_bubble_outline, Icons.chat_bubble, l10n.navTalk, 1),
+          _navItem(
+            Icons.person_outline,
+            Icons.person,
+            l10n.navProfileFriends,
+            0,
+            badgeCount: pendingRequestCount,
+          ),
+          _navItem(
+            Icons.chat_bubble_outline,
+            Icons.chat_bubble,
+            l10n.navTalk,
+            1,
+            badgeCount: talkUnreadCount,
+          ),
           _navItem(Icons.forum_outlined, Icons.forum, l10n.navPublicChat, 2),
         ],
       ),
@@ -40,12 +70,17 @@ class KeychatNavBar extends StatelessWidget {
     IconData outlinedIcon,
     IconData filledIcon,
     String label,
-    int index,
-  ) {
+    int index, {
+    int badgeCount = 0,
+  }) {
     final selected = selectedIndex == index;
     final color = selected ? KeychatColors.primaryDark : KeychatColors.textSecondary;
     return BottomNavigationBarItem(
-      icon: Icon(selected ? filledIcon : outlinedIcon, color: color),
+      icon: Badge(
+        isLabelVisible: badgeCount > 0,
+        label: Text(badgeCount > 99 ? '99+' : '$badgeCount'),
+        child: Icon(selected ? filledIcon : outlinedIcon, color: color),
+      ),
       label: label,
     );
   }
