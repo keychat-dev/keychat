@@ -1266,7 +1266,7 @@ TextSpan _linkifiedSpan(String text, TextStyle baseStyle) {
 }
 
 class _LinkPreviewCard extends StatefulWidget {
-  const _LinkPreviewCard({required this.text});
+  const _LinkPreviewCard({super.key, required this.text});
 
   final String text;
 
@@ -1284,6 +1284,22 @@ class _LinkPreviewCardState extends State<_LinkPreviewCard> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _LinkPreviewCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Defense in depth alongside the `ValueKey(message.id)` callers are
+    // expected to pass: without a stable key, ListView/Column can reuse this
+    // State for a different message at the same position, and without this
+    // check the stale `_preview` from the old message would keep showing.
+    if (oldWidget.text != widget.text) {
+      setState(() {
+        _preview = null;
+        _loaded = false;
+      });
+      _load();
+    }
   }
 
   Future<void> _load() async {
@@ -1588,7 +1604,7 @@ class _MessageBubble extends StatelessWidget {
                     ),
                   ),
                 ),
-                _LinkPreviewCard(text: message.content),
+                _LinkPreviewCard(key: ValueKey(message.id), text: message.content),
               ],
               if (message.isEdited)
                 Text(
