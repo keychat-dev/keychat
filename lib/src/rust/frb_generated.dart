@@ -365,6 +365,7 @@ abstract class RustLibApi extends BaseApi {
     required String mnemonic,
     required String storageDir,
     required List<String> friendPubkeys,
+    String? ratchetLocalKey,
   });
 
   Future<UploadServerList> crateApiAttachmentLoadUploadServers({
@@ -2589,6 +2590,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required String mnemonic,
     required String storageDir,
     required List<String> friendPubkeys,
+    String? ratchetLocalKey,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -2597,6 +2599,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_String(mnemonic, serializer);
           sse_encode_String(storageDir, serializer);
           sse_encode_list_String(friendPubkeys, serializer);
+          sse_encode_opt_String(ratchetLocalKey, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -2609,7 +2612,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiChatLoadUnreadCountsConstMeta,
-        argValues: [mnemonic, storageDir, friendPubkeys],
+        argValues: [mnemonic, storageDir, friendPubkeys, ratchetLocalKey],
         apiImpl: this,
       ),
     );
@@ -2618,7 +2621,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiChatLoadUnreadCountsConstMeta =>
       const TaskConstMeta(
         debugName: "load_unread_counts",
-        argNames: ["mnemonic", "storageDir", "friendPubkeys"],
+        argNames: [
+          "mnemonic",
+          "storageDir",
+          "friendPubkeys",
+          "ratchetLocalKey",
+        ],
       );
 
   @override

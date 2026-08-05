@@ -2128,6 +2128,7 @@ fn wire__crate__api__chat__load_unread_counts_impl(
             let api_mnemonic = <String>::sse_decode(&mut deserializer);
             let api_storage_dir = <String>::sse_decode(&mut deserializer);
             let api_friend_pubkeys = <Vec<String>>::sse_decode(&mut deserializer);
+            let api_ratchet_local_key = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, ()>((move || {
@@ -2135,6 +2136,7 @@ fn wire__crate__api__chat__load_unread_counts_impl(
                         api_mnemonic,
                         api_storage_dir,
                         api_friend_pubkeys,
+                        api_ratchet_local_key,
                     ))?;
                     Ok(output_ok)
                 })())

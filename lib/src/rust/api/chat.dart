@@ -222,15 +222,23 @@ Future<void> clearChatHistory({
 
 /// For each of `friend_pubkeys`, counts messages from that friend received
 /// after the last time [mark_thread_read] was called for them (or all of
-/// their messages, if the thread has never been opened).
+/// their messages, if the thread has never been opened). `ratchet_local_key`
+/// (see `ratchet.rs`'s module doc) is optional so callers that haven't
+/// created a forward-secrecy key yet still get a count from `chat.lmdb`
+/// alone — when present, forward-secret messages (which live outside
+/// `chat.lmdb`, see [crate::api::ratchet::load_ratchet_history]) are folded
+/// into the same count, the same way `chat_list.dart`'s preview merges both
+/// sources for display.
 Future<List<UnreadCount>> loadUnreadCounts({
   required String mnemonic,
   required String storageDir,
   required List<String> friendPubkeys,
+  String? ratchetLocalKey,
 }) => RustLib.instance.api.crateApiChatLoadUnreadCounts(
   mnemonic: mnemonic,
   storageDir: storageDir,
   friendPubkeys: friendPubkeys,
+  ratchetLocalKey: ratchetLocalKey,
 );
 
 /// An image/file attachment resolved from a [ChatAttachmentPayload] —

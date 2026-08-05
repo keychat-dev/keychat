@@ -1055,18 +1055,25 @@ pub struct UnreadCount {
 
 /// For each of `friend_pubkeys`, counts messages from that friend received
 /// after the last time [mark_thread_read] was called for them (or all of
-/// their messages, if the thread has never been opened).
+/// their messages, if the thread has never been opened). `ratchet_local_key`
+/// (see `ratchet.rs`'s module doc) is optional so callers that haven't
+/// created a forward-secrecy key yet still get a count from `chat.lmdb`
+/// alone — when present, forward-secret messages (which live outside
+/// `chat.lmdb`, see [crate::api::ratchet::load_ratchet_history]) are folded
+/// into the same count, the same way `chat_list.dart`'s preview merges both
+/// sources for display.
 pub fn load_unread_counts(
     mnemonic: String,
     storage_dir: String,
     friend_pubkeys: Vec<String>,
+    ratchet_local_key: Option<String>,
 ) -> Vec<UnreadCount> {
     let state = load_read_state(&storage_dir);
     friend_pubkeys
         .into_iter()
         .map(|pubkey| {
             let last_read = state.get(&pubkey).copied().unwrap_or(0);
-            let count = load_chat_history(mnemonic.clone(), storage_dir.clone(), pubkey.clone())
+            let mut count = load_chat_history(mnemonic.clone(), storage_dir.clone(), pubkey.clone())
                 .map(|messages| {
                     messages
                         .iter()
@@ -1074,6 +1081,20 @@ pub fn load_unread_counts(
                         .count() as u32
                 })
                 .unwrap_or(0);
+            if let Some(ratchet_key) = &ratchet_local_key {
+                count += crate::api::ratchet::load_ratchet_history(
+                    storage_dir.clone(),
+                    ratchet_key.clone(),
+                    pubkey.clone(),
+                )
+                .map(|messages| {
+                    messages
+                        .iter()
+                        .filter(|m| !m.is_mine && m.created_at > last_read)
+                        .count() as u32
+                })
+                .unwrap_or(0);
+            }
             UnreadCount {
                 friend_pubkey: pubkey,
                 count,
