@@ -19,11 +19,11 @@ See [CLAUDE.md](CLAUDE.md) for a detailed architecture walkthrough (screen flow,
 
 ## Development
 
-All Flutter/Rust/Android tooling is expected to run inside a `keychat-dev` Docker container (see `docker-compose.yml`), which bind-mounts the repo root at `/workspace`. From the host:
+All Flutter/Rust/Android tooling is expected to run inside an `origilink-dev` Docker container (see `docker-compose.yml`), which bind-mounts the repo root at `/workspace`. From the host:
 
 ```bash
 docker compose up -d
-docker exec -w /workspace keychat-dev bash -lc "<command>"
+docker exec -w /workspace origilink-dev bash -lc "<command>"
 ```
 
 Common commands (run inside the container):

@@ -47,7 +47,7 @@ async fn fetch_link_preview_async(url: String) -> Result<LinkPreview, String> {
         FETCH_TIMEOUT,
         http_client()
             .get(parsed.clone())
-            .header("User-Agent", "Mozilla/5.0 (compatible; KeyChatBot/1.0)")
+            .header("User-Agent", "Mozilla/5.0 (compatible; OrigilinkBot/1.0)")
             .send(),
     )
     .await

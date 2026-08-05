@@ -1,7 +1,7 @@
 {
-  "name": "KeyChat Dev Environment",
+  "name": "Origilink Dev Environment",
   "dockerComposeFile": "../docker-compose.yml",
-  "service": "keychat-dev",
+  "service": "origilink-dev",
   "workspaceFolder": "/workspace",
   "remoteUser": "root",
   "customizations": {

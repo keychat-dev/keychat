@@ -60,7 +60,7 @@ fn pool() -> &'static Mutex<HashMap<String, RelayHandle>> {
 
 fn next_sub_id() -> String {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
-    format!("keychat-{}", COUNTER.fetch_add(1, Ordering::Relaxed))
+    format!("origilink-{}", COUNTER.fetch_add(1, Ordering::Relaxed))
 }
 
 /// Returns the command channel for `url`'s pooled connection once it's

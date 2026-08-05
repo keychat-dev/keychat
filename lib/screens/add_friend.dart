@@ -183,7 +183,7 @@ class _MyQrTabState extends State<_MyQrTab> {
     if (imageData == null) return;
     final bytes = imageData.buffer.asUint8List();
     try {
-      await Gal.putImageBytes(bytes, name: 'keychat_invite_qr');
+      await Gal.putImageBytes(bytes, name: 'origilink_invite_qr');
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,

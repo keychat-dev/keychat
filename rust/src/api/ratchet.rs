@@ -32,7 +32,7 @@
 //! messages flowing normally while silently voiding forward secrecy, so
 //! this deliberately delegates every cryptographic step (key agreement,
 //! chain advancement, skipped-key caching, AEAD) and keeps only the parts
-//! that are genuinely KeyChat-specific: how key material is announced, and
+//! that are genuinely Origilink-specific: how key material is announced, and
 //! how sessions and decrypted plaintext are stored.
 //!
 //! Sessions use [SessionConfig::version_1], the Olm version deployed
@@ -967,7 +967,7 @@ mod tests {
     /// A throwaway storage directory, since the account/session helpers are
     /// file-backed.
     fn temp_dir(tag: &str) -> String {
-        let path = std::env::temp_dir().join(format!("keychat-ratchet-test-{tag}-{}", random_hex(8)));
+        let path = std::env::temp_dir().join(format!("origilink-ratchet-test-{tag}-{}", random_hex(8)));
         std::fs::create_dir_all(&path).expect("create temp storage dir");
         path.to_string_lossy().to_string()
     }

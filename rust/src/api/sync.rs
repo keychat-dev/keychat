@@ -98,25 +98,25 @@ fn mark_event_seen(id: nostr::EventId) -> bool {
 /// friends-list payloads: each slot is only republished when its own data
 /// actually changes, and a relay always keeps the newest event per slot.
 const ACCOUNT_BACKUP_KIND: Kind = Kind::Custom(30078);
-const ACCOUNT_TEXT_D_TAG: &str = "keychat-account-text";
-const ACCOUNT_AVATAR_D_TAG: &str = "keychat-account-avatar";
-const ACCOUNT_RELAYS_D_TAG: &str = "keychat-account-relays";
-const ACCOUNT_FRIENDS_D_TAG: &str = "keychat-account-friends";
+const ACCOUNT_TEXT_D_TAG: &str = "origilink-account-text";
+const ACCOUNT_AVATAR_D_TAG: &str = "origilink-account-avatar";
+const ACCOUNT_RELAYS_D_TAG: &str = "origilink-account-relays";
+const ACCOUNT_FRIENDS_D_TAG: &str = "origilink-account-friends";
 /// Blocked pubkeys, invites, pending outgoing/incoming friend requests, and
 /// chat read-state are all synced the same way as the four slots above —
 /// deliberately excluding `account_sync_state.json` itself, which tracks
 /// *this device's* progress applying these backups and would be
 /// meaningless (or actively harmful — see [SyncState]) to sync.
-const ACCOUNT_BLOCKED_D_TAG: &str = "keychat-account-blocked";
-const ACCOUNT_INVITES_D_TAG: &str = "keychat-account-invites";
-const ACCOUNT_OUTGOING_D_TAG: &str = "keychat-account-outgoing";
-const ACCOUNT_INCOMING_D_TAG: &str = "keychat-account-incoming";
-const ACCOUNT_READSTATE_D_TAG: &str = "keychat-account-readstate";
+const ACCOUNT_BLOCKED_D_TAG: &str = "origilink-account-blocked";
+const ACCOUNT_INVITES_D_TAG: &str = "origilink-account-invites";
+const ACCOUNT_OUTGOING_D_TAG: &str = "origilink-account-outgoing";
+const ACCOUNT_INCOMING_D_TAG: &str = "origilink-account-incoming";
+const ACCOUNT_READSTATE_D_TAG: &str = "origilink-account-readstate";
 /// Personal app preferences (e.g. language) — deliberately kept out of
 /// `FriendPayload`/every friend-facing event; this slot is the *only*
 /// place this data is ever sent, and only self-encrypted.
-const ACCOUNT_CONFIG_D_TAG: &str = "keychat-account-config";
-const ACCOUNT_CHATSTARTED_D_TAG: &str = "keychat-account-chatstarted";
+const ACCOUNT_CONFIG_D_TAG: &str = "origilink-account-config";
+const ACCOUNT_CHATSTARTED_D_TAG: &str = "origilink-account-chatstarted";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Serialize, Deserialize)]
@@ -621,7 +621,7 @@ fn now() -> i64 {
 const FRIEND_REQUEST_KIND: Kind = Kind::Custom(30110);
 const FRIEND_ACCEPT_KIND: Kind = Kind::Custom(30111);
 const FRIEND_PROFILE_UPDATE_KIND: Kind = Kind::Custom(30112);
-const FRIEND_D_TAG: &str = "keychat-friend";
+const FRIEND_D_TAG: &str = "origilink-friend";
 
 #[derive(Serialize, Deserialize)]
 struct FriendPayload {

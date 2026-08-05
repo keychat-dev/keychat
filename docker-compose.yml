@@ -1,10 +1,10 @@
 services:
-  keychat-dev:
+  origilink-dev:
     build:
       context: .
       dockerfile: Dockerfile
-    image: keychat-dev:v1.0.0
-    container_name: keychat-dev
+    image: origilink-dev:v1.0.0
+    container_name: origilink-dev
 
     # Using host networking is the simplest way to let the adb client
     # inside the container reach the adb server (and thus the emulator)

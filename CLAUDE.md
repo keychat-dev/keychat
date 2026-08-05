@@ -4,10 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Dev environment
 
-All Flutter/Rust/Android tooling lives **only inside the `keychat-dev` Docker container**, not on the host. The host has no `flutter`, `adb`, or Android SDK. Always run commands via:
+All Flutter/Rust/Android tooling lives **only inside the `origilink-dev` Docker container**, not on the host. The host has no `flutter`, `adb`, or Android SDK. Always run commands via:
 
 ```bash
-docker exec -w /workspace keychat-dev bash -lc "<command>"
+docker exec -w /workspace origilink-dev bash -lc "<command>"
 ```
 
 The container is started via `docker-compose.yml` (`network_mode: host`, so the container's `adb` can reach an Android emulator running on the host). If it isn't running, start it with `docker compose up -d` (or open the `.devcontainer`). `/workspace` inside the container is a bind mount of the repo root.
@@ -15,7 +15,7 @@ The container is started via `docker-compose.yml` (`network_mode: host`, so the 
 **Ownership gotcha**: the container runs as `root`, so files it creates (build artifacts, generated code, `flutter pub get` output) appear root-owned on the host bind mount and become uneditable by the host user. After the container writes new files/dirs, fix ownership from the host:
 
 ```bash
-docker exec keychat-dev bash -lc "chown -R 1000:1000 /workspace/<path>"
+docker exec origilink-dev bash -lc "chown -R 1000:1000 /workspace/<path>"
 ```
 
 **Platform scope**: only Android (and eventually iOS) is actively developed/tested. Web/Windows/Linux desktop builds exist as scaffolding but are not maintained or verified — don't assume they work.
@@ -63,7 +63,7 @@ Commit in focused, single-purpose commits rather than bundling unrelated changes
 
 **Release signing**: `android/app/build.gradle.kts` loads `android/key.properties` (gitignored) + `android/keystore/keychat-release.jks` (gitignored) when present to sign release builds with the project's real release key; falls back to the debug keystore when absent, so `flutter build apk --release` still produces an installable (if not properly signed) APK on a fresh checkout without those files.
 
-**Screens flow**: `lib/main.dart` (`KeyChatApp`, stateful — owns locale state, and the top-level navigation callbacks: `_logout`, `_handleContinue`, `_handleRestore`) is the root. First launch (no persisted `Account`) shows `lib/screens/auth_choice.dart` (`AuthChoiceScreen`): choose "Sign up" (goes to `lib/screens/login.dart`'s `ProfileSetupScreen` to collect display name/status/avatar) or "Log in" (a seed-phrase restore flow, fully wired: `_handleRestore` in `main.dart` validates the phrase via NIP-06, fetches this account's relay-hosted backup — see "Account backup/sync" below — and if found recreates the local profile/avatar/relays/friends from it). Signing up flows: profile setup -> `lib/screens/relay_settings.dart` (relay list, seeded with defaults) -> `lib/screens/setup_complete.dart` (animated confirmation) -> `lib/screens/home.dart` (`HomeScreen`, bottom-nav shell: Profile & Friends / Talk / Public Chat tabs). Logging out wipes local Account/relay/seed data and returns to `AuthChoiceScreen`.
+**Screens flow**: `lib/main.dart` (`OrigilinkApp`, stateful — owns locale state, and the top-level navigation callbacks: `_logout`, `_handleContinue`, `_handleRestore`) is the root. First launch (no persisted `Account`) shows `lib/screens/auth_choice.dart` (`AuthChoiceScreen`): choose "Sign up" (goes to `lib/screens/login.dart`'s `ProfileSetupScreen` to collect display name/status/avatar) or "Log in" (a seed-phrase restore flow, fully wired: `_handleRestore` in `main.dart` validates the phrase via NIP-06, fetches this account's relay-hosted backup — see "Account backup/sync" below — and if found recreates the local profile/avatar/relays/friends from it). Signing up flows: profile setup -> `lib/screens/relay_settings.dart` (relay list, seeded with defaults) -> `lib/screens/setup_complete.dart` (animated confirmation) -> `lib/screens/home.dart` (`HomeScreen`, bottom-nav shell: Profile & Friends / Talk / Public Chat tabs). Logging out wipes local Account/relay/seed data and returns to `AuthChoiceScreen`.
 
 **Home tab contents**: `lib/screens/account_friends.dart` (`AccountFriendsTab`) shows the local account card (avatar/name/status, edit button -> `lib/screens/edit_profile.dart`) plus the real friends list (favorite/block/delete, tap through to `lib/screens/friend_profile.dart`). Adding a friend (`lib/screens/add_friend.dart`) is QR-code based: "My QR" mints a revocable per-relationship invite (`rust/src/api/invites.rs`) and encodes it (`sync::build_invite_qr_payload`) for someone to scan; "Scan" (or pasting the code) sends a friend request (`sync::send_friend_request`) that shows up for the invite's owner in `lib/screens/friend_requests.dart` to accept/reject. `lib/screens/public_chat_list.dart` backs the third tab and is still an unimplemented placeholder.
 
