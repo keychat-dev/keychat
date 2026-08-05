@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/screens/login.dart';
-import 'package:workspace/src/rust/api/friends.dart' as friends_api;
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/screens/login.dart';
+import 'package:origilink/src/rust/api/friends.dart' as friends_api;
 
 /// Friend picker for "Create talk room" (Talk tab's "+" menu): a searchable,
 /// full-screen list rather than a bottom sheet, since a long friends list
@@ -44,11 +44,11 @@ class _CreateTalkRoomScreenState extends State<CreateTalkRoomScreen> {
               .toList();
 
     return Scaffold(
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       appBar: AppBar(
-        backgroundColor: KeychatColors.background,
+        backgroundColor: OrigilinkColors.background,
         elevation: 0,
-        foregroundColor: KeychatColors.textPrimary,
+        foregroundColor: OrigilinkColors.textPrimary,
         title: Text(l10n.createTalkRoom),
       ),
       body: SafeArea(
@@ -60,9 +60,9 @@ class _CreateTalkRoomScreenState extends State<CreateTalkRoomScreen> {
                 controller: _searchController,
                 decoration: InputDecoration(
                   hintText: l10n.searchByNameHint,
-                  prefixIcon: const Icon(Icons.search, color: KeychatColors.textSecondary),
+                  prefixIcon: const Icon(Icons.search, color: OrigilinkColors.textSecondary),
                   filled: true,
-                  fillColor: KeychatColors.surface,
+                  fillColor: OrigilinkColors.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -76,14 +76,14 @@ class _CreateTalkRoomScreenState extends State<CreateTalkRoomScreen> {
                   ? Center(
                       child: Text(
                         l10n.noFriendsYet,
-                        style: const TextStyle(color: KeychatColors.textSecondary),
+                        style: const TextStyle(color: OrigilinkColors.textSecondary),
                       ),
                     )
                   : filtered.isEmpty
                   ? Center(
                       child: Text(
                         l10n.noSearchResults,
-                        style: const TextStyle(color: KeychatColors.textSecondary),
+                        style: const TextStyle(color: OrigilinkColors.textSecondary),
                       ),
                     )
                   : ListView.separated(
@@ -94,8 +94,8 @@ class _CreateTalkRoomScreenState extends State<CreateTalkRoomScreen> {
                         final friend = filtered[index];
                         return ListTile(
                           leading: const CircleAvatar(
-                            backgroundColor: KeychatColors.surface,
-                            child: Icon(Icons.person_outline, color: KeychatColors.textSecondary),
+                            backgroundColor: OrigilinkColors.surface,
+                            child: Icon(Icons.person_outline, color: OrigilinkColors.textSecondary),
                           ),
                           title: Text(friend.displayName),
                           subtitle: friend.statusMessage.isEmpty

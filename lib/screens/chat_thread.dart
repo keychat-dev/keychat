@@ -7,18 +7,18 @@ import 'package:flutter/services.dart' show MaxLengthEnforcement;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:mime/mime.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/screens/friend_profile.dart';
-import 'package:workspace/screens/login.dart';
-import 'package:workspace/screens/logout.dart' show seedStorageKey;
-import 'package:workspace/services/account_sync.dart';
-import 'package:workspace/services/ratchet_key.dart';
-import 'package:workspace/src/rust/api/attachment.dart' as attachment_api;
-import 'package:workspace/src/rust/api/chat.dart' as chat_api;
-import 'package:workspace/src/rust/api/friends.dart' as friends_api;
-import 'package:workspace/src/rust/api/link_preview.dart' as link_preview_api;
-import 'package:workspace/src/rust/api/ratchet.dart' as ratchet_api;
-import 'package:workspace/src/rust/api/sync.dart' as sync_api;
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/screens/friend_profile.dart';
+import 'package:origilink/screens/login.dart';
+import 'package:origilink/screens/logout.dart' show seedStorageKey;
+import 'package:origilink/services/account_sync.dart';
+import 'package:origilink/services/ratchet_key.dart';
+import 'package:origilink/src/rust/api/attachment.dart' as attachment_api;
+import 'package:origilink/src/rust/api/chat.dart' as chat_api;
+import 'package:origilink/src/rust/api/friends.dart' as friends_api;
+import 'package:origilink/src/rust/api/link_preview.dart' as link_preview_api;
+import 'package:origilink/src/rust/api/ratchet.dart' as ratchet_api;
+import 'package:origilink/src/rust/api/sync.dart' as sync_api;
 import 'package:url_launcher/url_launcher.dart';
 
 /// WhatsApp-style chat wallpaper and bubble colors, layered on top of the
@@ -628,7 +628,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: KeychatColors.background,
+          backgroundColor: OrigilinkColors.background,
           title: Text(l10n.attachmentServerSwitchTitle),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -725,7 +725,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
             onPressed: () => Navigator.of(dialogContext).pop('reply'),
             child: Row(
               children: [
-                const Icon(Icons.reply, color: KeychatColors.textSecondary),
+                const Icon(Icons.reply, color: OrigilinkColors.textSecondary),
                 const SizedBox(width: 12),
                 Text(l10n.replyToMessage),
               ],
@@ -740,7 +740,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                   children: [
                     const Icon(
                       Icons.edit_outlined,
-                      color: KeychatColors.textSecondary,
+                      color: OrigilinkColors.textSecondary,
                     ),
                     const SizedBox(width: 12),
                     Text(l10n.editMessage),
@@ -767,7 +767,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
               children: [
                 const Icon(
                   Icons.visibility_off_outlined,
-                  color: KeychatColors.textSecondary,
+                  color: OrigilinkColors.textSecondary,
                 ),
                 const SizedBox(width: 12),
                 Text(l10n.hideMessage),
@@ -970,7 +970,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     return Scaffold(
       backgroundColor: _WaColors.wallpaper,
       appBar: AppBar(
-        backgroundColor: KeychatColors.background,
+        backgroundColor: OrigilinkColors.background,
         elevation: 0,
         // Material 3's AppBar tints itself darker by default once the body
         // scrolls under it — unrelated to `elevation`, which only affects
@@ -978,7 +978,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         // message list isn't scrolled all the way to the top.
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
-        foregroundColor: KeychatColors.textPrimary,
+        foregroundColor: OrigilinkColors.textPrimary,
         titleSpacing: 0,
         title: InkWell(
           onTap: () => _openProfile(context),
@@ -986,7 +986,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
             children: [
               CircleAvatar(
                 radius: 16,
-                backgroundColor: KeychatColors.surface,
+                backgroundColor: OrigilinkColors.surface,
                 backgroundImage: hasAvatar
                     ? FileImage(File(_friend.avatarPath!))
                     : null,
@@ -995,7 +995,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                     : const Icon(
                         Icons.person_outline,
                         size: 18,
-                        color: KeychatColors.textSecondary,
+                        color: OrigilinkColors.textSecondary,
                       ),
               ),
               const SizedBox(width: 10),
@@ -1025,7 +1025,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       child: Text(
                         l10n.noMessagesYet,
                         style: const TextStyle(
-                          color: KeychatColors.textSecondary,
+                          color: OrigilinkColors.textSecondary,
                         ),
                       ),
                     )
@@ -1116,7 +1116,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                   horizontal: 12,
                   vertical: 8,
                 ),
-                color: KeychatColors.surface,
+                color: OrigilinkColors.surface,
                 child: Row(
                   children: [
                     Container(width: 3, height: 32, color: _WaColors.bubbleMine),
@@ -1133,7 +1133,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                                   : _friend.displayName,
                             ),
                             style: const TextStyle(
-                              color: KeychatColors.textPrimary,
+                              color: OrigilinkColors.textPrimary,
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
                             ),
@@ -1145,7 +1145,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: KeychatColors.textSecondary,
+                              color: OrigilinkColors.textSecondary,
                               fontSize: 13,
                             ),
                           ),
@@ -1156,7 +1156,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       icon: const Icon(
                         Icons.close,
                         size: 18,
-                        color: KeychatColors.textSecondary,
+                        color: OrigilinkColors.textSecondary,
                       ),
                       onPressed: () => setState(() => _replyingTo = null),
                     ),
@@ -1169,13 +1169,13 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                   horizontal: 12,
                   vertical: 8,
                 ),
-                color: KeychatColors.surface,
+                color: OrigilinkColors.surface,
                 child: Row(
                   children: [
                     const Icon(
                       Icons.insert_drive_file_outlined,
                       size: 20,
-                      color: KeychatColors.textSecondary,
+                      color: OrigilinkColors.textSecondary,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -1184,7 +1184,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: KeychatColors.textPrimary,
+                          color: OrigilinkColors.textPrimary,
                           fontSize: 13,
                         ),
                       ),
@@ -1193,7 +1193,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       icon: const Icon(
                         Icons.close,
                         size: 18,
-                        color: KeychatColors.textSecondary,
+                        color: OrigilinkColors.textSecondary,
                       ),
                       onPressed: _sending ? null : _removePendingAttachment,
                     ),
@@ -1207,7 +1207,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
               // be the outer widget so its color fills the SafeArea's
               // bottom inset padding too (see the outer SafeArea's
               // `bottom: false`), not just the padded content inside it.
-              color: KeychatColors.background,
+              color: OrigilinkColors.background,
               child: SafeArea(
                 top: false,
                 child: _Composer(
@@ -1379,7 +1379,7 @@ class _LinkPreviewCardState extends State<_LinkPreviewCard> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: KeychatColors.textSecondary.withValues(alpha: 0.8),
+                          color: OrigilinkColors.textSecondary.withValues(alpha: 0.8),
                           fontSize: 10.5,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.3,
@@ -1393,7 +1393,7 @@ class _LinkPreviewCardState extends State<_LinkPreviewCard> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            color: KeychatColors.textPrimary,
+                            color: OrigilinkColors.textPrimary,
                             fontSize: 13.5,
                             fontWeight: FontWeight.w600,
                             height: 1.25,
@@ -1408,7 +1408,7 @@ class _LinkPreviewCardState extends State<_LinkPreviewCard> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: KeychatColors.textSecondary.withValues(alpha: 0.9),
+                            color: OrigilinkColors.textSecondary.withValues(alpha: 0.9),
                             fontSize: 12,
                             height: 1.3,
                           ),
@@ -1472,7 +1472,7 @@ class _MessageBubble extends StatelessWidget {
         ? Text(
             l10n.messageUnsentLabel,
             style: TextStyle(
-              color: KeychatColors.textSecondary,
+              color: OrigilinkColors.textSecondary,
               fontStyle: FontStyle.italic,
               fontSize: 15,
             ),
@@ -1502,7 +1502,7 @@ class _MessageBubble extends StatelessWidget {
                       Container(
                         width: 2,
                         margin: const EdgeInsets.only(top: 2, bottom: 2),
-                        color: KeychatColors.textSecondary.withValues(
+                        color: OrigilinkColors.textSecondary.withValues(
                           alpha: 0.4,
                         ),
                       ),
@@ -1520,7 +1520,7 @@ class _MessageBubble extends StatelessWidget {
                                   children: [
                                     CircleAvatar(
                                       radius: 8,
-                                      backgroundColor: KeychatColors.surface,
+                                      backgroundColor: OrigilinkColors.surface,
                                       backgroundImage:
                                           !repliedMessage!.isMine &&
                                               friendAvatarPath != null &&
@@ -1539,7 +1539,7 @@ class _MessageBubble extends StatelessWidget {
                                               Icons.person_outline,
                                               size: 10,
                                               color:
-                                                  KeychatColors.textSecondary,
+                                                  OrigilinkColors.textSecondary,
                                             )
                                           : null,
                                     ),
@@ -1549,7 +1549,7 @@ class _MessageBubble extends StatelessWidget {
                                           ? l10n.youLabel
                                           : friendDisplayName,
                                       style: const TextStyle(
-                                        color: KeychatColors.textSecondary,
+                                        color: OrigilinkColors.textSecondary,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -1566,7 +1566,7 @@ class _MessageBubble extends StatelessWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: KeychatColors.textSecondary,
+                                color: OrigilinkColors.textSecondary,
                                 fontSize: 13,
                                 fontStyle: repliedMessage == null
                                     ? FontStyle.italic
@@ -1587,7 +1587,7 @@ class _MessageBubble extends StatelessWidget {
                     child: Text(
                       message.attachment!.caption!,
                       style: const TextStyle(
-                        color: KeychatColors.textPrimary,
+                        color: OrigilinkColors.textPrimary,
                         fontSize: 16.5,
                         height: 1.35,
                       ),
@@ -1598,7 +1598,7 @@ class _MessageBubble extends StatelessWidget {
                   _linkifiedSpan(
                     message.content,
                     const TextStyle(
-                      color: KeychatColors.textPrimary,
+                      color: OrigilinkColors.textPrimary,
                       fontSize: 16.5,
                       height: 1.35,
                     ),
@@ -1610,7 +1610,7 @@ class _MessageBubble extends StatelessWidget {
                 Text(
                   l10n.messageEditedLabel,
                   style: TextStyle(
-                    color: KeychatColors.textSecondary.withValues(alpha: 0.8),
+                    color: OrigilinkColors.textSecondary.withValues(alpha: 0.8),
                     fontSize: 11,
                   ),
                 ),
@@ -1650,7 +1650,7 @@ class _MessageBubble extends StatelessWidget {
         _formatTime(message.createdAt.toInt()),
         style: TextStyle(
           fontSize: 11,
-          color: KeychatColors.textSecondary.withValues(alpha: 0.8),
+          color: OrigilinkColors.textSecondary.withValues(alpha: 0.8),
         ),
       ),
     );
@@ -1665,7 +1665,7 @@ class _MessageBubble extends StatelessWidget {
               onTap: onAvatarTap,
               child: CircleAvatar(
                 radius: 14,
-                backgroundColor: KeychatColors.surface,
+                backgroundColor: OrigilinkColors.surface,
                 backgroundImage: hasAvatar
                     ? FileImage(File(friendAvatarPath!))
                     : null,
@@ -1674,7 +1674,7 @@ class _MessageBubble extends StatelessWidget {
                     : const Icon(
                         Icons.person_outline,
                         size: 14,
-                        color: KeychatColors.textSecondary,
+                        color: OrigilinkColors.textSecondary,
                       ),
               ),
             )
@@ -1805,7 +1805,7 @@ class _AttachmentPreviewState extends State<_AttachmentPreview> {
         child: Center(
           child: _failed
               ? IconButton(
-                  icon: const Icon(Icons.refresh, color: KeychatColors.textSecondary),
+                  icon: const Icon(Icons.refresh, color: OrigilinkColors.textSecondary),
                   onPressed: _download,
                 )
               : const SizedBox(
@@ -1833,14 +1833,14 @@ class _AttachmentPreviewState extends State<_AttachmentPreview> {
               _localPath != null
                   ? Icons.insert_drive_file_outlined
                   : (_failed ? Icons.error_outline : Icons.download),
-              color: KeychatColors.textSecondary,
+              color: OrigilinkColors.textSecondary,
             ),
           const SizedBox(width: 6),
           Flexible(
             child: Text(
               attachment.filename,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: KeychatColors.textPrimary, fontSize: 15),
+              style: const TextStyle(color: OrigilinkColors.textPrimary, fontSize: 15),
             ),
           ),
         ],
@@ -1888,7 +1888,7 @@ class _Composer extends StatelessWidget {
               IconButton(
                 icon: const Icon(
                   Icons.attach_file,
-                  color: KeychatColors.textSecondary,
+                  color: OrigilinkColors.textSecondary,
                 ),
                 onPressed: sending ? null : onAttach,
               ),
@@ -1937,7 +1937,7 @@ class _Composer extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Material(
-                color: KeychatColors.primaryDark,
+                color: OrigilinkColors.primaryDark,
                 shape: const CircleBorder(),
                 child: InkWell(
                   customBorder: const CircleBorder(),

@@ -1,7 +1,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:workspace/screens/logout.dart' show seedStorageKey;
-import 'package:workspace/src/rust/api/ratchet.dart' as ratchet_api;
+import 'package:origilink/screens/logout.dart' show seedStorageKey;
+import 'package:origilink/src/rust/api/ratchet.dart' as ratchet_api;
 
 /// OS Keystore/Keychain storage key for this device's forward-secrecy local
 /// storage key — see `ratchet.rs`'s module doc. Deliberately separate from

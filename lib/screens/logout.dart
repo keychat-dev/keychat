@@ -2,18 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/screens/login.dart';
-import 'package:workspace/screens/seed_backup.dart';
-import 'package:workspace/src/rust/api/keys.dart' as keys_api;
-import 'package:workspace/src/rust/api/relay.dart' as relay_api;
-import 'package:workspace/src/rust/api/sync.dart' as sync_api;
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/screens/login.dart';
+import 'package:origilink/screens/seed_backup.dart';
+import 'package:origilink/src/rust/api/keys.dart' as keys_api;
+import 'package:origilink/src/rust/api/relay.dart' as relay_api;
+import 'package:origilink/src/rust/api/sync.dart' as sync_api;
 
 const seedStorageKey = 'account_seed_mnemonic';
 
 /// Account management screen. Offers seed phrase backup, logout, and account
 /// deletion. Both logout and delete currently wipe the same local data
-/// (profile, relays, seed) — KeyChat has no relay-backed sync yet, so there's
+/// (profile, relays, seed) — Origilink has no relay-backed sync yet, so there's
 /// nothing else to distinguish them by. They're kept as separate entries
 /// (with separate confirmation copy) so the UI is ready for the day logout
 /// only needs to clear the local device while a synced account survives.
@@ -28,7 +28,7 @@ class AccountSettingsScreen extends StatelessWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: KeychatColors.background,
+          backgroundColor: OrigilinkColors.background,
           title: Text(l10n.logoutConfirmTitle),
           content: Text(l10n.logoutConfirmBody),
           actions: [
@@ -54,7 +54,7 @@ class AccountSettingsScreen extends StatelessWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: KeychatColors.background,
+          backgroundColor: OrigilinkColors.background,
           title: Text(l10n.deleteAccountConfirmTitle),
           content: Text(l10n.deleteAccountConfirmBody),
           actions: [
@@ -119,11 +119,11 @@ class AccountSettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       appBar: AppBar(
-        backgroundColor: KeychatColors.background,
+        backgroundColor: OrigilinkColors.background,
         elevation: 0,
-        foregroundColor: KeychatColors.textPrimary,
+        foregroundColor: OrigilinkColors.textPrimary,
         title: Text(l10n.accountSettingsTitle),
       ),
       body: SafeArea(
@@ -134,7 +134,7 @@ class AccountSettingsScreen extends StatelessWidget {
               builder: (context, snapshot) {
                 final uid = snapshot.data;
                 return ListTile(
-                  leading: const Icon(Icons.badge_outlined, color: KeychatColors.textSecondary),
+                  leading: const Icon(Icons.badge_outlined, color: OrigilinkColors.textSecondary),
                   title: Text(l10n.myUid),
                   subtitle: uid == null
                       ? null
@@ -142,25 +142,25 @@ class AccountSettingsScreen extends StatelessWidget {
                           '${uid.substring(0, 16)}...',
                           style: const TextStyle(
                             fontFamily: 'monospace',
-                            color: KeychatColors.textSecondary,
+                            color: OrigilinkColors.textSecondary,
                           ),
                         ),
-                  trailing: const Icon(Icons.copy_outlined, color: KeychatColors.textSecondary),
+                  trailing: const Icon(Icons.copy_outlined, color: OrigilinkColors.textSecondary),
                   onTap: uid == null ? null : () => _copyUid(context, uid),
                 );
               },
             ),
             const Divider(height: 1, color: Color(0x14000000)),
             ListTile(
-              leading: const Icon(Icons.key_outlined, color: KeychatColors.textSecondary),
+              leading: const Icon(Icons.key_outlined, color: OrigilinkColors.textSecondary),
               title: Text(l10n.seedBackupButton),
-              trailing: const Icon(Icons.chevron_right, color: KeychatColors.textSecondary),
+              trailing: const Icon(Icons.chevron_right, color: OrigilinkColors.textSecondary),
               onTap: () => _openSeedBackup(context),
             ),
             ListTile(
-              leading: const Icon(Icons.logout, color: KeychatColors.textSecondary),
+              leading: const Icon(Icons.logout, color: OrigilinkColors.textSecondary),
               title: Text(l10n.logoutButton),
-              trailing: const Icon(Icons.chevron_right, color: KeychatColors.textSecondary),
+              trailing: const Icon(Icons.chevron_right, color: OrigilinkColors.textSecondary),
               onTap: () => _confirmLogout(context),
             ),
             ListTile(

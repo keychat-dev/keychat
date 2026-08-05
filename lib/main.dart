@@ -5,36 +5,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/screens/auth_choice.dart';
-import 'package:workspace/screens/home.dart';
-import 'package:workspace/screens/login.dart';
-import 'package:workspace/screens/logout.dart' show seedStorageKey;
-import 'package:workspace/screens/relay_settings.dart';
-import 'package:workspace/screens/seed_backup.dart';
-import 'package:workspace/screens/setup_complete.dart';
-import 'package:workspace/services/account_sync.dart';
-import 'package:workspace/src/rust/api/account.dart' as account_api;
-import 'package:workspace/src/rust/api/chat.dart' as chat_api;
-import 'package:workspace/src/rust/api/config.dart' as config_api;
-import 'package:workspace/src/rust/api/keys.dart' as keys_api;
-import 'package:workspace/src/rust/api/relay.dart' as relay_api;
-import 'package:workspace/src/rust/api/sync.dart' as sync_api;
-import 'package:workspace/src/rust/frb_generated.dart';
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/screens/auth_choice.dart';
+import 'package:origilink/screens/home.dart';
+import 'package:origilink/screens/login.dart';
+import 'package:origilink/screens/logout.dart' show seedStorageKey;
+import 'package:origilink/screens/relay_settings.dart';
+import 'package:origilink/screens/seed_backup.dart';
+import 'package:origilink/screens/setup_complete.dart';
+import 'package:origilink/services/account_sync.dart';
+import 'package:origilink/src/rust/api/account.dart' as account_api;
+import 'package:origilink/src/rust/api/chat.dart' as chat_api;
+import 'package:origilink/src/rust/api/config.dart' as config_api;
+import 'package:origilink/src/rust/api/keys.dart' as keys_api;
+import 'package:origilink/src/rust/api/relay.dart' as relay_api;
+import 'package:origilink/src/rust/api/sync.dart' as sync_api;
+import 'package:origilink/src/rust/frb_generated.dart';
 
 Future<void> main() async {
   await RustLib.init();
-  runApp(const KeyChatApp());
+  runApp(const OrigilinkApp());
 }
 
-class KeyChatApp extends StatefulWidget {
-  const KeyChatApp({super.key});
+class OrigilinkApp extends StatefulWidget {
+  const OrigilinkApp({super.key});
 
   @override
-  State<KeyChatApp> createState() => _KeyChatAppState();
+  State<OrigilinkApp> createState() => _OrigilinkAppState();
 }
 
-class _KeyChatAppState extends State<KeyChatApp> {
+class _OrigilinkAppState extends State<OrigilinkApp> {
   // Null means "follow the device locale". Set explicitly when the user
   // picks a language from the language selector, or loaded from a
   // previously-saved (and possibly cross-device-synced) choice at startup.
@@ -299,10 +299,10 @@ class _KeyChatAppState extends State<KeyChatApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'KeyChat',
+      title: 'Origilink',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: KeychatColors.primary),
-        scaffoldBackgroundColor: KeychatColors.background,
+        colorScheme: ColorScheme.fromSeed(seedColor: OrigilinkColors.primary),
+        scaffoldBackgroundColor: OrigilinkColors.background,
         useMaterial3: true,
       ),
       locale: _locale,
@@ -318,7 +318,7 @@ class _KeyChatAppState extends State<KeyChatApp> {
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Scaffold(
-              backgroundColor: KeychatColors.background,
+              backgroundColor: OrigilinkColors.background,
               body: Center(child: CircularProgressIndicator()),
             );
           }

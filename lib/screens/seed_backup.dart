@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/screens/login.dart';
-import 'package:workspace/src/rust/api/relay.dart' as relay_api;
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/screens/login.dart';
+import 'package:origilink/src/rust/api/relay.dart' as relay_api;
 
 /// Shows a generated seed phrase for the user to write down.
 ///
@@ -42,7 +42,7 @@ class _SeedBackupScreenState extends State<SeedBackupScreen> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: KeychatColors.background,
+        backgroundColor: OrigilinkColors.background,
         title: Text(l10n.seedBackupNoDefaultRelayTitle),
         content: Text(l10n.seedBackupNoDefaultRelayBody),
         actions: [
@@ -60,11 +60,11 @@ class _SeedBackupScreenState extends State<SeedBackupScreen> {
     final l10n = AppLocalizations.of(context)!;
     final words = widget.mnemonic.split(' ');
     return Scaffold(
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       appBar: AppBar(
-        backgroundColor: KeychatColors.background,
+        backgroundColor: OrigilinkColors.background,
         elevation: 0,
-        foregroundColor: KeychatColors.textPrimary,
+        foregroundColor: OrigilinkColors.textPrimary,
         title: Text(l10n.seedBackupButton),
       ),
       body: SafeArea(
@@ -75,20 +75,20 @@ class _SeedBackupScreenState extends State<SeedBackupScreen> {
             children: [
               Text(
                 l10n.seedBackupWarning,
-                style: const TextStyle(color: KeychatColors.textSecondary, fontSize: 14),
+                style: const TextStyle(color: OrigilinkColors.textSecondary, fontSize: 14),
               ),
               if (widget.onContinue != null) ...[
                 const SizedBox(height: 8),
                 Text(
                   l10n.seedBackupOnboardingNote,
-                  style: const TextStyle(color: KeychatColors.textSecondary, fontSize: 13),
+                  style: const TextStyle(color: OrigilinkColors.textSecondary, fontSize: 13),
                 ),
               ],
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: KeychatColors.surface,
+                  color: OrigilinkColors.surface,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Wrap(
@@ -97,10 +97,10 @@ class _SeedBackupScreenState extends State<SeedBackupScreen> {
                   children: [
                     for (var i = 0; i < words.length; i++)
                       Chip(
-                        backgroundColor: KeychatColors.background,
+                        backgroundColor: OrigilinkColors.background,
                         label: Text(
                           '${i + 1}. ${words[i]}',
-                          style: const TextStyle(color: KeychatColors.textPrimary),
+                          style: const TextStyle(color: OrigilinkColors.textPrimary),
                         ),
                       ),
                   ],
@@ -113,7 +113,7 @@ class _SeedBackupScreenState extends State<SeedBackupScreen> {
                   child: ElevatedButton(
                     onPressed: widget.onContinue,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: KeychatColors.primaryDark,
+                      backgroundColor: OrigilinkColors.primaryDark,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),

@@ -4,13 +4,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/screens/chat_thread.dart';
-import 'package:workspace/screens/login.dart';
-import 'package:workspace/services/account_sync.dart';
-import 'package:workspace/src/rust/api/chat.dart' as chat_api;
-import 'package:workspace/src/rust/api/friends.dart' as friends_api;
-import 'package:workspace/src/rust/api/sync.dart' as sync_api;
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/screens/chat_thread.dart';
+import 'package:origilink/screens/login.dart';
+import 'package:origilink/services/account_sync.dart';
+import 'package:origilink/src/rust/api/chat.dart' as chat_api;
+import 'package:origilink/src/rust/api/friends.dart' as friends_api;
+import 'package:origilink/src/rust/api/sync.dart' as sync_api;
 
 /// A friend's profile and the relays they publish to, with actions to
 /// favorite/block/delete them. Shared between the friends list (tapping a
@@ -187,18 +187,18 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
     final l10n = AppLocalizations.of(context)!;
     final hasAvatar = friend.avatarPath != null && File(friend.avatarPath!).existsSync();
     return Scaffold(
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       appBar: AppBar(
-        backgroundColor: KeychatColors.background,
+        backgroundColor: OrigilinkColors.background,
         elevation: 0,
-        foregroundColor: KeychatColors.textPrimary,
+        foregroundColor: OrigilinkColors.textPrimary,
         actions: [
           IconButton(
             tooltip: _isFavorite ? l10n.removeFromFavorites : l10n.addToFavorites,
             onPressed: _toggleFavorite,
             icon: Icon(
               _isFavorite ? Icons.star : Icons.star_border,
-              color: KeychatColors.primaryDark,
+              color: OrigilinkColors.primaryDark,
             ),
           ),
         ],
@@ -209,11 +209,11 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
           Center(
             child: CircleAvatar(
               radius: 48,
-              backgroundColor: KeychatColors.surface,
+              backgroundColor: OrigilinkColors.surface,
               backgroundImage: hasAvatar ? FileImage(File(friend.avatarPath!)) : null,
               child: hasAvatar
                   ? null
-                  : const Icon(Icons.person_outline, size: 44, color: KeychatColors.textSecondary),
+                  : const Icon(Icons.person_outline, size: 44, color: OrigilinkColors.textSecondary),
             ),
           ),
           const SizedBox(height: 16),
@@ -223,7 +223,7 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
-                color: KeychatColors.textPrimary,
+                color: OrigilinkColors.textPrimary,
               ),
             ),
           ),
@@ -232,7 +232,7 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
             child: Text(
               friend.statusMessage.isEmpty ? l10n.noStatusMessage : friend.statusMessage,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: KeychatColors.textSecondary),
+              style: const TextStyle(color: OrigilinkColors.textSecondary),
             ),
           ),
           if (friend.uid.isNotEmpty) ...[
@@ -245,7 +245,7 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
                   style: const TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 12,
-                    color: KeychatColors.textSecondary,
+                    color: OrigilinkColors.textSecondary,
                   ),
                 ),
               ),
@@ -257,7 +257,7 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
             icon: const Icon(Icons.chat_bubble_outline),
             label: Text(l10n.startChat),
             style: ElevatedButton.styleFrom(
-              backgroundColor: KeychatColors.primaryDark,
+              backgroundColor: OrigilinkColors.primaryDark,
               foregroundColor: Colors.white,
               minimumSize: const Size.fromHeight(48),
             ),
@@ -268,7 +268,7 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: KeychatColors.textSecondary,
+              color: OrigilinkColors.textSecondary,
             ),
           ),
           const SizedBox(height: 8),
@@ -277,13 +277,13 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
                 l10n.noRelaysYet,
-                style: const TextStyle(color: KeychatColors.textSecondary),
+                style: const TextStyle(color: OrigilinkColors.textSecondary),
               ),
             )
           else
             Container(
               decoration: BoxDecoration(
-                color: KeychatColors.surface,
+                color: OrigilinkColors.surface,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -291,10 +291,10 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
                   for (var i = 0; i < friend.relays.length; i++) ...[
                     if (i > 0) const Divider(height: 1, color: Color(0x14000000)),
                     ListTile(
-                      leading: const Icon(Icons.dns_outlined, color: KeychatColors.textSecondary),
+                      leading: const Icon(Icons.dns_outlined, color: OrigilinkColors.textSecondary),
                       title: Text(
                         friend.relays[i],
-                        style: const TextStyle(color: KeychatColors.textPrimary),
+                        style: const TextStyle(color: OrigilinkColors.textPrimary),
                       ),
                     ),
                   ],
@@ -304,17 +304,17 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
           const SizedBox(height: 28),
           Container(
             decoration: BoxDecoration(
-              color: KeychatColors.surface,
+              color: OrigilinkColors.surface,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
               children: _isBlocked
                   ? [
                       ListTile(
-                        leading: const Icon(Icons.lock_open_outlined, color: KeychatColors.primaryDark),
+                        leading: const Icon(Icons.lock_open_outlined, color: OrigilinkColors.primaryDark),
                         title: Text(
                           l10n.unblockFriend,
-                          style: const TextStyle(color: KeychatColors.primaryDark),
+                          style: const TextStyle(color: OrigilinkColors.primaryDark),
                         ),
                         onTap: _handleUnblock,
                       ),

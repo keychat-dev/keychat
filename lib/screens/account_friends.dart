@@ -1,12 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/screens/friend_profile.dart';
-import 'package:workspace/screens/login.dart';
-import 'package:workspace/src/rust/api/account.dart' as account_api;
-import 'package:workspace/src/rust/api/friends.dart' as friends_api;
-import 'package:workspace/src/rust/api/sync.dart' as sync_api;
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/screens/friend_profile.dart';
+import 'package:origilink/screens/login.dart';
+import 'package:origilink/src/rust/api/account.dart' as account_api;
+import 'package:origilink/src/rust/api/friends.dart' as friends_api;
+import 'package:origilink/src/rust/api/sync.dart' as sync_api;
 
 /// Profile & Friends tab: shows the local display profile at the top and the
 /// friends list below.
@@ -73,7 +73,7 @@ class AccountFriendsTab extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: KeychatColors.textSecondary,
+                  color: OrigilinkColors.textSecondary,
                 ),
               ),
               if (friends.isNotEmpty)
@@ -82,7 +82,7 @@ class AccountFriendsTab extends StatelessWidget {
                   icon: const Icon(
                     Icons.person_add_alt_outlined,
                     size: 20,
-                    color: KeychatColors.textSecondary,
+                    color: OrigilinkColors.textSecondary,
                   ),
                 ),
             ],
@@ -175,11 +175,11 @@ class _FriendsList extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 28,
-                  backgroundColor: KeychatColors.surface,
+                  backgroundColor: OrigilinkColors.surface,
                   backgroundImage: hasAvatar ? FileImage(File(friend.avatarPath!)) : null,
                   child: hasAvatar
                       ? null
-                      : const Icon(Icons.person_outline, color: KeychatColors.textSecondary),
+                      : const Icon(Icons.person_outline, color: OrigilinkColors.textSecondary),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -193,7 +193,7 @@ class _FriendsList extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: KeychatColors.textPrimary,
+                          color: OrigilinkColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -203,14 +203,14 @@ class _FriendsList extends StatelessWidget {
                             : l10n.noStatusMessage,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: KeychatColors.textSecondary),
+                        style: const TextStyle(color: OrigilinkColors.textSecondary),
                       ),
                     ],
                   ),
                 ),
                 if (friend.isFavorite) ...[
                   const SizedBox(width: 8),
-                  const Icon(Icons.star, size: 18, color: KeychatColors.primaryDark),
+                  const Icon(Icons.star, size: 18, color: OrigilinkColors.primaryDark),
                 ],
               ],
             ),
@@ -237,7 +237,7 @@ class _ProfileCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KeychatColors.surface,
+        color: OrigilinkColors.surface,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -247,7 +247,7 @@ class _ProfileCard extends StatelessWidget {
             height: 64,
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: KeychatColors.background,
+              color: OrigilinkColors.background,
               borderRadius: BorderRadius.circular(18),
             ),
             child: avatarPath != null && File(avatarPath).existsSync()
@@ -255,7 +255,7 @@ class _ProfileCard extends StatelessWidget {
                 : const Icon(
                     Icons.person_outline,
                     size: 32,
-                    color: KeychatColors.textSecondary,
+                    color: OrigilinkColors.textSecondary,
                   ),
           ),
           const SizedBox(width: 16),
@@ -268,7 +268,7 @@ class _ProfileCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: KeychatColors.textPrimary,
+                    color: OrigilinkColors.textPrimary,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -278,8 +278,8 @@ class _ProfileCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     color: profile.statusMessage.isNotEmpty
-                        ? KeychatColors.textSecondary
-                        : KeychatColors.textSecondary.withValues(alpha: 0.6),
+                        ? OrigilinkColors.textSecondary
+                        : OrigilinkColors.textSecondary.withValues(alpha: 0.6),
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -293,7 +293,7 @@ class _ProfileCard extends StatelessWidget {
             icon: const Icon(
               Icons.edit_outlined,
               size: 20,
-              color: KeychatColors.textSecondary,
+              color: OrigilinkColors.textSecondary,
             ),
           ),
         ],
@@ -320,8 +320,8 @@ class _AddFriendButton extends StatelessWidget {
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
         ),
         style: OutlinedButton.styleFrom(
-          foregroundColor: KeychatColors.primaryDark,
-          side: const BorderSide(color: KeychatColors.primary, width: 1.2),
+          foregroundColor: OrigilinkColors.primaryDark,
+          side: const BorderSide(color: OrigilinkColors.primary, width: 1.2),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -349,7 +349,7 @@ class _EmptyFriendsList extends StatelessWidget {
                 Icon(
                   Icons.group_outlined,
                   size: 48,
-                  color: KeychatColors.textSecondary.withValues(alpha: 0.5),
+                  color: OrigilinkColors.textSecondary.withValues(alpha: 0.5),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -357,7 +357,7 @@ class _EmptyFriendsList extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: KeychatColors.textSecondary,
+                    color: OrigilinkColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -365,7 +365,7 @@ class _EmptyFriendsList extends StatelessWidget {
                   l10n.noFriendsHint,
                   style: TextStyle(
                     fontSize: 13,
-                    color: KeychatColors.textSecondary.withValues(alpha: 0.7),
+                    color: OrigilinkColors.textSecondary.withValues(alpha: 0.7),
                   ),
                 ),
               ],

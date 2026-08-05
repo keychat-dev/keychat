@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/screens/login.dart';
-import 'package:workspace/src/rust/api/attachment.dart' as attachment_api;
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/screens/login.dart';
+import 'package:origilink/src/rust/api/attachment.dart' as attachment_api;
 
 /// Lets the user view, add, and remove Blossom-compatible file upload
 /// servers — same shape as [RelaySettingsScreen]'s relay list, but with one
@@ -104,7 +104,7 @@ class _AttachmentServerSettingsScreenState extends State<AttachmentServerSetting
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: KeychatColors.background,
+        backgroundColor: OrigilinkColors.background,
         title: Text(l10n.removeAttachmentServerConfirmTitle),
         content: Text(l10n.removeAttachmentServerConfirmBody(url)),
         actions: [
@@ -156,7 +156,7 @@ class _AttachmentServerSettingsScreenState extends State<AttachmentServerSetting
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: KeychatColors.background,
+        backgroundColor: OrigilinkColors.background,
         title: Text(l10n.resetAttachmentServersConfirmTitle),
         content: Text(l10n.resetAttachmentServersConfirmBody),
         actions: [
@@ -197,11 +197,11 @@ class _AttachmentServerSettingsScreenState extends State<AttachmentServerSetting
     final l10n = AppLocalizations.of(context)!;
     final others = _urls.where((u) => u != _defaultUrl).toList();
     return Scaffold(
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       appBar: AppBar(
-        backgroundColor: KeychatColors.background,
+        backgroundColor: OrigilinkColors.background,
         elevation: 0,
-        foregroundColor: KeychatColors.textPrimary,
+        foregroundColor: OrigilinkColors.textPrimary,
         title: Text(l10n.attachmentServerSettingsTitle),
         actions: [
           IconButton(
@@ -248,7 +248,7 @@ class _AttachmentServerSettingsScreenState extends State<AttachmentServerSetting
                             child: ElevatedButton(
                               onPressed: _addServer,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: KeychatColors.primaryDark,
+                                backgroundColor: OrigilinkColors.primaryDark,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -268,7 +268,7 @@ class _AttachmentServerSettingsScreenState extends State<AttachmentServerSetting
                                 l10n.noAttachmentServersYet,
                                 style: const TextStyle(
                                   fontSize: 15,
-                                  color: KeychatColors.textSecondary,
+                                  color: OrigilinkColors.textSecondary,
                                 ),
                               ),
                             )
@@ -308,15 +308,15 @@ class _AttachmentServerSettingsScreenState extends State<AttachmentServerSetting
     return InputDecoration(
       labelText: label,
       filled: true,
-      fillColor: KeychatColors.surface,
-      labelStyle: TextStyle(color: KeychatColors.textSecondary),
+      fillColor: OrigilinkColors.surface,
+      labelStyle: TextStyle(color: OrigilinkColors.textSecondary),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: KeychatColors.primary, width: 1.5),
+        borderSide: BorderSide(color: OrigilinkColors.primary, width: 1.5),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
@@ -349,10 +349,10 @@ class _ServerTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: KeychatColors.surface,
+        color: OrigilinkColors.surface,
         borderRadius: BorderRadius.circular(12),
         border: isDefault
-            ? Border.all(color: KeychatColors.primaryDark, width: 1.5)
+            ? Border.all(color: OrigilinkColors.primaryDark, width: 1.5)
             : null,
       ),
       child: Row(
@@ -360,7 +360,7 @@ class _ServerTile extends StatelessWidget {
           if (isDefault)
             IconButton(
               onPressed: null,
-              icon: const Icon(Icons.star, size: 20, color: KeychatColors.primaryDark),
+              icon: const Icon(Icons.star, size: 20, color: OrigilinkColors.primaryDark),
             )
           else
             IconButton(
@@ -369,7 +369,7 @@ class _ServerTile extends StatelessWidget {
               icon: const Icon(
                 Icons.star_border,
                 size: 20,
-                color: KeychatColors.textSecondary,
+                color: OrigilinkColors.textSecondary,
               ),
             ),
           _StatusDot(status: status),
@@ -385,12 +385,12 @@ class _ServerTile extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: KeychatColors.primaryDark,
+                      color: OrigilinkColors.primaryDark,
                     ),
                   ),
                 Text(
                   url,
-                  style: const TextStyle(fontSize: 14, color: KeychatColors.textPrimary),
+                  style: const TextStyle(fontSize: 14, color: OrigilinkColors.textPrimary),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -399,12 +399,12 @@ class _ServerTile extends StatelessWidget {
           IconButton(
             onPressed: onEdit,
             tooltip: l10n.editRelay,
-            icon: const Icon(Icons.edit_outlined, size: 20, color: KeychatColors.textSecondary),
+            icon: const Icon(Icons.edit_outlined, size: 20, color: OrigilinkColors.textSecondary),
           ),
           IconButton(
             onPressed: onRemove,
             tooltip: l10n.removeRelay,
-            icon: const Icon(Icons.close, size: 20, color: KeychatColors.textSecondary),
+            icon: const Icon(Icons.close, size: 20, color: OrigilinkColors.textSecondary),
           ),
         ],
       ),
@@ -435,7 +435,7 @@ class _EditServerDialogState extends State<_EditServerDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return AlertDialog(
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       title: Text(l10n.editRelay),
       content: Form(
         key: _formKey,
@@ -446,15 +446,15 @@ class _EditServerDialogState extends State<_EditServerDialog> {
           decoration: InputDecoration(
             labelText: l10n.attachmentServerUrlLabel,
             filled: true,
-            fillColor: KeychatColors.surface,
-            labelStyle: TextStyle(color: KeychatColors.textSecondary),
+            fillColor: OrigilinkColors.surface,
+            labelStyle: TextStyle(color: OrigilinkColors.textSecondary),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: KeychatColors.primary, width: 1.5),
+              borderSide: BorderSide(color: OrigilinkColors.primary, width: 1.5),
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
@@ -495,7 +495,7 @@ class _StatusDot extends StatelessWidget {
     final color = switch (status) {
       true => Colors.green,
       false => Colors.red,
-      null => KeychatColors.textSecondary.withValues(alpha: 0.4),
+      null => OrigilinkColors.textSecondary.withValues(alpha: 0.4),
     };
     return Container(
       width: 8,

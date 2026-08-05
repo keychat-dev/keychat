@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/screens/login.dart';
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/screens/login.dart';
 
 /// Bottom navigation bar for the home screen: Profile & Friends, Talk, and
 /// Public Chat.
-class KeychatNavBar extends StatelessWidget {
-  const KeychatNavBar({
+class OrigilinkNavBar extends StatelessWidget {
+  const OrigilinkNavBar({
     super.key,
     required this.selectedIndex,
     required this.onTap,
@@ -42,9 +42,9 @@ class KeychatNavBar extends StatelessWidget {
       child: BottomNavigationBar(
         currentIndex: selectedIndex,
         onTap: onTap,
-        backgroundColor: KeychatColors.surface,
-        selectedItemColor: KeychatColors.primaryDark,
-        unselectedItemColor: KeychatColors.textSecondary,
+        backgroundColor: OrigilinkColors.surface,
+        selectedItemColor: OrigilinkColors.primaryDark,
+        unselectedItemColor: OrigilinkColors.textSecondary,
         items: [
           _navItem(
             Icons.person_outline,
@@ -74,7 +74,7 @@ class KeychatNavBar extends StatelessWidget {
     int badgeCount = 0,
   }) {
     final selected = selectedIndex == index;
-    final color = selected ? KeychatColors.primaryDark : KeychatColors.textSecondary;
+    final color = selected ? OrigilinkColors.primaryDark : OrigilinkColors.textSecondary;
     return BottomNavigationBarItem(
       icon: Badge(
         isLabelVisible: badgeCount > 0,

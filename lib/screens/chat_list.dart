@@ -4,17 +4,17 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/screens/chat_thread.dart';
-import 'package:workspace/screens/group_thread.dart';
-import 'package:workspace/screens/login.dart';
-import 'package:workspace/screens/logout.dart' show seedStorageKey;
-import 'package:workspace/services/ratchet_key.dart';
-import 'package:workspace/src/rust/api/chat.dart' as chat_api;
-import 'package:workspace/src/rust/api/friends.dart' as friends_api;
-import 'package:workspace/src/rust/api/groups.dart' as groups_api;
-import 'package:workspace/src/rust/api/ratchet.dart' as ratchet_api;
-import 'package:workspace/src/rust/api/sync.dart' as sync_api;
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/screens/chat_thread.dart';
+import 'package:origilink/screens/group_thread.dart';
+import 'package:origilink/screens/login.dart';
+import 'package:origilink/screens/logout.dart' show seedStorageKey;
+import 'package:origilink/services/ratchet_key.dart';
+import 'package:origilink/src/rust/api/chat.dart' as chat_api;
+import 'package:origilink/src/rust/api/friends.dart' as friends_api;
+import 'package:origilink/src/rust/api/groups.dart' as groups_api;
+import 'package:origilink/src/rust/api/ratchet.dart' as ratchet_api;
+import 'package:origilink/src/rust/api/sync.dart' as sync_api;
 
 /// Talk tab body shown inside the home screen's bottom navigation: one row
 /// per friend (plus one per group), with a preview of the most recent
@@ -269,7 +269,7 @@ class _ChatListTabState extends State<ChatListTab> {
             Icon(
               Icons.chat_bubble_outline,
               size: 48,
-              color: KeychatColors.textSecondary.withValues(alpha: 0.5),
+              color: OrigilinkColors.textSecondary.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 12),
             Text(
@@ -277,7 +277,7 @@ class _ChatListTabState extends State<ChatListTab> {
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
-                color: KeychatColors.textSecondary,
+                color: OrigilinkColors.textSecondary,
               ),
             ),
             const SizedBox(height: 4),
@@ -285,7 +285,7 @@ class _ChatListTabState extends State<ChatListTab> {
               l10n.noChatsHint,
               style: TextStyle(
                 fontSize: 13,
-                color: KeychatColors.textSecondary.withValues(alpha: 0.7),
+                color: OrigilinkColors.textSecondary.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -313,8 +313,8 @@ class _ChatListTabState extends State<ChatListTab> {
                 children: [
                   const CircleAvatar(
                     radius: 28,
-                    backgroundColor: KeychatColors.surface,
-                    child: Icon(Icons.groups_outlined, color: KeychatColors.textSecondary),
+                    backgroundColor: OrigilinkColors.surface,
+                    child: Icon(Icons.groups_outlined, color: OrigilinkColors.textSecondary),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -328,7 +328,7 @@ class _ChatListTabState extends State<ChatListTab> {
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: KeychatColors.textPrimary,
+                            color: OrigilinkColors.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -339,7 +339,7 @@ class _ChatListTabState extends State<ChatListTab> {
                                     preview.content,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: KeychatColors.textSecondary),
+                          style: const TextStyle(color: OrigilinkColors.textSecondary),
                         ),
                       ],
                     ),
@@ -362,11 +362,11 @@ class _ChatListTabState extends State<ChatListTab> {
               children: [
                 CircleAvatar(
                   radius: 28,
-                  backgroundColor: KeychatColors.surface,
+                  backgroundColor: OrigilinkColors.surface,
                   backgroundImage: hasAvatar ? FileImage(File(friend.avatarPath!)) : null,
                   child: hasAvatar
                       ? null
-                      : const Icon(Icons.person_outline, color: KeychatColors.textSecondary),
+                      : const Icon(Icons.person_outline, color: OrigilinkColors.textSecondary),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -380,7 +380,7 @@ class _ChatListTabState extends State<ChatListTab> {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: KeychatColors.textPrimary,
+                          color: OrigilinkColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -391,7 +391,7 @@ class _ChatListTabState extends State<ChatListTab> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: unread > 0 ? KeychatColors.textPrimary : KeychatColors.textSecondary,
+                          color: unread > 0 ? OrigilinkColors.textPrimary : OrigilinkColors.textSecondary,
                           fontWeight: unread > 0 ? FontWeight.w600 : FontWeight.normal,
                         ),
                       ),
@@ -408,8 +408,8 @@ class _ChatListTabState extends State<ChatListTab> {
                         style: TextStyle(
                           fontSize: 12,
                           color: unread > 0
-                              ? KeychatColors.primaryDark
-                              : KeychatColors.textSecondary.withValues(alpha: 0.8),
+                              ? OrigilinkColors.primaryDark
+                              : OrigilinkColors.textSecondary.withValues(alpha: 0.8),
                           fontWeight: unread > 0 ? FontWeight.w600 : FontWeight.normal,
                         ),
                       ),
@@ -419,7 +419,7 @@ class _ChatListTabState extends State<ChatListTab> {
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         constraints: const BoxConstraints(minWidth: 20),
                         decoration: BoxDecoration(
-                          color: KeychatColors.primaryDark,
+                          color: OrigilinkColors.primaryDark,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/screens/login.dart';
-import 'package:workspace/src/rust/api/friends.dart' as friends_api;
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/screens/login.dart';
+import 'package:origilink/src/rust/api/friends.dart' as friends_api;
 
 /// "Create group" from the Talk tab's "+" menu: a group name field plus a
 /// multi-select friend list. Pops with `(name, selectedPubkeys)`, or `null`
@@ -38,11 +38,11 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     final l10n = AppLocalizations.of(context)!;
     final canSubmit = _nameController.text.trim().isNotEmpty && _selected.isNotEmpty;
     return Scaffold(
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       appBar: AppBar(
-        backgroundColor: KeychatColors.background,
+        backgroundColor: OrigilinkColors.background,
         elevation: 0,
-        foregroundColor: KeychatColors.textPrimary,
+        foregroundColor: OrigilinkColors.textPrimary,
         title: Text(l10n.createGroup),
         actions: [
           TextButton(
@@ -62,7 +62,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                 decoration: InputDecoration(
                   labelText: l10n.groupNameLabel,
                   filled: true,
-                  fillColor: KeychatColors.surface,
+                  fillColor: OrigilinkColors.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -79,7 +79,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: KeychatColors.textSecondary,
+                    color: OrigilinkColors.textSecondary,
                   ),
                 ),
               ),
@@ -89,7 +89,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                   ? Center(
                       child: Text(
                         l10n.noFriendsYet,
-                        style: const TextStyle(color: KeychatColors.textSecondary),
+                        style: const TextStyle(color: OrigilinkColors.textSecondary),
                       ),
                     )
                   : ListView.builder(
@@ -108,8 +108,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                           }),
                           controlAffinity: ListTileControlAffinity.leading,
                           secondary: const CircleAvatar(
-                            backgroundColor: KeychatColors.surface,
-                            child: Icon(Icons.person_outline, color: KeychatColors.textSecondary),
+                            backgroundColor: OrigilinkColors.surface,
+                            child: Icon(Icons.person_outline, color: OrigilinkColors.textSecondary),
                           ),
                           title: Text(friend.displayName),
                         );

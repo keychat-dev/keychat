@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/screens/login.dart';
-import 'package:workspace/services/account_sync.dart';
-import 'package:workspace/src/rust/api/account.dart' as account_api;
-import 'package:workspace/src/rust/api/relay.dart' as relay_api;
-import 'package:workspace/src/rust/api/sync.dart' as sync_api;
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/screens/login.dart';
+import 'package:origilink/services/account_sync.dart';
+import 'package:origilink/src/rust/api/account.dart' as account_api;
+import 'package:origilink/src/rust/api/relay.dart' as relay_api;
+import 'package:origilink/src/rust/api/sync.dart' as sync_api;
 
 /// Lets the user view, add, and remove the Nostr relay URLs this device
 /// uses. Persisted as JSON on the Rust side (relays.json), separate from
@@ -139,7 +139,7 @@ class _RelaySettingsScreenState extends State<RelaySettingsScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: KeychatColors.background,
+          backgroundColor: OrigilinkColors.background,
           title: Text(l10n.removeRelayConfirmTitle),
           content: Text(l10n.removeRelayConfirmBody(url)),
           actions: [
@@ -198,7 +198,7 @@ class _RelaySettingsScreenState extends State<RelaySettingsScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: KeychatColors.background,
+          backgroundColor: OrigilinkColors.background,
           title: Text(l10n.resetRelaysConfirmTitle),
           content: Text(l10n.resetRelaysConfirmBody),
           actions: [
@@ -239,11 +239,11 @@ class _RelaySettingsScreenState extends State<RelaySettingsScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       appBar: AppBar(
-        backgroundColor: KeychatColors.background,
+        backgroundColor: OrigilinkColors.background,
         elevation: 0,
-        foregroundColor: KeychatColors.textPrimary,
+        foregroundColor: OrigilinkColors.textPrimary,
         title: Text(l10n.relaySettingsTitle),
         actions: [
           IconButton(
@@ -289,7 +289,7 @@ class _RelaySettingsScreenState extends State<RelaySettingsScreen> {
                             child: ElevatedButton(
                               onPressed: _addRelay,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: KeychatColors.primaryDark,
+                                backgroundColor: OrigilinkColors.primaryDark,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -306,7 +306,7 @@ class _RelaySettingsScreenState extends State<RelaySettingsScreen> {
                       l10n.relayCountHint,
                       style: TextStyle(
                         fontSize: 12,
-                        color: KeychatColors.textSecondary.withValues(alpha: 0.8),
+                        color: OrigilinkColors.textSecondary.withValues(alpha: 0.8),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -319,7 +319,7 @@ class _RelaySettingsScreenState extends State<RelaySettingsScreen> {
                         child: ElevatedButton(
                           onPressed: widget.onContinue,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: KeychatColors.primaryDark,
+                            backgroundColor: OrigilinkColors.primaryDark,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -341,7 +341,7 @@ class _RelaySettingsScreenState extends State<RelaySettingsScreen> {
       return Center(
         child: Text(
           l10n.noRelaysYet,
-          style: const TextStyle(fontSize: 15, color: KeychatColors.textSecondary),
+          style: const TextStyle(fontSize: 15, color: OrigilinkColors.textSecondary),
         ),
       );
     }
@@ -370,7 +370,7 @@ class _RelaySettingsScreenState extends State<RelaySettingsScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               decoration: BoxDecoration(
-                color: KeychatColors.surface,
+                color: OrigilinkColors.surface,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -380,7 +380,7 @@ class _RelaySettingsScreenState extends State<RelaySettingsScreen> {
                   Expanded(
                     child: Text(
                       url,
-                      style: const TextStyle(fontSize: 14, color: KeychatColors.textPrimary),
+                      style: const TextStyle(fontSize: 14, color: OrigilinkColors.textPrimary),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -390,7 +390,7 @@ class _RelaySettingsScreenState extends State<RelaySettingsScreen> {
                     icon: const Icon(
                       Icons.edit_outlined,
                       size: 20,
-                      color: KeychatColors.textSecondary,
+                      color: OrigilinkColors.textSecondary,
                     ),
                   ),
                   IconButton(
@@ -399,7 +399,7 @@ class _RelaySettingsScreenState extends State<RelaySettingsScreen> {
                     icon: const Icon(
                       Icons.close,
                       size: 20,
-                      color: KeychatColors.textSecondary,
+                      color: OrigilinkColors.textSecondary,
                     ),
                   ),
                 ],
@@ -415,15 +415,15 @@ class _RelaySettingsScreenState extends State<RelaySettingsScreen> {
     return InputDecoration(
       labelText: label,
       filled: true,
-      fillColor: KeychatColors.surface,
-      labelStyle: TextStyle(color: KeychatColors.textSecondary),
+      fillColor: OrigilinkColors.surface,
+      labelStyle: TextStyle(color: OrigilinkColors.textSecondary),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: KeychatColors.primary, width: 1.5),
+        borderSide: BorderSide(color: OrigilinkColors.primary, width: 1.5),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
@@ -458,7 +458,7 @@ class _EditRelayDialogState extends State<_EditRelayDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return AlertDialog(
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       title: Text(l10n.editRelay),
       content: Form(
         key: _formKey,
@@ -468,15 +468,15 @@ class _EditRelayDialogState extends State<_EditRelayDialog> {
           decoration: InputDecoration(
             labelText: l10n.relayUrlLabel,
             filled: true,
-            fillColor: KeychatColors.surface,
-            labelStyle: TextStyle(color: KeychatColors.textSecondary),
+            fillColor: OrigilinkColors.surface,
+            labelStyle: TextStyle(color: OrigilinkColors.textSecondary),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: KeychatColors.primary, width: 1.5),
+              borderSide: BorderSide(color: OrigilinkColors.primary, width: 1.5),
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
@@ -535,7 +535,7 @@ class _StatusDot extends StatelessWidget {
     final color = switch (status) {
       true => Colors.green,
       false => Colors.red,
-      null => KeychatColors.textSecondary.withValues(alpha: 0.4),
+      null => OrigilinkColors.textSecondary.withValues(alpha: 0.4),
     };
     return Container(
       width: 8,

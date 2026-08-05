@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/languages.dart';
-import 'package:workspace/screens/login.dart';
-import 'package:workspace/screens/relay_settings.dart';
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/languages.dart';
+import 'package:origilink/screens/login.dart';
+import 'package:origilink/screens/relay_settings.dart';
 
 /// First screen shown on a fresh install: choose between creating a new
 /// account (sign up) or restoring an existing one (login via seed phrase).
@@ -44,7 +44,7 @@ class AuthChoiceScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       body: SafeArea(
         child: Stack(
           children: [
@@ -59,7 +59,7 @@ class AuthChoiceScreen extends StatelessWidget {
                       height: 96,
                       clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
-                        color: KeychatColors.surface,
+                        color: OrigilinkColors.surface,
                         borderRadius: BorderRadius.circular(28),
                       ),
                       child: Image.asset('assets/branding/app_icon.png', fit: BoxFit.cover),
@@ -70,14 +70,14 @@ class AuthChoiceScreen extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w600,
-                        color: KeychatColors.textPrimary,
+                        color: OrigilinkColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       l10n.authChoiceSubtitle,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 14, color: KeychatColors.textSecondary),
+                      style: const TextStyle(fontSize: 14, color: OrigilinkColors.textSecondary),
                     ),
                     const SizedBox(height: 48),
                     SizedBox(
@@ -86,7 +86,7 @@ class AuthChoiceScreen extends StatelessWidget {
                       child: ElevatedButton(
                         onPressed: onSignUp,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: KeychatColors.primaryDark,
+                          backgroundColor: OrigilinkColors.primaryDark,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
@@ -103,8 +103,8 @@ class AuthChoiceScreen extends StatelessWidget {
                       child: OutlinedButton(
                         onPressed: () => _openLogin(context),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: KeychatColors.textPrimary,
-                          side: const BorderSide(color: KeychatColors.primary),
+                          foregroundColor: OrigilinkColors.textPrimary,
+                          side: const BorderSide(color: OrigilinkColors.primary),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         child: Text(
@@ -185,11 +185,11 @@ class _LoginScreenState extends State<_LoginScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       appBar: AppBar(
-        backgroundColor: KeychatColors.background,
+        backgroundColor: OrigilinkColors.background,
         elevation: 0,
-        foregroundColor: KeychatColors.textPrimary,
+        foregroundColor: OrigilinkColors.textPrimary,
         title: Text(l10n.logInButton),
       ),
       body: SafeArea(
@@ -200,13 +200,13 @@ class _LoginScreenState extends State<_LoginScreen> {
             children: [
               Text(
                 l10n.seedPhraseHint,
-                style: const TextStyle(color: KeychatColors.textSecondary, fontSize: 14),
+                style: const TextStyle(color: OrigilinkColors.textSecondary, fontSize: 14),
               ),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: KeychatColors.surface,
+                  color: OrigilinkColors.surface,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: GridView.builder(
@@ -227,9 +227,9 @@ class _LoginScreenState extends State<_LoginScreen> {
                     decoration: InputDecoration(
                       isDense: true,
                       hintText: _focusNodes[index].hasFocus ? null : '${index + 1}',
-                      hintStyle: TextStyle(color: KeychatColors.textSecondary.withValues(alpha: 0.5)),
+                      hintStyle: TextStyle(color: OrigilinkColors.textSecondary.withValues(alpha: 0.5)),
                       filled: true,
-                      fillColor: KeychatColors.background,
+                      fillColor: OrigilinkColors.background,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                         borderSide: BorderSide.none,
@@ -252,9 +252,9 @@ class _LoginScreenState extends State<_LoginScreen> {
                 child: ElevatedButton(
                   onPressed: _submitting ? null : _submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: KeychatColors.primaryDark,
+                    backgroundColor: OrigilinkColors.primaryDark,
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: KeychatColors.primary,
+                    disabledBackgroundColor: OrigilinkColors.primary,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: _submitting
@@ -299,11 +299,11 @@ class _AuthLanguageSelector extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.translate, size: 18, color: KeychatColors.textSecondary),
+            const Icon(Icons.translate, size: 18, color: OrigilinkColors.textSecondary),
             const SizedBox(width: 6),
             Text(
               languageNames[currentCode] ?? currentCode.toUpperCase(),
-              style: const TextStyle(color: KeychatColors.textSecondary, fontWeight: FontWeight.w600),
+              style: const TextStyle(color: OrigilinkColors.textSecondary, fontWeight: FontWeight.w600),
             ),
           ],
         ),

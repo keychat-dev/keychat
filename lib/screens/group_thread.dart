@@ -6,15 +6,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:mime/mime.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/screens/login.dart';
-import 'package:workspace/screens/logout.dart' show seedStorageKey;
-import 'package:workspace/services/ratchet_key.dart';
-import 'package:workspace/src/rust/api/attachment.dart' as attachment_api;
-import 'package:workspace/src/rust/api/friends.dart' as friends_api;
-import 'package:workspace/src/rust/api/groups.dart' as groups_api;
-import 'package:workspace/src/rust/api/keys.dart' as keys_api;
-import 'package:workspace/src/rust/api/sync.dart' as sync_api;
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/screens/login.dart';
+import 'package:origilink/screens/logout.dart' show seedStorageKey;
+import 'package:origilink/services/ratchet_key.dart';
+import 'package:origilink/src/rust/api/attachment.dart' as attachment_api;
+import 'package:origilink/src/rust/api/friends.dart' as friends_api;
+import 'package:origilink/src/rust/api/groups.dart' as groups_api;
+import 'package:origilink/src/rust/api/keys.dart' as keys_api;
+import 'package:origilink/src/rust/api/sync.dart' as sync_api;
 
 /// A group's message thread — a deliberately simpler cousin of
 /// [ChatThreadScreen]: no edit/unsend/reply, since group delivery (see
@@ -258,18 +258,18 @@ class _GroupThreadScreenState extends State<GroupThreadScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       appBar: AppBar(
-        backgroundColor: KeychatColors.background,
+        backgroundColor: OrigilinkColors.background,
         elevation: 0,
-        foregroundColor: KeychatColors.textPrimary,
+        foregroundColor: OrigilinkColors.textPrimary,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(_group.name),
             Text(
               l10n.groupMembersCount(_group.members.length),
-              style: const TextStyle(fontSize: 12, color: KeychatColors.textSecondary),
+              style: const TextStyle(fontSize: 12, color: OrigilinkColors.textSecondary),
             ),
           ],
         ),
@@ -288,7 +288,7 @@ class _GroupThreadScreenState extends State<GroupThreadScreen> {
                   ? Center(
                       child: Text(
                         l10n.noMessagesYet,
-                        style: const TextStyle(color: KeychatColors.textSecondary),
+                        style: const TextStyle(color: OrigilinkColors.textSecondary),
                       ),
                     )
                   : ListView.builder(
@@ -306,7 +306,7 @@ class _GroupThreadScreenState extends State<GroupThreadScreen> {
                               maxWidth: MediaQuery.of(context).size.width * 0.75,
                             ),
                             decoration: BoxDecoration(
-                              color: m.isMine ? KeychatColors.primary : Colors.white,
+                              color: m.isMine ? OrigilinkColors.primary : Colors.white,
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Column(
@@ -319,7 +319,7 @@ class _GroupThreadScreenState extends State<GroupThreadScreen> {
                                     style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
-                                      color: KeychatColors.textSecondary,
+                                      color: OrigilinkColors.textSecondary,
                                     ),
                                   ),
                                 if (m.attachment != null) ...[
@@ -343,13 +343,13 @@ class _GroupThreadScreenState extends State<GroupThreadScreen> {
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
                 child: Row(
                   children: [
-                    const Icon(Icons.insert_drive_file_outlined, size: 18, color: KeychatColors.textSecondary),
+                    const Icon(Icons.insert_drive_file_outlined, size: 18, color: OrigilinkColors.textSecondary),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         _pendingAttachmentName ?? '',
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12, color: KeychatColors.textSecondary),
+                        style: const TextStyle(fontSize: 12, color: OrigilinkColors.textSecondary),
                       ),
                     ),
                     if (_uploadProgress != null)
@@ -372,7 +372,7 @@ class _GroupThreadScreenState extends State<GroupThreadScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.attach_file, color: KeychatColors.textSecondary),
+                    icon: const Icon(Icons.attach_file, color: OrigilinkColors.textSecondary),
                     onPressed: _sending ? null : _pickAttachment,
                   ),
                   Expanded(
@@ -398,7 +398,7 @@ class _GroupThreadScreenState extends State<GroupThreadScreen> {
                   ),
                   const SizedBox(width: 8),
                   Material(
-                    color: KeychatColors.primaryDark,
+                    color: OrigilinkColors.primaryDark,
                     shape: const CircleBorder(),
                     child: InkWell(
                       customBorder: const CircleBorder(),
@@ -464,7 +464,7 @@ class _MemberListSheet extends StatelessWidget {
                   final routingEstablished = member.groupPubkey != null || member.devicePubkey != null;
                   return ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: KeychatColors.primary,
+                      backgroundColor: OrigilinkColors.primary,
                       child: Text(
                         member.displayName.isNotEmpty ? member.displayName[0].toUpperCase() : '?',
                         style: const TextStyle(color: Colors.white),
@@ -476,7 +476,7 @@ class _MemberListSheet extends StatelessWidget {
                         isSelf ? 'You' : (isFriend ? 'Friend' : 'Group-only contact'),
                         routingEstablished ? 'Routing established' : 'Routing pending',
                       ].join(' • '),
-                      style: const TextStyle(fontSize: 12, color: KeychatColors.textSecondary),
+                      style: const TextStyle(fontSize: 12, color: OrigilinkColors.textSecondary),
                     ),
                     trailing: isSelf
                         ? null
@@ -577,7 +577,7 @@ class _GroupAttachmentPreviewState extends State<_GroupAttachmentPreview> {
         child: Center(
           child: _failed
               ? IconButton(
-                  icon: const Icon(Icons.refresh, color: KeychatColors.textSecondary),
+                  icon: const Icon(Icons.refresh, color: OrigilinkColors.textSecondary),
                   onPressed: _download,
                 )
               : const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
@@ -595,7 +595,7 @@ class _GroupAttachmentPreviewState extends State<_GroupAttachmentPreview> {
           else
             Icon(
               _localPath != null ? Icons.insert_drive_file_outlined : (_failed ? Icons.error_outline : Icons.download),
-              color: KeychatColors.textSecondary,
+              color: OrigilinkColors.textSecondary,
             ),
           const SizedBox(width: 6),
           Flexible(child: Text(attachment.filename, overflow: TextOverflow.ellipsis)),

@@ -9,14 +9,14 @@ import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/screens/friend_requests.dart';
-import 'package:workspace/screens/login.dart';
-import 'package:workspace/screens/logout.dart' show seedStorageKey;
-import 'package:workspace/services/account_sync.dart';
-import 'package:workspace/src/rust/api/friends.dart' as friends_api;
-import 'package:workspace/src/rust/api/invites.dart' as invites_api;
-import 'package:workspace/src/rust/api/sync.dart' as sync_api;
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/screens/friend_requests.dart';
+import 'package:origilink/screens/login.dart';
+import 'package:origilink/screens/logout.dart' show seedStorageKey;
+import 'package:origilink/services/account_sync.dart';
+import 'package:origilink/src/rust/api/friends.dart' as friends_api;
+import 'package:origilink/src/rust/api/invites.dart' as invites_api;
+import 'package:origilink/src/rust/api/sync.dart' as sync_api;
 
 /// Add-friend flow: show your own QR (an invite others scan to send a
 /// friend request) or scan someone else's. Each invite mints a fresh,
@@ -74,11 +74,11 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: KeychatColors.background,
+        backgroundColor: OrigilinkColors.background,
         appBar: AppBar(
-          backgroundColor: KeychatColors.background,
+          backgroundColor: OrigilinkColors.background,
           elevation: 0,
-          foregroundColor: KeychatColors.textPrimary,
+          foregroundColor: OrigilinkColors.textPrimary,
           title: Text(l10n.addFriendTitle),
           actions: [
             IconButton(
@@ -103,9 +103,9 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
             ),
           ],
           bottom: TabBar(
-            labelColor: KeychatColors.primaryDark,
-            unselectedLabelColor: KeychatColors.textSecondary,
-            indicatorColor: KeychatColors.primaryDark,
+            labelColor: OrigilinkColors.primaryDark,
+            unselectedLabelColor: OrigilinkColors.textSecondary,
+            indicatorColor: OrigilinkColors.primaryDark,
             tabs: [
               Tab(text: l10n.myQrTab),
               Tab(text: l10n.scanTab),
@@ -277,8 +277,8 @@ class _MyQrTabState extends State<_MyQrTab> {
               child: OutlinedButton(
                 onPressed: _generating ? null : _generate,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: KeychatColors.primaryDark,
-                  side: const BorderSide(color: KeychatColors.primary),
+                  foregroundColor: OrigilinkColors.primaryDark,
+                  side: const BorderSide(color: OrigilinkColors.primary),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -292,8 +292,8 @@ class _MyQrTabState extends State<_MyQrTab> {
               child: OutlinedButton(
                 onPressed: _copyCode,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: KeychatColors.primaryDark,
-                  side: const BorderSide(color: KeychatColors.primary),
+                  foregroundColor: OrigilinkColors.primaryDark,
+                  side: const BorderSide(color: OrigilinkColors.primary),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -307,8 +307,8 @@ class _MyQrTabState extends State<_MyQrTab> {
               child: OutlinedButton(
                 onPressed: _saveQrToDevice,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: KeychatColors.primaryDark,
-                  side: const BorderSide(color: KeychatColors.primary),
+                  foregroundColor: OrigilinkColors.primaryDark,
+                  side: const BorderSide(color: OrigilinkColors.primary),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -346,7 +346,7 @@ class _MyQrTabState extends State<_MyQrTab> {
               child: ElevatedButton(
                 onPressed: _generating ? null : _generate,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: KeychatColors.primaryDark,
+                  backgroundColor: OrigilinkColors.primaryDark,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -387,7 +387,7 @@ class _MyQrTabState extends State<_MyQrTab> {
           style: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: KeychatColors.textSecondary,
+            color: OrigilinkColors.textSecondary,
           ),
         ),
         const SizedBox(height: 8),
@@ -424,7 +424,7 @@ class _MyQrTabState extends State<_MyQrTab> {
             autofocus: true,
             decoration: InputDecoration(
               filled: true,
-              fillColor: KeychatColors.surface,
+              fillColor: OrigilinkColors.surface,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -449,10 +449,10 @@ class _MyQrTabState extends State<_MyQrTab> {
       label: Text(label),
       selected: selected,
       onSelected: (_) => onTap(),
-      selectedColor: KeychatColors.primary,
-      backgroundColor: KeychatColors.surface,
+      selectedColor: OrigilinkColors.primary,
+      backgroundColor: OrigilinkColors.surface,
       labelStyle: TextStyle(
-        color: selected ? Colors.white : KeychatColors.textPrimary,
+        color: selected ? Colors.white : OrigilinkColors.textPrimary,
         fontWeight: FontWeight.w500,
       ),
     );
@@ -523,7 +523,7 @@ class _ScanTabState extends State<_ScanTab> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: KeychatColors.background,
+        backgroundColor: OrigilinkColors.background,
         title: Text(l10n.sendRequestConfirmTitle),
         content: Text(l10n.sendRequestConfirmBody(payload.displayName)),
         actions: [
@@ -717,11 +717,11 @@ class _ActiveInvitesScreenState extends State<ActiveInvitesScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       appBar: AppBar(
-        backgroundColor: KeychatColors.background,
+        backgroundColor: OrigilinkColors.background,
         elevation: 0,
-        foregroundColor: KeychatColors.textPrimary,
+        foregroundColor: OrigilinkColors.textPrimary,
         title: Text(l10n.activeInvitesTitle),
       ),
       body: _loading
@@ -730,7 +730,7 @@ class _ActiveInvitesScreenState extends State<ActiveInvitesScreen> {
           ? Center(
               child: Text(
                 l10n.noActiveInvites,
-                style: const TextStyle(color: KeychatColors.textSecondary),
+                style: const TextStyle(color: OrigilinkColors.textSecondary),
               ),
             )
           : ListView.builder(
@@ -757,7 +757,7 @@ class _ActiveInvitesScreenState extends State<ActiveInvitesScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: KeychatColors.surface,
+                    color: OrigilinkColors.surface,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: ListTile(
@@ -766,7 +766,7 @@ class _ActiveInvitesScreenState extends State<ActiveInvitesScreen> {
                     subtitle: Text(
                       subtitle,
                       style: const TextStyle(
-                        color: KeychatColors.textSecondary,
+                        color: OrigilinkColors.textSecondary,
                       ),
                     ),
                     trailing: TextButton(

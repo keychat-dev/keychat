@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'KeyChat';
+  String get appTitle => 'Origilink';
 
   @override
   String get authChoiceSubtitle =>
@@ -62,7 +62,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String setupCompleteSubtitle(String displayName) {
-    return 'Welcome to KeyChat, $displayName';
+    return 'Welcome to Origilink, $displayName';
   }
 
   @override
@@ -155,13 +155,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get revokeInvite => 'Revoke';
 
   @override
-  String get scanPrompt => 'Point your camera at a KeyChat QR code';
+  String get scanPrompt => 'Point your camera at a Origilink QR code';
 
   @override
   String get pickFromGallery => 'Pick from gallery';
 
   @override
-  String get scanInvalidQr => 'This isn\'t a valid KeyChat invite code';
+  String get scanInvalidQr => 'This isn\'t a valid Origilink invite code';
 
   @override
   String get sendRequestConfirmTitle => 'Send friend request?';

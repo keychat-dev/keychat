@@ -4,10 +4,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/screens/login.dart';
-import 'package:workspace/services/account_sync.dart';
-import 'package:workspace/src/rust/api/account.dart' as account_api;
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/screens/login.dart';
+import 'package:origilink/services/account_sync.dart';
+import 'package:origilink/src/rust/api/account.dart' as account_api;
 
 /// Lets the user change their avatar, display name, and status message.
 /// Pops with the updated [account_api.Account] once saved, or nothing if
@@ -85,11 +85,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       appBar: AppBar(
-        backgroundColor: KeychatColors.background,
+        backgroundColor: OrigilinkColors.background,
         elevation: 0,
-        foregroundColor: KeychatColors.textPrimary,
+        foregroundColor: OrigilinkColors.textPrimary,
         title: Text(l10n.editProfile),
       ),
       body: SafeArea(
@@ -121,7 +121,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   child: ElevatedButton(
                     onPressed: _saving ? null : _handleSave,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: KeychatColors.primaryDark,
+                      backgroundColor: OrigilinkColors.primaryDark,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -166,7 +166,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               height: 88,
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
-                color: KeychatColors.surface,
+                color: OrigilinkColors.surface,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: avatarPath != null
@@ -174,7 +174,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   : const Icon(
                       Icons.photo_outlined,
                       size: 32,
-                      color: KeychatColors.textSecondary,
+                      color: OrigilinkColors.textSecondary,
                     ),
             ),
             Positioned(
@@ -186,7 +186,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.45),
                   shape: BoxShape.circle,
-                  border: Border.all(color: KeychatColors.background, width: 2),
+                  border: Border.all(color: OrigilinkColors.background, width: 2),
                 ),
                 child: const Icon(Icons.photo_camera_outlined, size: 16, color: Colors.white),
               ),
@@ -201,15 +201,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return InputDecoration(
       labelText: label,
       filled: true,
-      fillColor: KeychatColors.surface,
-      labelStyle: TextStyle(color: KeychatColors.textSecondary),
+      fillColor: OrigilinkColors.surface,
+      labelStyle: TextStyle(color: OrigilinkColors.textSecondary),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: KeychatColors.primary, width: 1.5),
+        borderSide: BorderSide(color: OrigilinkColors.primary, width: 1.5),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );

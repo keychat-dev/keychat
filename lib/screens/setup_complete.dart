@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/screens/login.dart';
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/screens/login.dart';
 
 /// Brief celebratory screen shown right after onboarding (profile + relay
 /// setup) finishes. Animates a checkmark in, then automatically fades into
@@ -49,7 +49,7 @@ class _SetupCompleteScreenState extends State<SetupCompleteScreen>
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -60,7 +60,7 @@ class _SetupCompleteScreenState extends State<SetupCompleteScreen>
                 width: 96,
                 height: 96,
                 decoration: const BoxDecoration(
-                  color: KeychatColors.primaryDark,
+                  color: OrigilinkColors.primaryDark,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.check_rounded, color: Colors.white, size: 52),
@@ -76,13 +76,13 @@ class _SetupCompleteScreenState extends State<SetupCompleteScreen>
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
-                      color: KeychatColors.textPrimary,
+                      color: OrigilinkColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     l10n.setupCompleteSubtitle(widget.displayName),
-                    style: const TextStyle(fontSize: 15, color: KeychatColors.textSecondary),
+                    style: const TextStyle(fontSize: 15, color: OrigilinkColors.textSecondary),
                   ),
                 ],
               ),

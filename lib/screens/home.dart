@@ -3,28 +3,28 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/nav_bar.dart';
-import 'package:workspace/screens/add_friend.dart';
-import 'package:workspace/screens/chat_list.dart';
-import 'package:workspace/screens/chat_thread.dart';
-import 'package:workspace/screens/create_group.dart';
-import 'package:workspace/screens/create_talk_room.dart';
-import 'package:workspace/screens/edit_profile.dart';
-import 'package:workspace/screens/group_thread.dart';
-import 'package:workspace/screens/login.dart';
-import 'package:workspace/screens/logout.dart' show seedStorageKey;
-import 'package:workspace/screens/account_friends.dart';
-import 'package:workspace/screens/public_chat_list.dart';
-import 'package:workspace/screens/settings.dart';
-import 'package:workspace/services/account_sync.dart';
-import 'package:workspace/services/ratchet_key.dart';
-import 'package:workspace/src/rust/api/account.dart' as account_api;
-import 'package:workspace/src/rust/api/chat.dart' as chat_api;
-import 'package:workspace/src/rust/api/config.dart' as config_api;
-import 'package:workspace/src/rust/api/friends.dart' as friends_api;
-import 'package:workspace/src/rust/api/groups.dart' as groups_api;
-import 'package:workspace/src/rust/api/sync.dart' as sync_api;
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/nav_bar.dart';
+import 'package:origilink/screens/add_friend.dart';
+import 'package:origilink/screens/chat_list.dart';
+import 'package:origilink/screens/chat_thread.dart';
+import 'package:origilink/screens/create_group.dart';
+import 'package:origilink/screens/create_talk_room.dart';
+import 'package:origilink/screens/edit_profile.dart';
+import 'package:origilink/screens/group_thread.dart';
+import 'package:origilink/screens/login.dart';
+import 'package:origilink/screens/logout.dart' show seedStorageKey;
+import 'package:origilink/screens/account_friends.dart';
+import 'package:origilink/screens/public_chat_list.dart';
+import 'package:origilink/screens/settings.dart';
+import 'package:origilink/services/account_sync.dart';
+import 'package:origilink/services/ratchet_key.dart';
+import 'package:origilink/src/rust/api/account.dart' as account_api;
+import 'package:origilink/src/rust/api/chat.dart' as chat_api;
+import 'package:origilink/src/rust/api/config.dart' as config_api;
+import 'package:origilink/src/rust/api/friends.dart' as friends_api;
+import 'package:origilink/src/rust/api/groups.dart' as groups_api;
+import 'package:origilink/src/rust/api/sync.dart' as sync_api;
 
 /// Home screen shown after profile setup. Hosts the three main sections of
 /// the app behind a bottom navigation bar: Profile & Friends, Talk, and
@@ -503,7 +503,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     ];
 
     return Scaffold(
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -519,7 +519,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ],
         ),
       ),
-      bottomNavigationBar: KeychatNavBar(
+      bottomNavigationBar: OrigilinkNavBar(
         selectedIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
         talkUnreadCount: _talkUnreadTotal,
@@ -557,7 +557,7 @@ class _HomeTopBar extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final choice = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -636,7 +636,7 @@ class _HomeTopBar extends StatelessWidget {
         child: Badge(
           isLabelVisible: badgeCount > 0,
           label: Text('$badgeCount'),
-          child: Icon(icon, color: KeychatColors.textSecondary),
+          child: Icon(icon, color: OrigilinkColors.textSecondary),
         ),
       ),
     );

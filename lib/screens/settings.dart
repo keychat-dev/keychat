@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/languages.dart';
-import 'package:workspace/screens/logout.dart';
-import 'package:workspace/screens/edit_profile.dart';
-import 'package:workspace/screens/login.dart';
-import 'package:workspace/screens/relay_settings.dart';
-import 'package:workspace/screens/attachment_server_settings.dart';
-import 'package:workspace/src/rust/api/account.dart' as account_api;
-import 'package:workspace/src/rust/api/sync.dart' as sync_api;
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/languages.dart';
+import 'package:origilink/screens/logout.dart';
+import 'package:origilink/screens/edit_profile.dart';
+import 'package:origilink/screens/login.dart';
+import 'package:origilink/screens/relay_settings.dart';
+import 'package:origilink/screens/attachment_server_settings.dart';
+import 'package:origilink/src/rust/api/account.dart' as account_api;
+import 'package:origilink/src/rust/api/sync.dart' as sync_api;
 
 /// Settings menu reachable from the top-right gear icon on Home. Links to
 /// the profile edit screen and relay configuration.
@@ -60,7 +60,7 @@ class SettingsScreen extends StatelessWidget {
   void _openLicensePage(BuildContext context) {
     showLicensePage(
       context: context,
-      applicationName: 'KeyChat',
+      applicationName: 'Origilink',
       applicationVersion: '1.0.0',
     );
   }
@@ -72,7 +72,7 @@ class SettingsScreen extends StatelessWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: KeychatColors.background,
+          backgroundColor: OrigilinkColors.background,
           title: Text(l10n.settingsLanguage),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -81,7 +81,7 @@ class SettingsScreen extends StatelessWidget {
                 ListTile(
                   title: Text(languageNames[locale.languageCode] ?? locale.languageCode.toUpperCase()),
                   trailing: locale.languageCode == currentCode
-                      ? const Icon(Icons.check, color: KeychatColors.primaryDark)
+                      ? const Icon(Icons.check, color: OrigilinkColors.primaryDark)
                       : null,
                   onTap: () => Navigator.of(dialogContext).pop(locale),
                 ),
@@ -98,50 +98,50 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       appBar: AppBar(
-        backgroundColor: KeychatColors.background,
+        backgroundColor: OrigilinkColors.background,
         elevation: 0,
-        foregroundColor: KeychatColors.textPrimary,
+        foregroundColor: OrigilinkColors.textPrimary,
         title: Text(l10n.settingsTitle),
       ),
       body: SafeArea(
         child: ListView(
           children: [
             ListTile(
-              leading: const Icon(Icons.person_outline, color: KeychatColors.textSecondary),
+              leading: const Icon(Icons.person_outline, color: OrigilinkColors.textSecondary),
               title: Text(l10n.settingsProfile),
-              trailing: const Icon(Icons.chevron_right, color: KeychatColors.textSecondary),
+              trailing: const Icon(Icons.chevron_right, color: OrigilinkColors.textSecondary),
               onTap: () => _openEditProfile(context),
             ),
             ListTile(
-              leading: const Icon(Icons.dns_outlined, color: KeychatColors.textSecondary),
+              leading: const Icon(Icons.dns_outlined, color: OrigilinkColors.textSecondary),
               title: Text(l10n.settingsRelay),
-              trailing: const Icon(Icons.chevron_right, color: KeychatColors.textSecondary),
+              trailing: const Icon(Icons.chevron_right, color: OrigilinkColors.textSecondary),
               onTap: () => _openRelaySettings(context),
             ),
             ListTile(
-              leading: const Icon(Icons.cloud_upload_outlined, color: KeychatColors.textSecondary),
+              leading: const Icon(Icons.cloud_upload_outlined, color: OrigilinkColors.textSecondary),
               title: Text(l10n.settingsAttachmentServer),
-              trailing: const Icon(Icons.chevron_right, color: KeychatColors.textSecondary),
+              trailing: const Icon(Icons.chevron_right, color: OrigilinkColors.textSecondary),
               onTap: () => _openAttachmentServerSettings(context),
             ),
             ListTile(
-              leading: const Icon(Icons.translate, color: KeychatColors.textSecondary),
+              leading: const Icon(Icons.translate, color: OrigilinkColors.textSecondary),
               title: Text(l10n.settingsLanguage),
-              trailing: const Icon(Icons.chevron_right, color: KeychatColors.textSecondary),
+              trailing: const Icon(Icons.chevron_right, color: OrigilinkColors.textSecondary),
               onTap: () => _openLanguagePicker(context),
             ),
             ListTile(
-              leading: const Icon(Icons.manage_accounts_outlined, color: KeychatColors.textSecondary),
+              leading: const Icon(Icons.manage_accounts_outlined, color: OrigilinkColors.textSecondary),
               title: Text(l10n.settingsAccount),
-              trailing: const Icon(Icons.chevron_right, color: KeychatColors.textSecondary),
+              trailing: const Icon(Icons.chevron_right, color: OrigilinkColors.textSecondary),
               onTap: () => _openAccountSettings(context),
             ),
             ListTile(
-              leading: const Icon(Icons.description_outlined, color: KeychatColors.textSecondary),
+              leading: const Icon(Icons.description_outlined, color: OrigilinkColors.textSecondary),
               title: Text(l10n.settingsLicenses),
-              trailing: const Icon(Icons.chevron_right, color: KeychatColors.textSecondary),
+              trailing: const Icon(Icons.chevron_right, color: OrigilinkColors.textSecondary),
               onTap: () => _openLicensePage(context),
             ),
           ],

@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:workspace/l10n/app_localizations.dart';
-import 'package:workspace/screens/login.dart';
-import 'package:workspace/screens/logout.dart' show seedStorageKey;
-import 'package:workspace/services/ratchet_key.dart';
-import 'package:workspace/src/rust/api/relay.dart' as relay_api;
-import 'package:workspace/src/rust/api/sync.dart' as sync_api;
+import 'package:origilink/l10n/app_localizations.dart';
+import 'package:origilink/screens/login.dart';
+import 'package:origilink/screens/logout.dart' show seedStorageKey;
+import 'package:origilink/services/ratchet_key.dart';
+import 'package:origilink/src/rust/api/relay.dart' as relay_api;
+import 'package:origilink/src/rust/api/sync.dart' as sync_api;
 
 /// Shows pending incoming friend requests (sent to any of our still-active
 /// invites) and lets the user accept or reject each one.
@@ -112,11 +112,11 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       appBar: AppBar(
-        backgroundColor: KeychatColors.background,
+        backgroundColor: OrigilinkColors.background,
         elevation: 0,
-        foregroundColor: KeychatColors.textPrimary,
+        foregroundColor: OrigilinkColors.textPrimary,
         title: Text(l10n.friendRequestsTitle),
       ),
       body: _loading
@@ -133,7 +133,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
                             child: Text(
                               l10n.noFriendRequests,
                               style: const TextStyle(
-                                color: KeychatColors.textSecondary,
+                                color: OrigilinkColors.textSecondary,
                               ),
                             ),
                           ),
@@ -150,7 +150,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: KeychatColors.surface,
+                            color: OrigilinkColors.surface,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Column(
@@ -168,7 +168,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
                                 Text(
                                   request.statusMessage,
                                   style: const TextStyle(
-                                    color: KeychatColors.textSecondary,
+                                    color: OrigilinkColors.textSecondary,
                                     fontSize: 13,
                                   ),
                                 ),
@@ -195,7 +195,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
                                           : () => _accept(request),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor:
-                                            KeychatColors.primaryDark,
+                                            OrigilinkColors.primaryDark,
                                         foregroundColor: Colors.white,
                                       ),
                                       child: Text(l10n.acceptButton),

@@ -9,7 +9,7 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
-  String get appTitle => 'KeyChat';
+  String get appTitle => 'Origilink';
 
   @override
   String get authChoiceSubtitle => '新規アカウントを作成するか、既存のアカウントを復元してください';
@@ -152,13 +152,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get revokeInvite => '無効化';
 
   @override
-  String get scanPrompt => 'KeyChatのQRコードにカメラを向けてください';
+  String get scanPrompt => 'OrigilinkのQRコードにカメラを向けてください';
 
   @override
   String get pickFromGallery => 'ギャラリーから選択';
 
   @override
-  String get scanInvalidQr => 'KeyChatの招待コードとして読み取れませんでした';
+  String get scanInvalidQr => 'Origilinkの招待コードとして読み取れませんでした';
 
   @override
   String get sendRequestConfirmTitle => 'フレンド申請を送りますか?';

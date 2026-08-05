@@ -2,10 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:workspace/l10n/app_localizations.dart';
+import 'package:origilink/l10n/app_localizations.dart';
 
 /// Greige-based color palette.
-class KeychatColors {
+class OrigilinkColors {
   static const background = Color(0xFFF1ECE4);
   static const surface = Color(0xFFE7DFD2);
   static const primary = Color(0xFFA6957D);
@@ -15,7 +15,7 @@ class KeychatColors {
 }
 
 /// Profile (display name / status message) setup screen shown before account creation.
-/// KeyChat has no concept of a fixed account key, so this only decides
+/// Origilink has no concept of a fixed account key, so this only decides
 /// the display profile used across the app.
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({super.key, this.onContinue});
@@ -63,7 +63,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      backgroundColor: KeychatColors.background,
+      backgroundColor: OrigilinkColors.background,
       body: SafeArea(
         child: Stack(
           children: [
@@ -82,7 +82,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.w600,
-                          color: KeychatColors.textPrimary,
+                          color: OrigilinkColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -90,7 +90,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         l10n.profileSetupSubtitle,
                         style: TextStyle(
                           fontSize: 14,
-                          color: KeychatColors.textSecondary,
+                          color: OrigilinkColors.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 40),
@@ -113,7 +113,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         child: ElevatedButton(
                           onPressed: _handleContinue,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: KeychatColors.primaryDark,
+                            backgroundColor: OrigilinkColors.primaryDark,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -136,7 +136,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 left: 8,
                 child: IconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.arrow_back, color: KeychatColors.textSecondary),
+                  icon: const Icon(Icons.arrow_back, color: OrigilinkColors.textSecondary),
                 ),
               ),
           ],
@@ -157,7 +157,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             height: 88,
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: KeychatColors.surface,
+              color: OrigilinkColors.surface,
               borderRadius: BorderRadius.circular(24),
             ),
             child: avatarPath != null
@@ -165,7 +165,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 : const Icon(
                     Icons.photo_outlined,
                     size: 32,
-                    color: KeychatColors.textSecondary,
+                    color: OrigilinkColors.textSecondary,
                   ),
           ),
           Positioned(
@@ -177,7 +177,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.45),
                 shape: BoxShape.circle,
-                border: Border.all(color: KeychatColors.background, width: 2),
+                border: Border.all(color: OrigilinkColors.background, width: 2),
               ),
               child: const Icon(Icons.photo_camera_outlined, size: 16, color: Colors.white),
             ),
@@ -191,15 +191,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     return InputDecoration(
       labelText: label,
       filled: true,
-      fillColor: KeychatColors.surface,
-      labelStyle: TextStyle(color: KeychatColors.textSecondary),
+      fillColor: OrigilinkColors.surface,
+      labelStyle: TextStyle(color: OrigilinkColors.textSecondary),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: KeychatColors.primary, width: 1.5),
+        borderSide: BorderSide(color: OrigilinkColors.primary, width: 1.5),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
