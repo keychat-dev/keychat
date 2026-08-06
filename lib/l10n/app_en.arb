@@ -1,6 +1,6 @@
 {
   "@@locale": "en",
-  "appTitle": "Origilink",
+  "appTitle": "OrigiLink",
   "authChoiceSubtitle": "Create a new account or restore an existing one",
   "signUpButton": "Sign up",
   "logInButton": "Log in",
@@ -16,7 +16,7 @@
   "continueButton": "Continue",
   "confirmButton": "Confirm",
   "setupCompleteTitle": "All set!",
-  "setupCompleteSubtitle": "Welcome to Origilink, {displayName}",
+  "setupCompleteSubtitle": "Welcome to OrigiLink, {displayName}",
   "@setupCompleteSubtitle": {
     "placeholders": {
       "displayName": {
@@ -74,9 +74,9 @@
     }
   },
   "revokeInvite": "Revoke",
-  "scanPrompt": "Point your camera at a Origilink QR code",
+  "scanPrompt": "Point your camera at an OrigiLink QR code",
   "pickFromGallery": "Pick from gallery",
-  "scanInvalidQr": "This isn't a valid Origilink invite code",
+  "scanInvalidQr": "This isn't a valid OrigiLink invite code",
   "sendRequestConfirmTitle": "Send friend request?",
   "sendRequestConfirmBody": "Send your profile to {name} and request to add them?",
   "@sendRequestConfirmBody": {

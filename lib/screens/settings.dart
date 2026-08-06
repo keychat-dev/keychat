@@ -60,7 +60,7 @@ class SettingsScreen extends StatelessWidget {
   void _openLicensePage(BuildContext context) {
     showLicensePage(
       context: context,
-      applicationName: 'Origilink',
+      applicationName: 'OrigiLink',
       applicationVersion: '1.0.0',
     );
   }

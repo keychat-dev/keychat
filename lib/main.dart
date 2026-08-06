@@ -299,7 +299,7 @@ class _OrigilinkAppState extends State<OrigilinkApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Origilink',
+      title: 'OrigiLink',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: OrigilinkColors.primary),
         scaffoldBackgroundColor: OrigilinkColors.background,

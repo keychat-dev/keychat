@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'Origilink';
+  String get appTitle => 'OrigiLink';
 
   @override
   String get authChoiceSubtitle =>
@@ -62,7 +62,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String setupCompleteSubtitle(String displayName) {
-    return 'Welcome to Origilink, $displayName';
+    return 'Welcome to OrigiLink, $displayName';
   }
 
   @override
@@ -155,13 +155,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get revokeInvite => 'Revoke';
 
   @override
-  String get scanPrompt => 'Point your camera at a Origilink QR code';
+  String get scanPrompt => 'Point your camera at an OrigiLink QR code';
 
   @override
   String get pickFromGallery => 'Pick from gallery';
 
   @override
-  String get scanInvalidQr => 'This isn\'t a valid Origilink invite code';
+  String get scanInvalidQr => 'This isn\'t a valid OrigiLink invite code';
 
   @override
   String get sendRequestConfirmTitle => 'Send friend request?';

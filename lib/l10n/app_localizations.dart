@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
-  /// **'Origilink'**
+  /// **'OrigiLink'**
   String get appTitle;
 
   /// No description provided for @authChoiceSubtitle.
@@ -197,7 +197,7 @@ abstract class AppLocalizations {
   /// No description provided for @setupCompleteSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Welcome to Origilink, {displayName}'**
+  /// **'Welcome to OrigiLink, {displayName}'**
   String setupCompleteSubtitle(String displayName);
 
   /// No description provided for @chatListWelcome.
@@ -365,7 +365,7 @@ abstract class AppLocalizations {
   /// No description provided for @scanPrompt.
   ///
   /// In en, this message translates to:
-  /// **'Point your camera at a Origilink QR code'**
+  /// **'Point your camera at an OrigiLink QR code'**
   String get scanPrompt;
 
   /// No description provided for @pickFromGallery.
@@ -377,7 +377,7 @@ abstract class AppLocalizations {
   /// No description provided for @scanInvalidQr.
   ///
   /// In en, this message translates to:
-  /// **'This isn\'t a valid Origilink invite code'**
+  /// **'This isn\'t a valid OrigiLink invite code'**
   String get scanInvalidQr;
 
   /// No description provided for @sendRequestConfirmTitle.

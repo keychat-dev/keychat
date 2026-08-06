@@ -1,4 +1,4 @@
-# Origilink
+# OrigiLink
 
 A Nostr-based chat app built with Flutter (UI) and Rust (key management, protocol logic, storage), connected via [flutter_rust_bridge](https://github.com/fzyzcjy/flutter_rust_bridge).
 
