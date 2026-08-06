@@ -64,3 +64,100 @@ pub(crate) fn derive_uid(mnemonic: &str) -> Result<String, String> {
 pub fn get_account_uid(mnemonic: String) -> Result<String, String> {
     derive_uid(&mnemonic)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TEST_MNEMONIC: &str =
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+
+    #[test]
+    fn generate_mnemonic_produces_a_valid_phrase() {
+        let phrase = generate_mnemonic().expect("generation should succeed");
+        assert!(validate_mnemonic(phrase).is_ok());
+    }
+
+    #[test]
+    fn generate_mnemonic_is_not_deterministic() {
+        let a = generate_mnemonic().unwrap();
+        let b = generate_mnemonic().unwrap();
+        assert_ne!(a, b, "two generated phrases should not collide");
+    }
+
+    #[test]
+    fn validate_mnemonic_rejects_garbage() {
+        assert!(validate_mnemonic("not a valid seed phrase at all".to_string()).is_err());
+    }
+
+    #[test]
+    fn validate_mnemonic_accepts_surrounding_whitespace() {
+        assert!(validate_mnemonic(format!("  {TEST_MNEMONIC}  ")).is_ok());
+    }
+
+    #[test]
+    fn derive_contact_keys_is_deterministic() {
+        let a = derive_contact_keys(TEST_MNEMONIC, 3).unwrap();
+        let b = derive_contact_keys(TEST_MNEMONIC, 3).unwrap();
+        assert_eq!(a.public_key(), b.public_key());
+    }
+
+    #[test]
+    fn derive_contact_keys_differ_across_accounts() {
+        let a = derive_contact_keys(TEST_MNEMONIC, 0).unwrap();
+        let b = derive_contact_keys(TEST_MNEMONIC, 1).unwrap();
+        assert_ne!(
+            a.public_key(),
+            b.public_key(),
+            "each relationship must get an unlinkable key"
+        );
+    }
+
+    #[test]
+    fn derive_contact_keys_differ_across_mnemonics() {
+        let other_mnemonic = generate_mnemonic().unwrap();
+        let a = derive_contact_keys(TEST_MNEMONIC, 0).unwrap();
+        let b = derive_contact_keys(&other_mnemonic, 0).unwrap();
+        assert_ne!(a.public_key(), b.public_key());
+    }
+
+    #[test]
+    fn derive_keys_matches_account_zero() {
+        let a = derive_keys(TEST_MNEMONIC).unwrap();
+        let b = derive_contact_keys(TEST_MNEMONIC, 0).unwrap();
+        assert_eq!(a.public_key(), b.public_key());
+    }
+
+    #[test]
+    fn derive_uid_is_deterministic_and_stable_across_relationships() {
+        let uid_a = derive_uid(TEST_MNEMONIC).unwrap();
+        let uid_b = derive_uid(TEST_MNEMONIC).unwrap();
+        assert_eq!(uid_a, uid_b);
+
+        // The UID must never collide with (or be derivable from) any
+        // ordinary relationship-index pubkey, since it's shown to every
+        // friend regardless of which relationship key they were added
+        // under.
+        let contact_key_hex = derive_contact_keys(TEST_MNEMONIC, 0)
+            .unwrap()
+            .public_key()
+            .to_hex();
+        assert_ne!(uid_a, contact_key_hex);
+    }
+
+    #[test]
+    fn derive_uid_differs_across_mnemonics() {
+        let other_mnemonic = generate_mnemonic().unwrap();
+        let uid_a = derive_uid(TEST_MNEMONIC).unwrap();
+        let uid_b = derive_uid(&other_mnemonic).unwrap();
+        assert_ne!(uid_a, uid_b);
+    }
+
+    #[test]
+    fn get_account_uid_matches_derive_uid() {
+        assert_eq!(
+            get_account_uid(TEST_MNEMONIC.to_string()).unwrap(),
+            derive_uid(TEST_MNEMONIC).unwrap()
+        );
+    }
+}

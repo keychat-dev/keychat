@@ -441,3 +441,86 @@ pub fn download_chat_attachment(
     std::fs::write(&cache_path, &plaintext).map_err(|e| e.to_string())?;
     Ok(cache_path.to_string_lossy().to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn encrypt_decrypt_round_trips() {
+        let plaintext = b"a chat attachment's file bytes".to_vec();
+        let (key_and_nonce, ciphertext) = encrypt_attachment_bytes(&plaintext);
+        let decrypted = decrypt_attachment_bytes(&key_and_nonce, &ciphertext).unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn encrypt_decrypt_round_trips_on_empty_input() {
+        let plaintext: Vec<u8> = vec![];
+        let (key_and_nonce, ciphertext) = encrypt_attachment_bytes(&plaintext);
+        let decrypted = decrypt_attachment_bytes(&key_and_nonce, &ciphertext).unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn each_encryption_uses_a_fresh_key_and_nonce() {
+        let plaintext = b"same plaintext, twice".to_vec();
+        let (key_and_nonce_a, ciphertext_a) = encrypt_attachment_bytes(&plaintext);
+        let (key_and_nonce_b, ciphertext_b) = encrypt_attachment_bytes(&plaintext);
+        assert_ne!(key_and_nonce_a, key_and_nonce_b);
+        assert_ne!(ciphertext_a, ciphertext_b);
+    }
+
+    #[test]
+    fn decrypt_rejects_wrong_key() {
+        let plaintext = b"secret file bytes".to_vec();
+        let (_, ciphertext) = encrypt_attachment_bytes(&plaintext);
+        let (wrong_key_and_nonce, _) = encrypt_attachment_bytes(b"unrelated");
+        assert!(decrypt_attachment_bytes(&wrong_key_and_nonce, &ciphertext).is_err());
+    }
+
+    #[test]
+    fn decrypt_rejects_tampered_ciphertext() {
+        let plaintext = b"secret file bytes".to_vec();
+        let (key_and_nonce, mut ciphertext) = encrypt_attachment_bytes(&plaintext);
+        let last = ciphertext.len() - 1;
+        ciphertext[last] ^= 0xFF;
+        assert!(decrypt_attachment_bytes(&key_and_nonce, &ciphertext).is_err());
+    }
+
+    #[test]
+    fn decrypt_rejects_malformed_key_length() {
+        let plaintext = b"secret file bytes".to_vec();
+        let (_, ciphertext) = encrypt_attachment_bytes(&plaintext);
+        assert!(decrypt_attachment_bytes(&[0u8; 10], &ciphertext).is_err());
+    }
+
+    #[test]
+    fn load_upload_servers_falls_back_to_defaults_when_unconfigured() {
+        let dir = std::env::temp_dir().join(format!(
+            "origilink-attachment-test-{}",
+            nostr::Keys::generate().public_key().to_hex()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let list = load_upload_servers(dir.to_string_lossy().to_string());
+        assert_eq!(list.urls, default_upload_server_urls());
+        assert_eq!(list.default_url, default_upload_server_urls()[0]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn save_and_load_upload_servers_round_trips() {
+        let dir = std::env::temp_dir().join(format!(
+            "origilink-attachment-test-{}",
+            nostr::Keys::generate().public_key().to_hex()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let dir_str = dir.to_string_lossy().to_string();
+        let urls = vec!["https://a.example".to_string(), "https://b.example".to_string()];
+        save_upload_servers(dir_str.clone(), urls.clone(), urls[1].clone()).unwrap();
+        let list = load_upload_servers(dir_str);
+        assert_eq!(list.urls, urls);
+        assert_eq!(list.default_url, urls[1]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+}
