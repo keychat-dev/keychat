@@ -1030,3 +1030,86 @@ pub(crate) fn store_received_group_message(
     )
     .ok()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TEST_MNEMONIC: &str =
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+
+    fn temp_storage_dir(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "origilink-groups-test-{tag}-{}",
+            Keys::generate().public_key().to_hex()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn load_groups_starts_empty() {
+        let dir = temp_storage_dir("empty");
+        assert!(load_groups(dir.to_string_lossy().to_string()).is_empty());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn save_and_load_groups_round_trips() {
+        let dir = temp_storage_dir("round-trip");
+        let dir_str = dir.to_string_lossy().to_string();
+        let group = Group {
+            id: "group-1".to_string(),
+            name: "Test Group".to_string(),
+            members: vec![GroupMember {
+                uid: "uid-1".to_string(),
+                display_name: "Alice".to_string(),
+                ..Default::default()
+            }],
+            created_at: 1_700_000_000,
+        };
+        save_groups(&dir_str, &[group.clone()]).unwrap();
+
+        let loaded = load_groups(dir_str);
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].id, group.id);
+        assert_eq!(loaded[0].name, group.name);
+        assert_eq!(loaded[0].members.len(), 1);
+        assert_eq!(loaded[0].members[0].uid, "uid-1");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn own_member_entry_is_deterministic_and_derives_a_routing_identity() {
+        let dir = temp_storage_dir("own-member");
+        let dir_str = dir.to_string_lossy().to_string();
+
+        let a = own_member_entry(TEST_MNEMONIC, &dir_str, None, "group-a").unwrap();
+        let b = own_member_entry(TEST_MNEMONIC, &dir_str, None, "group-a").unwrap();
+        assert_eq!(a.uid, b.uid);
+        assert_eq!(a.group_pubkey, b.group_pubkey);
+        assert!(a.group_pubkey.is_some(), "every member should get a per-group routing identity");
+        assert!(a.device_pubkey.is_none(), "no ratchet_key means no device identity yet");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn own_member_entry_uses_a_distinct_identity_per_group() {
+        let dir = temp_storage_dir("distinct-groups");
+        let dir_str = dir.to_string_lossy().to_string();
+
+        let a = own_member_entry(TEST_MNEMONIC, &dir_str, None, "group-a").unwrap();
+        let b = own_member_entry(TEST_MNEMONIC, &dir_str, None, "group-b").unwrap();
+        assert_ne!(
+            a.group_pubkey, b.group_pubkey,
+            "each group must use its own dedicated routing identity"
+        );
+        // The stable account UID doesn't change across groups, though —
+        // only the per-group routing pubkey does.
+        assert_eq!(a.uid, b.uid);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+}

@@ -1971,3 +1971,84 @@ async fn fetch_latest_backup_event(
     Ok(latest)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TEST_MNEMONIC: &str =
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+
+    fn temp_storage_dir(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "origilink-sync-test-{tag}-{}",
+            nostr::Keys::generate().public_key().to_hex()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn invite_qr_payload_round_trips() {
+        let dir = temp_storage_dir("qr-round-trip");
+        let dir_str = dir.to_string_lossy().to_string();
+        account::save_account(
+            dir_str.clone(),
+            "Alice".to_string(),
+            "hi".to_string(),
+            None,
+        )
+        .unwrap();
+
+        let json = build_invite_qr_payload(TEST_MNEMONIC.to_string(), dir_str, 7).unwrap();
+        let payload = parse_invite_qr_payload(json).unwrap();
+
+        assert_eq!(payload.display_name, "Alice");
+        assert_eq!(payload.status_message, "hi");
+        assert_eq!(
+            payload.pubkey,
+            derive_contact_keys(TEST_MNEMONIC, 7).unwrap().public_key().to_hex()
+        );
+        assert_eq!(payload.uid, derive_uid(TEST_MNEMONIC).unwrap());
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn invite_qr_payload_differs_per_account_index() {
+        let dir = temp_storage_dir("qr-per-index");
+        let dir_str = dir.to_string_lossy().to_string();
+        account::save_account(dir_str.clone(), "Bob".to_string(), String::new(), None).unwrap();
+
+        let a = parse_invite_qr_payload(
+            build_invite_qr_payload(TEST_MNEMONIC.to_string(), dir_str.clone(), 0).unwrap(),
+        )
+        .unwrap();
+        let b = parse_invite_qr_payload(
+            build_invite_qr_payload(TEST_MNEMONIC.to_string(), dir_str, 1).unwrap(),
+        )
+        .unwrap();
+
+        assert_ne!(a.pubkey, b.pubkey, "each invite must use an unlinkable relationship key");
+        assert_eq!(a.uid, b.uid, "the stable UID must not vary by invite");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn parse_invite_qr_payload_rejects_malformed_json() {
+        assert!(parse_invite_qr_payload("not json".to_string()).is_err());
+    }
+
+    #[test]
+    fn build_invite_qr_payload_fails_without_a_local_account() {
+        let dir = temp_storage_dir("no-account");
+        let result = build_invite_qr_payload(
+            TEST_MNEMONIC.to_string(),
+            dir.to_string_lossy().to_string(),
+            0,
+        );
+        assert!(result.is_err());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+}
+

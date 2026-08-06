@@ -1102,3 +1102,87 @@ pub fn load_unread_counts(
         })
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_storage_dir(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "origilink-chat-test-{tag}-{}",
+            nostr::Keys::generate().public_key().to_hex()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn history_complete_starts_empty_and_is_idempotent() {
+        let dir = temp_storage_dir("history-complete");
+        let dir_str = dir.to_string_lossy().to_string();
+        assert!(load_history_complete(&dir_str).is_empty());
+
+        mark_history_complete(&dir_str, "friend-a");
+        mark_history_complete(&dir_str, "friend-a");
+        mark_history_complete(&dir_str, "friend-b");
+        let complete = load_history_complete(&dir_str);
+        assert_eq!(complete, vec!["friend-a".to_string(), "friend-b".to_string()]);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn held_messages_starts_empty_and_is_idempotent() {
+        let dir = temp_storage_dir("held");
+        let dir_str = dir.to_string_lossy().to_string();
+        assert!(load_held(&dir_str).is_empty());
+
+        hold_message(&dir_str, "msg-1");
+        hold_message(&dir_str, "msg-1");
+        let held = load_held(&dir_str);
+        assert_eq!(held, vec!["msg-1".to_string()]);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn started_snapshot_round_trips() {
+        let dir = temp_storage_dir("started");
+        let dir_str = dir.to_string_lossy().to_string();
+        assert!(started_snapshot(&dir_str).is_empty());
+
+        set_started_snapshot(&dir_str, vec!["friend-a".to_string(), "friend-b".to_string()]).unwrap();
+        assert_eq!(
+            started_snapshot(&dir_str),
+            vec!["friend-a".to_string(), "friend-b".to_string()]
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn mark_chat_started_is_idempotent() {
+        let dir = temp_storage_dir("mark-started");
+        let dir_str = dir.to_string_lossy().to_string();
+
+        mark_chat_started(dir_str.clone(), "friend-a".to_string()).unwrap();
+        mark_chat_started(dir_str.clone(), "friend-a".to_string()).unwrap();
+        assert_eq!(started_snapshot(&dir_str), vec!["friend-a".to_string()]);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn read_state_snapshot_round_trips() {
+        let dir = temp_storage_dir("read-state");
+        let dir_str = dir.to_string_lossy().to_string();
+        assert!(read_state_snapshot(&dir_str).is_empty());
+
+        let mut state = HashMap::new();
+        state.insert("friend-a".to_string(), 1_700_000_000i64);
+        set_read_state_snapshot(&dir_str, state.clone()).unwrap();
+        assert_eq!(read_state_snapshot(&dir_str), state);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+}
