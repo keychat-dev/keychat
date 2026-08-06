@@ -17,7 +17,6 @@ import 'api/keys.dart';
 import 'api/link_preview.dart';
 import 'api/ratchet.dart';
 import 'api/relay.dart';
-import 'api/simple.dart';
 import 'api/sync.dart';
 import 'dart:async';
 import 'dart:convert';
