@@ -95,20 +95,41 @@ async fn handle_for(url: &str) -> Option<mpsc::UnboundedSender<Command>> {
     }
 }
 
+/// The one platform-specific step in this module: everything else here
+/// (command multiplexing, subscription bookkeeping, the `request`/
+/// `publish`/`subscribe` API) only assumes a `Sink`+`Stream` of text/ping/
+/// pong/close frames, not that it came from a raw TCP+TLS WebSocket
+/// specifically. A non-native target (e.g. wasm32, which can't open its own
+/// TCP socket and must go through the browser's WebSocket object instead)
+/// would only need to replace this one function with something yielding
+/// the same `(write, read)` pair — everything downstream is unaffected.
+async fn connect_native(
+    url: &str,
+) -> Result<
+    (
+        impl SinkExt<Message, Error = tokio_tungstenite::tungstenite::Error>,
+        impl StreamExt<Item = Result<Message, tokio_tungstenite::tungstenite::Error>>,
+    ),
+    (),
+> {
+    let Ok(Ok((ws, _))) = tokio::time::timeout(CONNECT_TIMEOUT, tokio_tungstenite::connect_async(url)).await
+    else {
+        return Err(());
+    };
+    Ok(ws.split())
+}
+
 /// Owns one relay's WebSocket for as long as it stays connected: writes
 /// outgoing commands as they arrive and fans incoming EVENT/EOSE messages
 /// out to whichever subscription they belong to. Removes itself from the
 /// pool on disconnect so the next use reconnects from scratch.
 async fn run_connection(url: String, mut rx: mpsc::UnboundedReceiver<Command>, ready: watch::Sender<Option<bool>>) {
-    let Ok(Ok((ws, _))) =
-        tokio::time::timeout(CONNECT_TIMEOUT, tokio_tungstenite::connect_async(&url)).await
-    else {
+    let Ok((mut write, mut read)) = connect_native(&url).await else {
         pool().lock().unwrap().remove(&url);
         let _ = ready.send(Some(false));
         return;
     };
     let _ = ready.send(Some(true));
-    let (mut write, mut read) = ws.split();
     let mut subs: HashMap<String, mpsc::UnboundedSender<PoolEvent>> = HashMap::new();
 
     loop {
